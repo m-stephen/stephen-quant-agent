@@ -1,0 +1,8 @@
+{
+  "require_point_in_time": true,
+  "require_snapshot_hash": true,
+  "require_trial_counter": true,
+  "require_feature_time_before_label": true,
+  "default_embargo_days": 5,
+  "notes": "V1.0 integrity defaults. CPCV/DSR/PBO are planned for later milestones."
+}
