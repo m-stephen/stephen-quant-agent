@@ -132,6 +132,22 @@ stephen-quant qmt-export `
 `--stocks` with `--stock-file path/to/stocks.txt` or `--sector "沪深A股"`. The exporter calls only
 `xtdata.get_local_data`; it does not download history, start QMT, or connect to a trading account.
 
+Some broker-wrapped QMT terminals cannot start the `xtquant` quote service. V1.8.2 provides a
+version-locked, read-only fallback for explicit A-share instruments in `SH/SZ/BJ/86400/*.DAT`:
+
+```powershell
+stephen-quant qmt-dat-export `
+  --datadir "E:\path\to\QMT\datadir" `
+  --output-csv "data\raw\qmt-daily-none.csv" `
+  --start 2018-01-01 --end 2025-12-31 `
+  --stocks "000001.SZ,000002.SZ,600000.SH"
+```
+
+The fallback supports unadjusted daily bars only. It normalizes stock volume from lots to shares,
+keeps amount in CNY, validates the binary layout and bar semantics, and writes
+`qmt-daily-none.csv.manifest.json` with raw source hashes and the parser schema hash. Minute, tick,
+index, ETF, bond, futures, and corporate-action parsing remain out of scope.
+
 ## Quick start
 
 ```bash

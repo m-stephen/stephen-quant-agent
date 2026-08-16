@@ -17,7 +17,11 @@ from stephen_quant.factors import build_seed_registry
 from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.integrity.snapshot import build_file_snapshot_manifest
-from stephen_quant.qmt import build_qmt_factor_observations, load_qmt_daily_csv
+from stephen_quant.qmt import (
+    build_qmt_factor_observations,
+    load_qmt_daily_csv,
+    verify_qmt_dat_manifest,
+)
 
 WORKFLOW_VERSION = "qmt-backtest-workflow-1.0.0"
 
@@ -62,9 +66,11 @@ class QmtBacktestRun:
     data_audit_sha256: str
     report_json_sha256: str
     report_markdown_sha256: str
+    provenance_manifest_path: Path | None = None
+    provenance_manifest_sha256: str | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "workflow_version": self.workflow_version,
             "snapshot_id": self.snapshot_id,
             "experiment_id": self.experiment_id,
@@ -77,6 +83,10 @@ class QmtBacktestRun:
             "report_markdown_sha256": self.report_markdown_sha256,
             "metrics": asdict(self.report.metrics),
         }
+        if self.provenance_manifest_path is not None:
+            payload["provenance_manifest_path"] = str(self.provenance_manifest_path)
+            payload["provenance_manifest_sha256"] = self.provenance_manifest_sha256
+        return payload
 
 
 def _validate_split_dates(config: QmtBacktestRunConfig) -> None:
@@ -171,6 +181,10 @@ def run_qmt_backtest_workflow(
                 f"experiment snapshot {expected_snapshot} does not match source {snapshot_id}"
             )
         dataset = load_qmt_daily_csv(source, adjustment=config.adjustment)
+        provenance_path = Path(f"{Path(source).expanduser().resolve()}.manifest.json")
+        provenance: tuple[Path, str] | None = None
+        if provenance_path.is_file():
+            provenance = verify_qmt_dat_manifest(source, adjustment=config.adjustment)
         definition = build_seed_registry().get(config.factor_id, config.factor_version)
         observations = build_qmt_factor_observations(
             dataset.bars,
@@ -196,11 +210,13 @@ def run_qmt_backtest_workflow(
         artifacts = write_baseline_report(report, trial_output)
         audit_path = trial_output / "qmt-data-audit.json"
         audit_sha256 = _write_audit(audit_path, dataset.audit.to_json())
-        artifact_specs = (
+        artifact_specs = [
             ("qmt_data_audit", audit_path, audit_sha256),
             ("baseline_report_json", artifacts.json_path, artifacts.json_sha256),
             ("baseline_report_markdown", artifacts.markdown_path, artifacts.markdown_sha256),
-        )
+        ]
+        if provenance is not None:
+            artifact_specs.append(("qmt_dat_provenance_manifest", *provenance))
         for kind, path, digest in artifact_specs:
             registry.register_artifact(
                 trial_id=trial_id,
@@ -220,6 +236,8 @@ def run_qmt_backtest_workflow(
             data_audit_sha256=audit_sha256,
             report_json_sha256=artifacts.json_sha256,
             report_markdown_sha256=artifacts.markdown_sha256,
+            provenance_manifest_path=provenance[0] if provenance else None,
+            provenance_manifest_sha256=provenance[1] if provenance else None,
         )
         registry.record_trial_result(
             trial_id,
