@@ -148,6 +148,28 @@ keeps amount in CNY, validates the binary layout and bar semantics, and writes
 `qmt-daily-none.csv.manifest.json` with raw source hashes and the parser schema hash. Minute, tick,
 index, ETF, bond, futures, and corporate-action parsing remain out of scope.
 
+On the `data-test` branch, run the complete engineering validation in one command:
+
+```powershell
+stephen-quant --db artifacts\qmt-dat-validation.sqlite3 qmt-dat-validate `
+  --datadir "E:\path\to\QMT\datadir" `
+  --output "reports\qmt-dat-validation" `
+  --data-start 2020-01-01 --data-end 2025-12-31 `
+  --stock-file "private\validation-universe.txt" `
+  --factor ret_60 `
+  --train-start 2020-01-01 --train-end 2021-12-31 `
+  --validation-start 2022-01-01 --validation-end 2023-12-31 `
+  --test-start 2024-01-01 --test-end 2025-12-01 `
+  --top-k 10 --rebalance-every 5 `
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 --impact-bps 10
+```
+
+The command creates the canonical CSV and raw-source manifest, freezes the CSV snapshot, registers
+the Trial before evaluation, executes the net-of-cost backtest, and writes
+`validation-summary.json` plus `validation-summary.md`. A successful direct-DAT run is deliberately
+reported as **engineering validated / research claim ineligible** until adjusted prices and a
+point-in-time historical universe are available. See `docs/V1_8_3_SPEC.md`.
+
 ## Quick start
 
 ```bash

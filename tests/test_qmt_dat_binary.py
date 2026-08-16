@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
+import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from stephen_quant.baseline import BaselineConfig
-from stephen_quant.cli import build_parser
+from stephen_quant.cli import build_parser, main
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.qmt import (
     DatExportConfig,
@@ -282,3 +283,91 @@ def test_qmt_dat_cli_contract(tmp_path: Path) -> None:
 
     assert args.command == "qmt-dat-export"
     assert args.adjustment == "none"
+
+
+def test_qmt_dat_validate_cli_runs_auditable_engineering_pilot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    dates: list[date] = []
+    current = date(2025, 1, 2)
+    while len(dates) < 30:
+        if current.weekday() < 5:
+            dates.append(current)
+        current += timedelta(days=1)
+    datadir = tmp_path / "datadir"
+    for instrument, offset in (("600000.SH", 0.0), ("000001.SZ", 1.0)):
+        _write_dat(
+            datadir,
+            instrument,
+            [
+                _record(
+                    day,
+                    open_=10 + offset + index / 100,
+                    high=10.5 + offset + index / 100,
+                    low=9.8 + offset + index / 100,
+                    close=10.2 + offset + index / 100,
+                    amount=12_550_000 + index * 10_000,
+                )
+                for index, day in enumerate(dates)
+            ],
+        )
+    output = tmp_path / "validation"
+    database = tmp_path / "registry.sqlite3"
+    argv = [
+        "stephen-quant",
+        "--db",
+        str(database),
+        "qmt-dat-validate",
+        "--datadir",
+        str(datadir),
+        "--output",
+        str(output),
+        "--data-start",
+        dates[0].isoformat(),
+        "--data-end",
+        dates[-1].isoformat(),
+        "--stocks",
+        "600000.SH,000001.SZ",
+        "--factor",
+        "ret_5",
+        "--train-start",
+        "2023-01-01",
+        "--train-end",
+        "2023-12-31",
+        "--validation-start",
+        "2024-01-01",
+        "--validation-end",
+        "2024-12-31",
+        "--test-start",
+        dates[10].isoformat(),
+        "--test-end",
+        dates[-2].isoformat(),
+        "--adv-lookback",
+        "5",
+        "--top-k",
+        "1",
+        "--max-position-weight",
+        "1",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+
+    main()
+
+    result = json.loads(capsys.readouterr().out)
+    summary = json.loads((output / "validation-summary.json").read_text(encoding="utf-8"))
+    registry = ExperimentRegistry(database)
+    assert result["engineering_validated"] is True
+    assert result["research_claim_eligible"] is False
+    assert summary["status"] == "engineering_validated"
+    assert all(gate["passed"] for gate in summary["gates"])
+    assert summary["data"]["instruments"] == 2
+    assert summary["lineage"]["trial_id"] == result["backtest"]["trial_id"]
+    assert registry.artifact_count(result["backtest"]["trial_id"]) == 6
+    assert "Research-claim eligibility: **NO**" in (
+        output / "validation-summary.md"
+    ).read_text(encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="validation output already exists"):
+        main()
