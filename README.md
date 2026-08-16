@@ -326,6 +326,23 @@ The frozen research gate requires mean path RankIC at least 0.02, at least 8/10 
 clean CPCV hygiene, and PBO no greater than 0.20. See `docs/V1_8_10_SPEC.md` and the frozen
 research decision in `docs/V1_8_10_RESULT.md`.
 
+V1.8.11 builds a point-in-time daily investable universe instead of carrying a present-day or
+training-end list backward through history:
+
+```powershell
+stephen-quant qd-dynamic-universe `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --fundamental-dir "E:\QD\基本数据\基本面指标" `
+  --research-start 2022-01-04 --research-end 2024-12-31 `
+  --top-n 300 --minimum-history-sessions 120 `
+  --liquidity-lookback 20 --minimum-mean-amount 20000000 `
+  --output "artifacts\qd-v1.8.11-universe"
+```
+
+Each close produces a next-session membership list plus entries, exits, turnover, and explicit
+exclusion counts. Same-day fundamental metadata is mandatory; future metadata is never
+backfilled. See `docs/V1_8_11_SPEC.md`.
+
 ## Quick start
 
 ```bash

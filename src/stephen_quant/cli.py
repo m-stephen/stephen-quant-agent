@@ -12,15 +12,18 @@ from .integrity.registry import ExperimentRegistry
 from .integrity.snapshot import build_snapshot_manifest
 from .qmt import (
     DatExportConfig,
+    DynamicUniverseConfig,
     QmtDatError,
     XtquantExportConfig,
     XtquantExportError,
+    build_dynamic_universe,
     export_qmt_daily_csv,
     export_qmt_dat_daily_csv,
     load_qd_daily_directory,
     read_stock_file,
     screen_factor_redundancy,
     select_qd_training_universe,
+    write_dynamic_universe,
     write_factor_redundancy_screen,
     write_qd_universe,
 )
@@ -157,6 +160,17 @@ def build_parser() -> argparse.ArgumentParser:
     composite.add_argument("--embargo-days", type=int, default=5)
     composite.add_argument("--seed", type=int, default=42)
     composite.add_argument("--output", default="reports/qd-composite-cpcv")
+
+    dynamic_universe = sub.add_parser("qd-dynamic-universe")
+    dynamic_universe.add_argument("--daily-dir", required=True)
+    dynamic_universe.add_argument("--fundamental-dir", required=True)
+    dynamic_universe.add_argument("--research-start", required=True)
+    dynamic_universe.add_argument("--research-end", required=True)
+    dynamic_universe.add_argument("--top-n", type=int, default=300)
+    dynamic_universe.add_argument("--minimum-history-sessions", type=int, default=120)
+    dynamic_universe.add_argument("--liquidity-lookback", type=int, default=20)
+    dynamic_universe.add_argument("--minimum-mean-amount", type=float, default=20_000_000)
+    dynamic_universe.add_argument("--output", default="artifacts/qd-dynamic-universe")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -415,6 +429,40 @@ def main() -> None:
             ),
         )
         print(run.report.to_json())
+        return
+
+    if args.command == "qd-dynamic-universe":
+        report = build_dynamic_universe(
+            args.daily_dir,
+            args.fundamental_dir,
+            DynamicUniverseConfig(
+                research_start=args.research_start,
+                research_end=args.research_end,
+                top_n=args.top_n,
+                minimum_history_sessions=args.minimum_history_sessions,
+                liquidity_lookback=args.liquidity_lookback,
+                minimum_mean_amount_cny=args.minimum_mean_amount,
+            ),
+        )
+        artifacts = write_dynamic_universe(report, args.output)
+        print(
+            json.dumps(
+                {
+                    "method_version": report.method_version,
+                    "source_snapshot_sha256": report.source_snapshot_sha256,
+                    "sessions": report.sessions,
+                    "unique_members": report.unique_members,
+                    "mean_selected": report.mean_selected,
+                    "mean_eligible": report.mean_eligible,
+                    "mean_turnover_rate": report.mean_turnover_rate,
+                    "json_path": str(artifacts.json_path),
+                    "markdown_path": str(artifacts.markdown_path),
+                    "membership_jsonl_path": str(artifacts.membership_jsonl_path),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return
 
     if args.command == "qmt-backtest":

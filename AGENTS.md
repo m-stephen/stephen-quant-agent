@@ -43,6 +43,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.8 predeclared factor catalog + training-only redundancy screen
 - V1.8.9 shared-experiment five-factor validation + family-level DSR decision
 - V1.8.10 post-validation composite exploration + fold-local CPCV weights
+- V1.8.11 point-in-time dynamic universe + survivorship-bias audit
 
 ## Engineering style
 - Python >= 3.10.
