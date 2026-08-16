@@ -83,6 +83,12 @@ from .qd_fundamentals import (
     read_dynamic_memberships,
     write_qd_fundamental_dataset,
 )
+from .qd_membership import (
+    MEMBERSHIP_ADAPTER_VERSION,
+    MembershipAudit,
+    PointInTimeMembership,
+    load_point_in_time_memberships,
+)
 from .qd_universe import (
     QD_UNIVERSE_METHOD_VERSION,
     QdUniverseArtifacts,
@@ -122,6 +128,7 @@ __all__ = [
     "FACTOR_SCREEN_VERSION",
     "FUNDAMENTAL_COMPONENTS",
     "MANIFEST_VERSION",
+    "MEMBERSHIP_ADAPTER_VERSION",
     "PARSER_VERSION",
     "PLACEBO_AUDIT_VERSION",
     "QD_ADAPTER_VERSION",
@@ -150,6 +157,8 @@ __all__ = [
     "FactorScreenArtifacts",
     "FundamentalFactorAudit",
     "FundamentalFactorObservation",
+    "MembershipAudit",
+    "PointInTimeMembership",
     "QdAlternativeAudit",
     "QdAlternativeConfig",
     "QdAlternativeDataset",
@@ -180,6 +189,7 @@ __all__ = [
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
+    "load_point_in_time_memberships",
     "load_qd_alternative_directory",
     "load_qd_confirmed_fundamentals",
     "load_qd_daily_directory",

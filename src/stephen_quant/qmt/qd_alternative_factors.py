@@ -44,9 +44,10 @@ def build_alternative_factor_observations(
         anchors_by_instrument[row.instrument].append(row)
     built: list[BaselineObservation] = []
     for instrument in sorted(anchors_by_instrument):
-        if instrument not in source_by_instrument:
-            continue
-        history = sorted(source_by_instrument[instrument], key=lambda row: _time(row.available_at))
+        history = sorted(
+            source_by_instrument.get(instrument, ()),
+            key=lambda row: _time(row.available_at),
+        )
         instrument_anchors = sorted(
             anchors_by_instrument[instrument], key=lambda row: _time(row.execution_at)
         )
@@ -57,23 +58,51 @@ def build_alternative_factor_observations(
             while offset < len(history) and _time(history[offset].available_at) < decision:
                 visible.append(history[offset])
                 offset += 1
-            if len(visible) < definition.minimum_observations:
-                continue
-            formula_history = visible[-definition.minimum_observations :]
-            inputs = {
-                field: FormulaInput(
-                    values=tuple(row.value(field) for row in formula_history),
-                    available_at=tuple(row.available_at for row in formula_history),
+            if not visible:
+                built.append(
+                    BaselineObservation(
+                        instrument=anchor.instrument,
+                        signal=0.0,
+                        signal_at=anchor.signal_at,
+                        signal_available_at=anchor.signal_available_at,
+                        average_daily_value=anchor.average_daily_value,
+                        liquidity_available_at=anchor.liquidity_available_at,
+                        execution_at=anchor.execution_at,
+                        return_end_at=anchor.return_end_at,
+                        forward_return=anchor.forward_return,
+                        can_buy_open=anchor.can_buy_open,
+                        can_sell_open=anchor.can_sell_open,
+                        tradability_reason=anchor.tradability_reason,
+                        eligible=False,
+                    )
                 )
-                for field in definition.required_fields
-            }
-            try:
-                signal = evaluate_formula(
-                    definition.formula, inputs, decision_at=anchor.execution_at
-                )
-            except ResearchAgentError:
                 continue
             latest = visible[-1]
+            expected_source_date = (
+                anchor.execution_at[:10]
+                if latest.source_kind == "auction"
+                else anchor.signal_at[:10]
+            )
+            usable = (
+                len(visible) >= definition.minimum_observations
+                and latest.trade_date == expected_source_date
+            )
+            signal = 0.0
+            if usable:
+                formula_history = visible[-definition.minimum_observations :]
+                inputs = {
+                    field: FormulaInput(
+                        values=tuple(row.value(field) for row in formula_history),
+                        available_at=tuple(row.available_at for row in formula_history),
+                    )
+                    for field in definition.required_fields
+                }
+                try:
+                    signal = evaluate_formula(
+                        definition.formula, inputs, decision_at=anchor.execution_at
+                    )
+                except ResearchAgentError:
+                    usable = False
             built.append(
                 BaselineObservation(
                     instrument=anchor.instrument,
@@ -88,7 +117,7 @@ def build_alternative_factor_observations(
                     can_buy_open=anchor.can_buy_open,
                     can_sell_open=anchor.can_sell_open,
                     tradability_reason=anchor.tradability_reason,
-                    eligible=anchor.eligible,
+                    eligible=anchor.eligible and usable,
                 )
             )
     if not built:

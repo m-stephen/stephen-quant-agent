@@ -100,6 +100,36 @@ def test_unchanged_portfolio_has_zero_turnover_and_zero_cost() -> None:
     assert unchanged.total_cost == pytest.approx(0.0)
 
 
+def test_missing_held_bar_requires_explicit_stale_policy() -> None:
+    rows = _observations(
+        (
+            {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0},
+            {"B": 4.0, "C": 3.0, "D": 2.0},
+        ),
+        forward_returns={item: 0.0 for item in "ABCD"},
+    )
+    with pytest.raises(BaselineError, match="held assets missing"):
+        run_momentum_topk(
+            rows,
+            _lineage(),
+            BaselineConfig(top_k=1, max_participation_rate=1.0),
+        )
+
+    report = run_momentum_topk(
+        rows,
+        _lineage(),
+        BaselineConfig(
+            top_k=1,
+            max_participation_rate=1.0,
+            missing_holding_policy="stale_zero_return",
+        ),
+    )
+    stale = next(order for order in report.periods[1].orders if order.instrument == "A")
+    assert stale.executed_notional == 0.0
+    assert stale.can_sell_open is False
+    assert stale.tradability_reason == "missing_bar_stale_zero_return"
+
+
 def test_higher_costs_cannot_improve_net_performance() -> None:
     rows = _observations()
     zero_cost = run_momentum_topk(

@@ -11,6 +11,31 @@ from stephen_quant.research_agent.dsl import analyze_formula
 from stephen_quant.research_agent.models import ResearchAgentError
 
 PredictionHorizon = Literal["next_open", "1d", "5d", "20d"]
+SOURCE_FIELDS = {
+    "qd_daily": {
+        "amount",
+        "benchmark_close",
+        "close",
+        "high",
+        "low",
+        "turnover",
+        "volume",
+    },
+    "qd_fund_flow": {
+        "net_inflow_amount",
+        "large_buy_amount",
+        "large_sell_amount",
+        "extra_large_buy_amount",
+        "extra_large_sell_amount",
+    },
+    "qd_auction": {"auction_return", "auction_amount", "auction_volume_ratio_1"},
+    "qd_margin": {
+        "margin_financing_balance",
+        "margin_financing_buy",
+        "margin_financing_repay",
+    },
+    "qd_industry": {"industry_return", "industry_pe", "industry_pb"},
+}
 
 
 @dataclass(frozen=True)
@@ -57,9 +82,20 @@ class FactorSchema:
                 raise ValueError(f"{field} cannot be empty")
         if not self.data_sources or len(set(self.data_sources)) != len(self.data_sources):
             raise ValueError("data_sources must be non-empty and unique")
+        unknown_sources = set(self.data_sources) - set(SOURCE_FIELDS)
+        if unknown_sources:
+            raise ValueError(f"undeclared data source: {sorted(unknown_sources)}")
         analysis = analyze_formula(self.formula.strip())
         if tuple(sorted(self.required_fields)) != analysis.required_fields:
             raise ValueError("required_fields do not match the safe DSL formula")
+        source_fields = set().union(*(SOURCE_FIELDS[source] for source in self.data_sources))
+        if not set(analysis.required_fields) <= source_fields:
+            raise ValueError("factor fields are not provided by declared data_sources")
+        if len(set(self.parent_fingerprints)) != len(self.parent_fingerprints) or any(
+            re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None
+            for fingerprint in self.parent_fingerprints
+        ):
+            raise ValueError("parent_fingerprints must be unique SHA-256 values")
 
     @property
     def fingerprint(self) -> str:

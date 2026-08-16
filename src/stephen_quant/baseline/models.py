@@ -50,6 +50,7 @@ class BaselineConfig:
     max_participation_rate: float = 0.05
     periods_per_year: int = 252
     cost_model_version: str = COST_MODEL_VERSION
+    missing_holding_policy: str = "error"
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,7 @@ class BaselineReport:
             f"- Slippage: {self.config.slippage_bps:.4f} bps",
             f"- Impact coefficient: {self.config.impact_coefficient_bps:.4f} bps",
             f"- Maximum ADV participation: {self.config.max_participation_rate:.2%}",
+            f"- Missing holding policy: `{self.config.missing_holding_policy}`",
             "",
             "## Net-of-cost results",
             "",

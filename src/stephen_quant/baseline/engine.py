@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import datetime
 from itertools import pairwise
 from statistics import stdev
@@ -52,6 +53,8 @@ def _validate_config(config: BaselineConfig) -> None:
         raise BaselineError("cost assumptions must be finite and non-negative")
     if not config.cost_model_version:
         raise BaselineError("cost_model_version cannot be empty")
+    if config.missing_holding_policy not in {"error", "stale_zero_return"}:
+        raise BaselineError("unsupported missing_holding_policy")
 
 
 def _validate_lineage(lineage: BaselineLineage) -> None:
@@ -342,9 +345,32 @@ def run_momentum_topk(
         raise BaselineError("initial_nav must be finite and positive")
     grouped = _group_observations(observations)
     holdings: dict[str, float] = {}
+    last_seen: dict[str, BaselineObservation] = {}
     cash = float(initial_nav)
     periods: list[BacktestPeriod] = []
     for period_index, (execution_at, rows) in enumerate(grouped):
+        observed_rows = rows
+        missing = sorted(set(holdings) - {row.instrument for row in rows})
+        if missing and config.missing_holding_policy == "stale_zero_return":
+            template = rows[0]
+            stale_rows = tuple(
+                replace(
+                    last_seen[instrument],
+                    signal=0.0,
+                    execution_at=execution_at,
+                    return_end_at=template.return_end_at,
+                    forward_return=0.0,
+                    can_buy_open=False,
+                    can_sell_open=False,
+                    tradability_reason="missing_bar_stale_zero_return",
+                    eligible=False,
+                )
+                for instrument in missing
+                if instrument in last_seen
+            )
+            rows = tuple(sorted((*rows, *stale_rows), key=lambda row: row.instrument))
+        for row in observed_rows:
+            last_seen[row.instrument] = row
         start_nav = cash + sum(holdings.values())
         rebalanced = period_index % config.rebalance_every == 0
         selected: tuple[str, ...] = ()

@@ -6,6 +6,11 @@ from .alphapai_cache import (
     load_alphapai_cache,
     write_alphapai_cache,
 )
+from .alphapai_transport import (
+    AlphaPaiTransport,
+    AlphaPaiTransportResponse,
+    request_alphapai_with_retry,
+)
 from .artifacts import ResearchAgentArtifacts, write_research_report
 from .dsl import FormulaAnalysis, FormulaInput, analyze_formula, evaluate_formula
 from .models import (
@@ -24,6 +29,8 @@ __all__ = [
     "AgentFinding",
     "AgentRunSpec",
     "AlphaPaiCacheEntry",
+    "AlphaPaiTransport",
+    "AlphaPaiTransportResponse",
     "FactorProposal",
     "FactorResearchReport",
     "FormulaAnalysis",
@@ -39,6 +46,7 @@ __all__ = [
     "evaluate_formula",
     "load_alphapai_cache",
     "parse_proposal",
+    "request_alphapai_with_retry",
     "run_factor_research",
     "write_alphapai_cache",
     "write_research_report",

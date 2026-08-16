@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -100,6 +101,13 @@ def test_schema_rejects_field_mismatch_and_unsafe_formula() -> None:
         invalid.validate()
     with pytest.raises(ValueError):
         FactorSchema(**{**invalid.__dict__, "formula": "__import__('os')"}).validate()
+    with pytest.raises(ValueError, match="not provided"):
+        FactorSchema(
+            **{
+                **_schema().__dict__,
+                "data_sources": ("qd_auction",),
+            }
+        ).validate()
 
 
 def test_campaign_records_duplicates_and_enforces_frozen_budget(tmp_path: Path) -> None:
@@ -383,12 +391,21 @@ def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) ->
             maximum_peer_rank_correlation=1.0,
         ),
     )
+    cpcv_panels = dict(panels)
+    cpcv_panels[schemas[0].fingerprint] = panels[schemas[0].fingerprint] + (
+        replace(
+            panels[schemas[0].fingerprint][0],
+            execution_at="2024-01-30T09:30:00+08:00",
+            return_end_at="2024-01-31T09:30:00+08:00",
+            eligible=False,
+        ),
+    )
     report = run_discovery_cpcv(
         registry,
         campaign,
         screening,
         tuple(generated),
-        panels,
+        cpcv_panels,
         snapshot_id=registry.experiment_snapshot_id(experiment_id),
         code_version="test",
         window=window,

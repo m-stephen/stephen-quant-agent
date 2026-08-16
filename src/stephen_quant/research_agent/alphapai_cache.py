@@ -9,7 +9,7 @@ from typing import Any
 
 from .models import ResearchAgentError
 
-ALPHAPAI_CACHE_VERSION = "alphapai-point-in-time-cache-1.0.0"
+ALPHAPAI_CACHE_VERSION = "alphapai-point-in-time-cache-1.1.0"
 _SECRET_MARKERS = ("api_key", "apikey", "app-agent", "authorization", "password", "secret", "token")
 
 

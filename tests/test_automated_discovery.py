@@ -157,7 +157,13 @@ def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
         manifests.append(path.name)
     suite = tmp_path / "suite.json"
     suite.write_text(
-        json.dumps({"manifest_version": "1.0.0", "search_manifests": manifests}),
+        json.dumps(
+            {
+                "manifest_version": "1.0.0",
+                "global_trial_budget": 20,
+                "search_manifests": manifests,
+            }
+        ),
         encoding="utf-8",
     )
     registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
@@ -173,6 +179,8 @@ def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
     assert len({item.experiment_id for item in run.report.runs}) == 2
     assert [item.horizon for item in run.report.runs] == ["next_open", "5d"]
     assert run.report.global_trial_count == 16
+    assert run.report.frozen_suite_trial_budget == 20
+    assert run.report.suite_trials_consumed == 16
     assert run.report.validation_window_opened is False
     assert run.report.test_window_opened is False
     assert run.json_path.is_file()

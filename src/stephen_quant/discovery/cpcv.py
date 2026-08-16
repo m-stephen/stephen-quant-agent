@@ -179,15 +179,19 @@ def run_discovery_cpcv(
     reference_keys: set[tuple[str, str]] | None = None
     for item in selected_candidates:
         rows = observations[item.schema.fingerprint]
-        keys = {(_timestamp_date(row.execution_at), row.instrument) for row in rows}
-        if len(keys) != len(rows):
+        eligible_rows = tuple(row for row in rows if row.eligible)
+        keys = {
+            (_timestamp_date(row.execution_at), row.instrument)
+            for row in eligible_rows
+        }
+        if len(keys) != len(eligible_rows):
             raise ValueError("duplicate CPCV observation key")
         if reference_keys is None:
             reference_keys = keys
-            for row in rows:
+            for row in eligible_rows:
                 reference.setdefault(_timestamp_date(row.execution_at), row)
         elif keys != reference_keys:
-            raise ValueError("CPCV candidates must share the same observation panel")
+            raise ValueError("CPCV candidates must share the same eligible observation panel")
         for row in rows:
             if (
                 _timestamp_date(row.execution_at) < window.research_start

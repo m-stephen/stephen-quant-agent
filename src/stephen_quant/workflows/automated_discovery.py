@@ -19,6 +19,9 @@ from stephen_quant.discovery import (
     ScreeningReport,
     ScreeningWindow,
     SearchCampaign,
+    authorize_portfolio_signal,
+    build_alpha_card,
+    build_research_memory,
     generate_candidates,
     run_discovery_cpcv,
     run_discovery_execution,
@@ -524,7 +527,11 @@ def run_automated_discovery(
         }
         common_keys = set.intersection(
             *(
-                {(row.execution_at, row.instrument) for row in rows}
+                {
+                    (row.execution_at, row.instrument)
+                    for row in rows
+                    if row.eligible
+                }
                 for rows in shortlisted_panels.values()
             )
         )
@@ -534,7 +541,7 @@ def run_automated_discovery(
             fingerprint: tuple(
                 row
                 for row in rows
-                if (row.execution_at, row.instrument) in common_keys
+                if row.eligible and (row.execution_at, row.instrument) in common_keys
             )
             for fingerprint, rows in shortlisted_panels.items()
         }
@@ -614,12 +621,22 @@ def run_automated_discovery(
         test_window_opened=False,
         decision=decision,
     )
+    research_memory = build_research_memory(
+        candidates,
+        screening,
+        cpcv,
+        execution,
+        experiment_id=experiment_id,
+    )
     output = Path(output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     json_path = output / "automated-discovery.json"
     markdown_en_path = output / "automated-discovery.en.md"
     markdown_zh_path = output / "automated-discovery.zh.md"
     schemas_path = output / "generated-schemas.json"
+    memory_json_path = output / "research-memory.json"
+    memory_en_path = output / "research-memory.en.md"
+    memory_zh_path = output / "research-memory.zh.md"
     json_sha = _write(json_path, report.to_json() + "\n")
     en_sha = _write(markdown_en_path, report.to_markdown("en"))
     zh_sha = _write(markdown_zh_path, report.to_markdown("zh"))
@@ -633,6 +650,9 @@ def run_automated_discovery(
         )
         + "\n",
     )
+    memory_json_sha = _write(memory_json_path, research_memory.to_json() + "\n")
+    memory_en_sha = _write(memory_en_path, research_memory.to_markdown("en"))
+    memory_zh_sha = _write(memory_zh_path, research_memory.to_markdown("zh"))
     first_trial = screening.scores[0].trial_id
     for fingerprint, baseline_report in execution_reports.items():
         artifacts = write_baseline_report(baseline_report, output / "execution")
@@ -679,11 +699,56 @@ def run_automated_discovery(
             path=str(court_artifacts.markdown_path),
             sha256=court_artifacts.markdown_sha256,
         )
+        winning_schema = next(
+            item.schema
+            for item in candidates
+            if item.schema.fingerprint == execution.selected_fingerprint
+        )
+        alpha_card = build_alpha_card(
+            winning_schema,
+            screening,
+            cpcv,  # type: ignore[arg-type]
+            execution,
+            execution_reports[execution.selected_fingerprint],
+        )
+        alpha_card_path = output / "alpha-card.json"
+        alpha_card_sha = _write(alpha_card_path, alpha_card.to_json() + "\n")
+        registry.register_artifact(
+            trial_id=winning_trial,
+            kind="alpha_card_json",
+            path=str(alpha_card_path),
+            sha256=alpha_card_sha,
+        )
+        portfolio_gate_path = output / "portfolio-gate.json"
+        try:
+            portfolio_payload = authorize_portfolio_signal(alpha_card).to_json() + "\n"
+            portfolio_kind = "portfolio_signal_json"
+        except ValueError as exc:
+            portfolio_payload = json.dumps(
+                {
+                    "authorized": False,
+                    "fingerprint": alpha_card.fingerprint,
+                    "reason": str(exc),
+                },
+                indent=2,
+                sort_keys=True,
+            ) + "\n"
+            portfolio_kind = "portfolio_gate_rejection_json"
+        portfolio_sha = _write(portfolio_gate_path, portfolio_payload)
+        registry.register_artifact(
+            trial_id=winning_trial,
+            kind=portfolio_kind,
+            path=str(portfolio_gate_path),
+            sha256=portfolio_sha,
+        )
     for kind, path, digest in (
         ("automated_discovery_json", json_path, json_sha),
         ("automated_discovery_markdown_en", markdown_en_path, en_sha),
         ("automated_discovery_markdown_zh", markdown_zh_path, zh_sha),
         ("automated_discovery_schemas", schemas_path, schemas_sha),
+        ("research_memory_json", memory_json_path, memory_json_sha),
+        ("research_memory_markdown_en", memory_en_path, memory_en_sha),
+        ("research_memory_markdown_zh", memory_zh_path, memory_zh_sha),
     ):
         registry.register_artifact(trial_id=first_trial, kind=kind, path=str(path), sha256=digest)
     return AutomatedDiscoveryRun(

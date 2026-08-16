@@ -264,6 +264,7 @@ def _walk_forward(
             impact_coefficient_bps=config.impact_coefficient_bps,
             max_participation_rate=config.max_participation_rate,
             periods_per_year=max(1, 252 // horizon_sessions),
+            missing_holding_policy="stale_zero_return",
         ),
         initial_nav=config.initial_nav,
     )
@@ -364,6 +365,7 @@ def run_discovery_execution(
                 impact_coefficient_bps=config.impact_coefficient_bps,
                 max_participation_rate=config.max_participation_rate,
                 periods_per_year=max(1, 252 // horizon_sessions),
+                missing_holding_policy="stale_zero_return",
             ),
             initial_nav=config.initial_nav,
         )

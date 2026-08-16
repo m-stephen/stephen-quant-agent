@@ -143,7 +143,7 @@ def test_alternative_factor_uses_only_values_available_before_execution() -> Non
             return_end_at=f"2024-01-0{day + 1}T09:30:00+08:00",
             forward_return=0.01,
         )
-        for day in (3, 4)
+        for day in (3, 4, 5)
     )
     schema = FactorSchema(
         schema_id="auction_mean_2",
@@ -162,6 +162,54 @@ def test_alternative_factor_uses_only_values_available_before_execution() -> Non
         economic_rationale="Opening auction demand.",
     )
     rows = build_alternative_factor_observations(source, schema.compile(), anchors)
-    assert [row.signal for row in rows] == [2.5, 3.5]
+    assert [row.signal for row in rows] == [2.5, 3.5, 0.0]
     assert rows[0].signal_available_at == "2024-01-03T09:26:00+08:00"
     assert rows[0].signal_available_at < rows[0].execution_at
+    assert rows[-1].eligible is False
+
+
+def test_alternative_factor_preserves_uncovered_assets_for_liquidation() -> None:
+    source = (
+        AlternativeObservation(
+            source_kind="auction",
+            instrument="000001.SZ",
+            name="sample",
+            trade_date="2024-01-03",
+            effective_at="2024-01-03T09:25:00+08:00",
+            available_at="2024-01-03T09:26:00+08:00",
+            ingested_at="2024-02-01T12:00:00+08:00",
+            values=(("auction_return", 1.0),),
+        ),
+    )
+    anchor = BaselineObservation(
+        instrument="603985.SH",
+        signal=0.0,
+        signal_at="2024-01-02T15:00:00+08:00",
+        signal_available_at="2024-01-02T15:01:00+08:00",
+        average_daily_value=1_000_000.0,
+        liquidity_available_at="2024-01-02T15:01:00+08:00",
+        execution_at="2024-01-03T09:30:00+08:00",
+        return_end_at="2024-01-04T09:30:00+08:00",
+        forward_return=0.01,
+    )
+    schema = FactorSchema(
+        schema_id="auction_mean_1",
+        version="1.0.0",
+        name="Auction mean",
+        event="auction",
+        context="pre_open",
+        quality="point_in_time",
+        direction=1,
+        output="score",
+        horizon="1d",
+        formula="mean(auction_return, 1)",
+        data_sources=("qd_auction",),
+        required_fields=("auction_return",),
+        availability_lag_days=0,
+        economic_rationale="Opening auction demand.",
+    )
+    rows = build_alternative_factor_observations(source, schema.compile(), (anchor,))
+    assert len(rows) == 1
+    assert rows[0].instrument == "603985.SH"
+    assert rows[0].signal == 0.0
+    assert rows[0].eligible is False
