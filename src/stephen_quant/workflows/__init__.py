@@ -33,6 +33,13 @@ from .factor_family_report import (
     build_factor_family_validation_report,
     write_factor_family_validation_report,
 )
+from .fundamental_cpcv import (
+    FUNDAMENTAL_CPCV_VERSION,
+    FundamentalCpcvDesign,
+    FundamentalCpcvReport,
+    FundamentalCpcvRun,
+    run_fundamental_cpcv_research,
+)
 from .qmt_backtest import (
     WORKFLOW_VERSION,
     QmtBacktestRun,
@@ -52,6 +59,7 @@ __all__ = [
     "DYNAMIC_BACKTEST_VERSION",
     "DYNAMIC_CPCV_VERSION",
     "FACTOR_FAMILY_REPORT_VERSION",
+    "FUNDAMENTAL_CPCV_VERSION",
     "MINIMUM_RESEARCH_UNIVERSE",
     "PREDECLARED_CONFIGURATIONS",
     "VALIDATION_VERSION",
@@ -73,6 +81,9 @@ __all__ = [
     "FactorFamilyReportArtifacts",
     "FactorFamilyTrialSummary",
     "FactorFamilyValidationReport",
+    "FundamentalCpcvDesign",
+    "FundamentalCpcvReport",
+    "FundamentalCpcvRun",
     "QmtBacktestRun",
     "QmtBacktestRunConfig",
     "QmtDatValidationConfig",
@@ -81,6 +92,7 @@ __all__ = [
     "run_composite_cpcv_research",
     "run_dynamic_cpcv_research",
     "run_dynamic_stateful_backtest",
+    "run_fundamental_cpcv_research",
     "run_qmt_backtest_workflow",
     "run_qmt_dat_backtest_validation",
     "write_factor_family_validation_report",

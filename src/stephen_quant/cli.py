@@ -37,6 +37,7 @@ from .workflows import (
     run_composite_cpcv_research,
     run_dynamic_cpcv_research,
     run_dynamic_stateful_backtest,
+    run_fundamental_cpcv_research,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     write_factor_family_validation_report,
@@ -208,10 +209,16 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_cpcv.add_argument("--paths-config")
     dynamic_cpcv.add_argument("--daily-dir")
     dynamic_cpcv.add_argument("--membership-jsonl")
-    dynamic_cpcv.add_argument(
-        "--candidate-manifest", default="configs/v1.8.14-candidates.json"
-    )
+    dynamic_cpcv.add_argument("--candidate-manifest", default="configs/v1.8.14-candidates.json")
     dynamic_cpcv.add_argument("--output", default="reports/qd-v1.8.14-cpcv")
+
+    fundamental_cpcv = sub.add_parser("qd-fundamental-cpcv")
+    fundamental_cpcv.add_argument("--paths-config")
+    fundamental_cpcv.add_argument("--daily-dir")
+    fundamental_cpcv.add_argument("--fundamental-dir")
+    fundamental_cpcv.add_argument("--membership-jsonl")
+    fundamental_cpcv.add_argument("--candidate-manifest", default="configs/v1.8.15-candidates.json")
+    fundamental_cpcv.add_argument("--output", default="reports/qd-v1.8.15-cpcv")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -513,9 +520,7 @@ def main() -> None:
             membership_jsonl = local_paths.choose(
                 "dynamic_membership_jsonl", args.membership_jsonl, "--membership-jsonl"
             )
-            benchmark_csv = local_paths.choose(
-                "csi300_csv", args.benchmark_csv, "--benchmark-csv"
-            )
+            benchmark_csv = local_paths.choose("csi300_csv", args.benchmark_csv, "--benchmark-csv")
         except PathConfigError as exc:
             raise SystemExit(f"qd-dynamic-backtest failed: {exc}") from exc
         run = run_dynamic_stateful_backtest(
@@ -569,6 +574,30 @@ def main() -> None:
             )
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"qd-dynamic-cpcv failed: {exc}") from exc
+        print(run.report.to_json())
+        return
+
+    if args.command == "qd-fundamental-cpcv":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", args.daily_dir, "--daily-dir")
+            fundamental_dir = local_paths.choose(
+                "qd_fundamental_dir", args.fundamental_dir, "--fundamental-dir"
+            )
+            membership_jsonl = local_paths.choose(
+                "dynamic_membership_jsonl", args.membership_jsonl, "--membership-jsonl"
+            )
+            run = run_fundamental_cpcv_research(
+                daily_dir,
+                fundamental_dir,
+                membership_jsonl,
+                args.candidate_manifest,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"qd-fundamental-cpcv failed: {exc}") from exc
         print(run.report.to_json())
         return
 
