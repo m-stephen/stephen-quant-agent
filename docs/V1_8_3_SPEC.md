@@ -40,11 +40,11 @@ engineering_validated = true
 research_claim_eligible = false
 ```
 
-The research verdict is forced to false because prices are unadjusted, corporate actions are not
-reconstructed, and universe membership is operator-supplied rather than point-in-time. A universe
-smaller than 30 instruments is additionally flagged as a pilot-only sample. These limitations do
-not invalidate an engineering test, but they prohibit interpreting its Sharpe or return as verified
-Alpha.
+The research verdict is forced to false because prices are unadjusted and universe membership is
+operator-supplied rather than point-in-time. A universe smaller than 30 instruments is additionally
+flagged as a pilot-only sample. V1.8.4 can remove the price-adjustment limitation with `back_ratio`,
+but the universe limitation remains. These limitations do not invalidate an engineering test, but
+they prohibit interpreting its Sharpe or return as verified Alpha.
 
 ## Outputs
 

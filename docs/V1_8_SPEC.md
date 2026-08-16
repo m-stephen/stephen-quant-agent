@@ -59,12 +59,18 @@ tail. Every record must have a local-midnight timestamp, strictly increasing dat
 consistent zero volume/amount state, and a plausible amount-to-share ratio. Any mismatch fails the
 whole export.
 
-Direct export supports `adjustment=none` only because corporate actions live separately in
-`DividData` and are not yet decoded. It requires an explicit instrument list, validates the result
-through the canonical CSV adapter, and writes a deterministic adjacent provenance manifest. That
-manifest contains relative raw-file paths, raw SHA-256 values, record/tail counts, field units,
-parser and schema versions, requested dates, and the final CSV hash; it never stores the local QMT
-installation path.
+Direct export supports raw `none` data and point-in-time-safe `back_ratio` prices. The latter reads
+`DividData` through an optional read-only LevelDB parser, validates the observed 96-byte corporate
+action values, and applies each `dr` only on and after its ex-dividend date. It does not offer direct
+`front_ratio`, because normalizing history by actions that had not occurred yet weakens the
+point-in-time contract. Prices are adjusted; volume and amount retain their raw QMT units, matching
+the vendor's price-adjustment example.
+
+The exporter requires an explicit instrument list, validates the result through the canonical CSV
+adapter, and writes a deterministic adjacent provenance manifest. That manifest contains relative
+raw-file paths, raw SHA-256 values, record/tail counts, field units, parser and schema versions,
+requested dates, the final CSV hash, and—when adjusted—the complete LevelDB source-file snapshot.
+It never stores the local QMT installation path.
 
 The locked field map was independently checked against local Guojin samples and the community
 [`qmt-parser` daily parser](https://github.com/sunnysab/qmt-parser/blob/main/src/day.rs)
@@ -141,14 +147,16 @@ and Markdown report are hash-linked through the registry.
 
 - Universe membership is user-supplied and may contain survivorship bias.
 - V1.8 does not reconstruct historical index constituents, ST status, listings, or delistings.
-- Limit-up/limit-down execution, lot size, minimum commission, dividends, and corporate-action
-  verification are not modeled.
+- Limit-up/limit-down execution, lot size, and minimum commission are not modeled.
+- Corporate-action byte semantics are version-locked and independently checked, but remain based
+  on observed QMT storage rather than a vendor-supported binary contract.
 - A single sell-tax rate applies to the whole run; historical tax changes require separate windows.
 - QMT adjustment semantics are declared by the operator and are not independently verified.
 - The direct DAT format is reverse engineered rather than a vendor-supported storage contract; a
   schema or semantic mismatch fails closed and requires a new parser version.
-- Direct DAT export is unadjusted and therefore is not yet suitable for long-horizon return claims
-  across corporate actions without a separately validated adjustment pipeline.
+- `none` exports remain unsuitable for long-horizon return claims across corporate actions.
+- `back_ratio` removes the unadjusted-price blocker, but does not remove current-universe or
+  delisting survivorship bias.
 - The CLI evaluates a locked test window; it must not be repeatedly tuned against that window.
 
 ## Acceptance target

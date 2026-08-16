@@ -1,4 +1,5 @@
 .venv/
+.codex-local-tools/
 __pycache__/
 *.py[cod]
 .pytest_cache/

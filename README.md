@@ -143,10 +143,22 @@ stephen-quant qmt-dat-export `
   --stocks "000001.SZ,000002.SZ,600000.SH"
 ```
 
-The fallback supports unadjusted daily bars only. It normalizes stock volume from lots to shares,
-keeps amount in CNY, validates the binary layout and bar semantics, and writes
-`qmt-daily-none.csv.manifest.json` with raw source hashes and the parser schema hash. Minute, tick,
-index, ETF, bond, futures, and corporate-action parsing remain out of scope.
+The fallback always supports raw (`none`) bars. Install the optional read-only LevelDB dependency
+to add point-in-time-safe QMT `back_ratio` adjustment from `DividData`:
+
+```powershell
+pip install -e ".[qmt-dat]"
+stephen-quant qmt-dat-export `
+  --datadir "E:\path\to\QMT\datadir" `
+  --output-csv "data\raw\qmt-daily-back-ratio.csv" `
+  --start 2018-01-01 --end 2025-12-31 `
+  --adjustment back_ratio `
+  --stocks "000001.SZ,000002.SZ,600000.SH"
+```
+
+The adapter normalizes stock volume from lots to shares, keeps amount in CNY, validates the binary
+layout and bar semantics, and hash-links both DAT files and the complete corporate-action snapshot
+in the provenance manifest. Minute, tick, index, ETF, bond, and futures parsing remain out of scope.
 
 On the `data-test` branch, run the complete engineering validation in one command:
 
@@ -155,6 +167,7 @@ stephen-quant --db artifacts\qmt-dat-validation.sqlite3 qmt-dat-validate `
   --datadir "E:\path\to\QMT\datadir" `
   --output "reports\qmt-dat-validation" `
   --data-start 2020-01-01 --data-end 2025-12-31 `
+  --adjustment back_ratio `
   --stock-file "private\validation-universe.txt" `
   --factor ret_60 `
   --train-start 2020-01-01 --train-end 2021-12-31 `
@@ -167,8 +180,10 @@ stephen-quant --db artifacts\qmt-dat-validation.sqlite3 qmt-dat-validate `
 The command creates the canonical CSV and raw-source manifest, freezes the CSV snapshot, registers
 the Trial before evaluation, executes the net-of-cost backtest, and writes
 `validation-summary.json` plus `validation-summary.md`. A successful direct-DAT run is deliberately
-reported as **engineering validated / research claim ineligible** until adjusted prices and a
-point-in-time historical universe are available. See `docs/V1_8_3_SPEC.md`.
+reported as **engineering validated / research claim ineligible** until a point-in-time historical
+universe is available. V1.8.4 removes the unadjusted-price blocker when `back_ratio` is selected,
+but it does not remove survivorship bias from a current constituent list. See
+`docs/V1_8_3_SPEC.md` and `docs/V1_8_4_SPEC.md`.
 
 ## Quick start
 

@@ -13,6 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+qmt-dat = ["rleveldb==1.0.0"]
 
 [project.scripts]
 stephen-quant = "stephen_quant.cli:main"
