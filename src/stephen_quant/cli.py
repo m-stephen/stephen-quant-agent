@@ -69,7 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("audit")
 
     qmt = sub.add_parser("qmt-backtest")
-    qmt.add_argument("--csv", required=True)
+    qmt_source = qmt.add_mutually_exclusive_group(required=True)
+    qmt_source.add_argument("--csv")
+    qmt_source.add_argument("--daily-dir")
+    qmt_universe = qmt.add_mutually_exclusive_group()
+    qmt_universe.add_argument("--stocks")
+    qmt_universe.add_argument("--stock-file")
     qmt.add_argument("--output", default="reports/qmt")
     qmt.add_argument("--experiment-id")
     qmt.add_argument("--adjustment", required=True)
@@ -206,8 +211,16 @@ def main() -> None:
         raise SystemExit(0 if all(x.passed for x in findings) else 1)
 
     if args.command == "qmt-backtest":
+        stocks = ()
+        if args.stocks:
+            stocks = tuple(item.strip() for item in args.stocks.split(",") if item.strip())
+        elif args.stock_file:
+            stocks = read_stock_file(args.stock_file)
+        source = args.csv or args.daily_dir
+        if args.daily_dir and not stocks:
+            raise SystemExit("qmt-backtest failed: --daily-dir requires --stocks or --stock-file")
         run = run_qmt_backtest_workflow(
-            args.csv,
+            source,
             registry=registry,
             output_dir=args.output,
             experiment_id=args.experiment_id,
@@ -225,6 +238,7 @@ def main() -> None:
                 adv_lookback=args.adv_lookback,
                 initial_nav=args.initial_nav,
                 seed=args.seed,
+                instruments=stocks,
                 portfolio=BaselineConfig(
                     top_k=args.top_k,
                     rebalance_every=args.rebalance_every,

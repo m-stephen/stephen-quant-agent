@@ -97,3 +97,41 @@ def build_file_snapshot_manifest(file: str | Path) -> SnapshotManifest:
         files=(SnapshotFile(path=relative, sha256=file_hash, size_bytes=size),),
         snapshot_sha256=snapshot_digest.hexdigest(),
     )
+
+
+def build_selected_files_snapshot_manifest(
+    root: str | Path,
+    files: Iterable[str | Path],
+) -> SnapshotManifest:
+    """Freeze an explicit file set without hashing unrelated sibling data."""
+
+    root_path = Path(root).expanduser().resolve()
+    if not root_path.exists() or not root_path.is_dir():
+        raise ValueError(f"Snapshot root is not a directory: {root_path}")
+    selected = sorted({Path(item).expanduser().resolve() for item in files})
+    if not selected:
+        raise ValueError("Snapshot file selection cannot be empty")
+
+    items: list[SnapshotFile] = []
+    snapshot_digest = hashlib.sha256()
+    for path in selected:
+        try:
+            relative = path.relative_to(root_path).as_posix()
+        except ValueError as exc:
+            raise ValueError(f"Snapshot file is outside root: {path}") from exc
+        if not path.is_file():
+            raise ValueError(f"Snapshot source is not a file: {path}")
+        file_hash = _sha256_file(path)
+        size = path.stat().st_size
+        items.append(SnapshotFile(path=relative, sha256=file_hash, size_bytes=size))
+        snapshot_digest.update(relative.encode("utf-8"))
+        snapshot_digest.update(b"\0")
+        snapshot_digest.update(file_hash.encode("ascii"))
+        snapshot_digest.update(b"\0")
+        snapshot_digest.update(str(size).encode("ascii"))
+        snapshot_digest.update(b"\n")
+    return SnapshotManifest(
+        root=str(root_path),
+        files=tuple(items),
+        snapshot_sha256=snapshot_digest.hexdigest(),
+    )

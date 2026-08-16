@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,8 @@ class QmtDataAudit:
     end_date: str
     zero_volume_bars: int
     warnings: tuple[str, ...]
+    source_files: int = 1
+    unit_conversions: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

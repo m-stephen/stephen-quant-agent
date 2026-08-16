@@ -24,6 +24,14 @@ from .dividends import (
 )
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 from .observations import build_qmt_factor_observations
+from .qd_csv_adapter import (
+    AMOUNT_THOUSAND_CNY_TO_CNY,
+    QD_ADAPTER_VERSION,
+    QD_COLUMN_ALIASES,
+    VOLUME_LOT_TO_SHARE,
+    load_qd_daily_directory,
+    select_qd_daily_files,
+)
 from .xtquant_export import (
     EXPORTER_VERSION,
     XtquantExportConfig,
@@ -38,13 +46,17 @@ from .xtquant_export import (
 
 __all__ = [
     "ADAPTER_VERSION",
+    "AMOUNT_THOUSAND_CNY_TO_CNY",
     "COLUMN_ALIASES",
     "DIVIDEND_PARSER_VERSION",
     "DIVIDEND_SCHEMA_SHA256",
     "EXPORTER_VERSION",
     "MANIFEST_VERSION",
     "PARSER_VERSION",
+    "QD_ADAPTER_VERSION",
+    "QD_COLUMN_ALIASES",
     "SCHEMA_SHA256",
+    "VOLUME_LOT_TO_SHARE",
     "DatExportConfig",
     "DatExportResult",
     "DatSourceAudit",
@@ -65,6 +77,7 @@ __all__ = [
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
+    "load_qd_daily_directory",
     "load_qmt_daily_csv",
     "load_qmt_dividend_records",
     "load_xtdata",
@@ -72,5 +85,6 @@ __all__ = [
     "parse_qmt_daily_dat",
     "parse_qmt_dividend_value",
     "read_stock_file",
+    "select_qd_daily_files",
     "verify_qmt_dat_manifest",
 ]

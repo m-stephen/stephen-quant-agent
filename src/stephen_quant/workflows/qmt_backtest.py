@@ -16,14 +16,19 @@ from stephen_quant.baseline import (
 from stephen_quant.factors import build_seed_registry
 from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
-from stephen_quant.integrity.snapshot import build_file_snapshot_manifest
+from stephen_quant.integrity.snapshot import (
+    build_file_snapshot_manifest,
+    build_selected_files_snapshot_manifest,
+)
 from stephen_quant.qmt import (
     build_qmt_factor_observations,
+    load_qd_daily_directory,
     load_qmt_daily_csv,
+    select_qd_daily_files,
     verify_qmt_dat_manifest,
 )
 
-WORKFLOW_VERSION = "qmt-backtest-workflow-1.0.0"
+WORKFLOW_VERSION = "qmt-backtest-workflow-1.1.0"
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,7 @@ class QmtBacktestRunConfig:
     adv_lookback: int = 20
     initial_nav: float = 1_000_000.0
     seed: int = 42
+    instruments: tuple[str, ...] = ()
 
     def hyperparams_json(self) -> str:
         payload = {
@@ -48,6 +54,7 @@ class QmtBacktestRunConfig:
             "adjustment": self.adjustment,
             "adv_lookback": self.adv_lookback,
             "initial_nav": self.initial_nav,
+            "instruments": sorted(item.upper() for item in self.instruments),
             "portfolio": asdict(self.portfolio),
         }
         return json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -139,11 +146,31 @@ def run_qmt_backtest_workflow(
     _validate_split_dates(config)
     if not code_version:
         raise ValueError("code_version cannot be empty")
-    manifest = build_file_snapshot_manifest(source)
+    source_path = Path(source).expanduser().resolve()
+    if source_path.is_file():
+        manifest = build_file_snapshot_manifest(source_path)
+        vendor_version = f"Guojin QMT / {config.adjustment}"
+        snapshot_notes = "Exact local CSV export used by the V1.8 backtest workflow."
+    elif source_path.is_dir():
+        if not config.instruments:
+            raise ValueError("QD directory backtests require an explicit fixed universe")
+        selected_files = select_qd_daily_files(
+            source_path,
+            start_date=config.train_start,
+            end_date=config.test_end,
+            include_next_after_end=True,
+        )
+        manifest = build_selected_files_snapshot_manifest(source_path, selected_files)
+        vendor_version = "QD date-partitioned A-share daily CSV / raw"
+        snapshot_notes = (
+            "Exact QD daily partitions from train start through the first session after test end."
+        )
+    else:
+        raise ValueError(f"Backtest source does not exist: {source_path}")
     snapshot_id = registry.register_snapshot(
         manifest,
-        vendor_version=f"Guojin QMT / {config.adjustment}",
-        notes="Exact local CSV export used by the V1.8 backtest workflow.",
+        vendor_version=vendor_version,
+        notes=snapshot_notes,
     )
     if experiment_id is None:
         experiment_id = registry.create_experiment(
@@ -180,11 +207,21 @@ def run_qmt_backtest_workflow(
             raise ValueError(
                 f"experiment snapshot {expected_snapshot} does not match source {snapshot_id}"
             )
-        dataset = load_qmt_daily_csv(source, adjustment=config.adjustment)
-        provenance_path = Path(f"{Path(source).expanduser().resolve()}.manifest.json")
+        if source_path.is_dir():
+            dataset = load_qd_daily_directory(
+                source_path,
+                start_date=config.train_start,
+                end_date=config.test_end,
+                instruments=config.instruments,
+                adjustment=config.adjustment,
+                include_next_after_end=True,
+            )
+        else:
+            dataset = load_qmt_daily_csv(source_path, adjustment=config.adjustment)
+        provenance_path = Path(f"{source_path}.manifest.json")
         provenance: tuple[Path, str] | None = None
-        if provenance_path.is_file():
-            provenance = verify_qmt_dat_manifest(source, adjustment=config.adjustment)
+        if source_path.is_file() and provenance_path.is_file():
+            provenance = verify_qmt_dat_manifest(source_path, adjustment=config.adjustment)
         definition = build_seed_registry().get(config.factor_id, config.factor_version)
         observations = build_qmt_factor_observations(
             dataset.bars,

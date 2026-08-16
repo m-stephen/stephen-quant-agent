@@ -185,6 +185,27 @@ universe is available. V1.8.4 removes the unadjusted-price blocker when `back_ra
 but it does not remove survivorship bias from a current constituent list. See
 `docs/V1_8_3_SPEC.md` and `docs/V1_8_4_SPEC.md`.
 
+V1.8.5 also accepts the private QD dataset stored as one full-market CSV per trading date. The
+adapter validates the filename/row date contract, converts lots to shares and thousand CNY to CNY,
+and can apply the file's cumulative adjustment factor as point-in-time `back_ratio` prices:
+
+```powershell
+stephen-quant --db artifacts\qd-v1.8.5.sqlite3 qmt-backtest `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --stock-file "private\qd-validation-universe.txt" `
+  --output "reports\qd-v1.8.5" `
+  --adjustment back_ratio `
+  --factor ret_60 `
+  --train-start 2022-01-01 --train-end 2023-12-31 `
+  --validation-start 2024-01-01 --validation-end 2024-12-31 `
+  --test-start 2025-01-02 --test-end 2025-12-30 `
+  --top-k 5 --rebalance-every 5 `
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 --impact-bps 10
+```
+
+The fixed universe must be declared before the test window. Missing sessions are not forward-filled.
+See `docs/V1_8_5_SPEC.md` for the data and integrity contract.
+
 ## Quick start
 
 ```bash
