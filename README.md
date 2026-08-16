@@ -261,6 +261,34 @@ The 2026 dates are ledger reservations only in this command. Their files are nei
 hashed. See `docs/V1_8_7_SPEC.md` and the frozen reference decision in
 `docs/V1_8_7_RESULT.md`.
 
+V1.8.8 expands the immutable registry to 23 definitions and makes research status explicit. Build
+the catalog before starting new factor Trials:
+
+```powershell
+stephen-quant factor-catalog --output "artifacts\factor-catalog-v1.8.8"
+```
+
+Eight new QD-compatible candidates cover skip-recent momentum, trend efficiency, range position,
+intraday strength, volume surprise, volume-confirmed momentum, dollar liquidity, and Parkinson
+range volatility. `ret_60` remains registered for lineage but is marked rejected and excluded from
+the candidate screen.
+
+Use training data only to identify redundant definitions before any return-based validation:
+
+```powershell
+stephen-quant qd-factor-screen `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
+  --data-start 2022-01-01 `
+  --screen-start 2023-01-03 --screen-end 2023-12-29 `
+  --adjustment back_ratio --threshold 0.80 `
+  --output "artifacts\qd-factor-screen-v1.8.8"
+```
+
+The screen compares direction-adjusted cross-sectional factor ranks. It does not use forward
+returns and does not authorize testing every surviving factor. See `docs/V1_8_8_SPEC.md` and the
+frozen training-screen decision in `docs/V1_8_8_RESULT.md`.
+
 ## Quick start
 
 ```bash

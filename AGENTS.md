@@ -40,6 +40,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.5 QD date-partitioned CSV adapter + historical daily backtest validation
 - V1.8.6 training-only QD universe + benchmark comparison + placebo audit
 - V1.8.7 validation-only diagnostics + conservative open-limit execution constraints
+- V1.8.8 predeclared factor catalog + training-only redundancy screen
 
 ## Engineering style
 - Python >= 3.10.

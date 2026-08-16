@@ -5,6 +5,7 @@ import json
 import subprocess
 
 from .baseline import BaselineConfig
+from .factors import build_factor_catalog, write_factor_catalog
 from .integrity.audit import audit_registry
 from .integrity.models import ExperimentSpec, TrialSpec
 from .integrity.registry import ExperimentRegistry
@@ -16,8 +17,11 @@ from .qmt import (
     XtquantExportError,
     export_qmt_daily_csv,
     export_qmt_dat_daily_csv,
+    load_qd_daily_directory,
     read_stock_file,
+    screen_factor_redundancy,
     select_qd_training_universe,
+    write_factor_redundancy_screen,
     write_qd_universe,
 )
 from .workflows import (
@@ -70,6 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("audit")
 
+    factor_catalog = sub.add_parser("factor-catalog")
+    factor_catalog.add_argument("--output", default="artifacts/factor-catalog")
+
     qmt = sub.add_parser("qmt-backtest")
     qmt_source = qmt.add_mutually_exclusive_group(required=True)
     qmt_source.add_argument("--csv")
@@ -112,6 +119,16 @@ def build_parser() -> argparse.ArgumentParser:
     qd_universe.add_argument("--train-end", required=True)
     qd_universe.add_argument("--top-n", type=int, required=True)
     qd_universe.add_argument("--output", default="artifacts/qd-universe")
+
+    factor_screen = sub.add_parser("qd-factor-screen")
+    factor_screen.add_argument("--daily-dir", required=True)
+    factor_screen.add_argument("--stock-file", required=True)
+    factor_screen.add_argument("--data-start", required=True)
+    factor_screen.add_argument("--screen-start", required=True)
+    factor_screen.add_argument("--screen-end", required=True)
+    factor_screen.add_argument("--adjustment", default="back_ratio")
+    factor_screen.add_argument("--threshold", type=float, default=0.8)
+    factor_screen.add_argument("--output", default="artifacts/qd-factor-screen")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -224,6 +241,25 @@ def main() -> None:
             print(f"[{flag}] {finding.check}: {finding.detail}")
         raise SystemExit(0 if all(x.passed for x in findings) else 1)
 
+    if args.command == "factor-catalog":
+        catalog = build_factor_catalog()
+        artifacts = write_factor_catalog(catalog, args.output)
+        print(
+            json.dumps(
+                {
+                    "definitions": len(catalog.entries),
+                    "qd_compatible": sum(entry.qd_compatible for entry in catalog.entries),
+                    "json_path": str(artifacts.json_path),
+                    "json_sha256": artifacts.json_sha256,
+                    "markdown_path": str(artifacts.markdown_path),
+                    "markdown_sha256": artifacts.markdown_sha256,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
     if args.command == "qd-select-universe":
         selection = select_qd_training_universe(
             args.daily_dir,
@@ -246,6 +282,47 @@ def main() -> None:
                 indent=2,
                 sort_keys=True,
                 ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "qd-factor-screen":
+        stocks = read_stock_file(args.stock_file)
+        dataset = load_qd_daily_directory(
+            args.daily_dir,
+            start_date=args.data_start,
+            end_date=args.screen_end,
+            instruments=stocks,
+            adjustment=args.adjustment,
+            include_next_after_end=True,
+        )
+        catalog = build_factor_catalog()
+        definitions = tuple(
+            entry.definition
+            for entry in catalog.entries
+            if entry.qd_compatible and entry.research_status != "rejected_validation"
+        )
+        screen = screen_factor_redundancy(
+            dataset.bars,
+            definitions,
+            source_snapshot_sha256=dataset.audit.source_sha256,
+            screen_start=args.screen_start,
+            screen_end=args.screen_end,
+            high_correlation_threshold=args.threshold,
+        )
+        artifacts = write_factor_redundancy_screen(screen, args.output)
+        print(
+            json.dumps(
+                {
+                    "factors": len(screen.factor_keys),
+                    "pairs": len(screen.pairs),
+                    "high_correlation_pairs": len(screen.high_correlation_pairs),
+                    "source_snapshot_sha256": screen.source_snapshot_sha256,
+                    "json_path": str(artifacts.json_path),
+                    "markdown_path": str(artifacts.markdown_path),
+                },
+                indent=2,
+                sort_keys=True,
             )
         )
         return

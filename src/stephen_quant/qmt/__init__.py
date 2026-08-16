@@ -29,6 +29,14 @@ from .dividends import (
     load_qmt_dividend_records,
     parse_qmt_dividend_value,
 )
+from .factor_screen import (
+    FACTOR_SCREEN_VERSION,
+    FactorCorrelationPair,
+    FactorRedundancyScreen,
+    FactorScreenArtifacts,
+    screen_factor_redundancy,
+    write_factor_redundancy_screen,
+)
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 from .observations import build_qmt_factor_observations
 from .qd_csv_adapter import (
@@ -73,6 +81,7 @@ __all__ = [
     "DIVIDEND_PARSER_VERSION",
     "DIVIDEND_SCHEMA_SHA256",
     "EXPORTER_VERSION",
+    "FACTOR_SCREEN_VERSION",
     "MANIFEST_VERSION",
     "PARSER_VERSION",
     "PLACEBO_AUDIT_VERSION",
@@ -87,6 +96,9 @@ __all__ = [
     "DatExportResult",
     "DatSourceAudit",
     "DividendSourceFile",
+    "FactorCorrelationPair",
+    "FactorRedundancyScreen",
+    "FactorScreenArtifacts",
     "QdPlaceboArtifacts",
     "QdPlaceboAudit",
     "QdUniverseArtifacts",
@@ -117,10 +129,12 @@ __all__ = [
     "parse_qmt_dividend_value",
     "read_stock_file",
     "run_qd_placebo_audit",
+    "screen_factor_redundancy",
     "select_qd_daily_files",
     "select_qd_training_universe",
     "verify_qmt_dat_manifest",
     "write_benchmark_comparison",
+    "write_factor_redundancy_screen",
     "write_qd_placebo_audit",
     "write_qd_universe",
 ]

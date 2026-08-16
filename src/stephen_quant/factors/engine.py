@@ -35,6 +35,73 @@ def _period_return(data: Mapping[str, list[float]]) -> float:
     return close[-1] / close[0] - 1.0
 
 
+def _momentum120_skip20(data: Mapping[str, list[float]]) -> float:
+    close = data["close"]
+    return close[-21] / close[0] - 1.0
+
+
+def _trend_efficiency20(data: Mapping[str, list[float]]) -> float:
+    close = data["close"]
+    path = sum(abs(close[index] - close[index - 1]) for index in range(1, len(close)))
+    if path == 0:
+        return 0.0
+    return abs(close[-1] - close[0]) / path
+
+
+def _range_position20(data: Mapping[str, list[float]]) -> float:
+    upper = max(data["high"][-20:])
+    lower = min(data["low"][-20:])
+    if upper <= lower:
+        raise MissingDataError("high-low range must be positive")
+    return (data["close"][-1] - lower) / (upper - lower)
+
+
+def _intraday_strength20(data: Mapping[str, list[float]]) -> float:
+    opens = data["open"][-20:]
+    closes = data["close"][-20:]
+    if any(value <= 0 for value in opens):
+        raise MissingDataError("open must be positive for intraday strength")
+    return _mean(
+        [close / opening - 1.0 for opening, close in zip(opens, closes, strict=True)]
+    )
+
+
+def _volume_surprise5_20(data: Mapping[str, list[float]]) -> float:
+    volume = data["volume"][-20:]
+    baseline = _mean(volume)
+    if baseline <= 0:
+        raise MissingDataError("mean volume must be positive")
+    return _mean(volume[-5:]) / baseline - 1.0
+
+
+def _signed_volume_momentum20(data: Mapping[str, list[float]]) -> float:
+    volume = data["volume"][-20:]
+    baseline = _mean(volume)
+    if baseline <= 0:
+        raise MissingDataError("mean volume must be positive")
+    momentum = data["close"][-1] / data["close"][0] - 1.0
+    return momentum * (_mean(volume[-5:]) / baseline)
+
+
+def _dollar_liquidity20(data: Mapping[str, list[float]]) -> float:
+    amount = data["amount"][-20:]
+    average = _mean(amount)
+    if average <= 0:
+        raise MissingDataError("mean amount must be positive")
+    return math.log(average)
+
+
+def _parkinson_volatility20(data: Mapping[str, list[float]]) -> float:
+    high = data["high"][-20:]
+    low = data["low"][-20:]
+    if any(upper <= 0 or lower <= 0 or upper < lower for upper, lower in zip(high, low)):
+        raise MissingDataError("high and low must be positive and ordered")
+    squared_ranges = [
+        math.log(upper / lower) ** 2 for upper, lower in zip(high, low, strict=True)
+    ]
+    return math.sqrt(_mean(squared_ranges) / (4 * math.log(2)))
+
+
 def _ma20_60_ratio(data: Mapping[str, list[float]]) -> float:
     close = data["close"]
     return _mean(close[-20:]) / _mean(close[-60:]) - 1.0
@@ -106,6 +173,14 @@ def _atr20(data: Mapping[str, list[float]]) -> float:
 
 FORMULAS: dict[str, Formula] = {
     "period_return": _period_return,
+    "momentum120_skip20": _momentum120_skip20,
+    "trend_efficiency20": _trend_efficiency20,
+    "range_position20": _range_position20,
+    "intraday_strength20": _intraday_strength20,
+    "volume_surprise5_20": _volume_surprise5_20,
+    "signed_volume_momentum20": _signed_volume_momentum20,
+    "dollar_liquidity20": _dollar_liquidity20,
+    "parkinson_volatility20": _parkinson_volatility20,
     "ma20_60_ratio": _ma20_60_ratio,
     "price_ma120": _price_ma120,
     "trend_slope20": _trend_slope20,
