@@ -12,7 +12,7 @@ from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manif
 from .csv_adapter import _decode, _normalize_header, _parse_date, _parse_number, _validate_bar
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 
-QD_ADAPTER_VERSION = "qd-daily-directory-1.2.0"
+QD_ADAPTER_VERSION = "qd-daily-directory-1.3.0"
 QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "trade_date": ("日期", "交易日期", "trade_date", "date"),
     "instrument": ("代码", "股票代码", "证券代码", "ts_code", "instrument"),
@@ -146,6 +146,8 @@ def _open_tradability(
     upper = (prior * (Decimal(1) + rate)).quantize(tick, rounding=ROUND_HALF_UP)
     lower = (prior * (Decimal(1) - rate)).quantize(tick, rounding=ROUND_HALF_UP)
     opening = Decimal(str(raw_open)).quantize(tick, rounding=ROUND_HALF_UP)
+    if opening > upper or opening < lower:
+        return True, True, "no_price_limit_inferred"
     if opening >= upper:
         return False, True, "open_at_upper_limit"
     if opening <= lower:
@@ -355,7 +357,7 @@ def load_qd_daily_directory(
                 bar.tradability_reason == "unavailable" for bar in bars
             ),
             no_price_limit_bars=sum(
-                bar.tradability_reason == "no_price_limit" for bar in bars
+                bar.tradability_reason.startswith("no_price_limit") for bar in bars
             ),
         ),
     )

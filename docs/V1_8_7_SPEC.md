@@ -25,7 +25,8 @@ the adapter infers the daily limit using information available by then:
 - historical main-board ST names: 5% before 2026-07-06, then 10%;
 - ChiNext and STAR prefixes, including ST names: 20%;
 - Beijing exchange or 4/8 prefixes: 30%;
-- names beginning with `N` or `C`: no daily price limit.
+- names beginning with `N` or `C`, or opens outside the ordinary calculated band: no-limit session
+  or conservative no-limit inference.
 
 Prices are rounded to a CNY 0.01 tick with half-up rounding. A buy at the upper limit or a sell at
 the lower limit receives zero execution. The desired but blocked notional and blocked-order count

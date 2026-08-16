@@ -189,6 +189,9 @@ def test_qd_price_limit_rules_cover_boards_new_shares_and_historical_st() -> Non
     assert _open_tradability(
         "001001.SZ", "C示例", "2025-01-03", 20.0, 10.0
     ) == (True, True, "no_price_limit")
+    assert _open_tradability(
+        "001391.SZ", "国货航", "2024-12-30", 10.0, 2.3
+    ) == (True, True, "no_price_limit_inferred")
 
 
 def test_qd_directory_runs_existing_trial_first_backtest_workflow(tmp_path: Path) -> None:

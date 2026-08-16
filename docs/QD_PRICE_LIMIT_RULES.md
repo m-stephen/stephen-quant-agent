@@ -1,6 +1,6 @@
 # QD A-share price-limit calculation
 
-This document records the rule set used by `qd-daily-directory-1.2.0`. It is a point-in-time data
+This document records the rule set used by `qd-daily-directory-1.3.0`. It is a point-in-time data
 contract for conservative next-open execution, not a general exchange matching engine.
 
 ## Formula
@@ -34,10 +34,16 @@ at the limit after the limit price has been calculated from the previous close.
 | IPO no-limit phase | normalized name starts with `N` or `C` | no limit |
 
 The exchange rules state that IPO stocks have no daily price limit for their first five trading
-days. `N` identifies the listing day and `C` is used by the supplied daily data during the later
-no-limit phase. An authoritative listing-date join is preferable if the vendor ever stops carrying
-those markers. Relisting, the first delisting-consolidation day, and exchange-specific exceptional
-decisions remain outside this adapter's supported rule.
+days. `N` commonly identifies the listing day and `C` the later no-limit phase. The QD fundamental
+files preserve these markers, but the inspected QD daily K-line name column removes them. The
+adapter therefore also treats an open strictly outside the ordinary calculated limit range as a
+`no_price_limit_inferred` session. An open exactly at the calculated limit remains blocked.
+
+This inference is sufficient for the current fixed universe because every member was listed before
+the training start. A future dynamic-universe adapter should join the point-in-time listing date and
+count the first five exchange trading sessions explicitly. Relisting, the first
+delisting-consolidation day, and exchange-specific exceptional decisions remain outside this
+adapter's supported rule.
 
 ## Official sources
 
