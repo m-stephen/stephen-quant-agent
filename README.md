@@ -35,6 +35,15 @@ See `docs/V1_1_SPEC.md` for the factor and timing contracts.
 
 See `docs/V1_2_SPEC.md` for metric definitions and sample-integrity rules.
 
+## V1.3 leakage-resistant validation
+
+- label-interval purge and configurable post-test embargo
+- deterministic combinatorial purged cross-validation folds and OOS paths
+- fold-local preprocessing hooks that fit on training IDs only
+- hashed split manifests and per-fold integrity audits
+
+See `docs/V1_3_SPEC.md` for split semantics and audit guarantees.
+
 ## Quick start
 
 ```bash
