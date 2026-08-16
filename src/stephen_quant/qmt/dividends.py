@@ -4,10 +4,11 @@ import hashlib
 import json
 import math
 import struct
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .models import QmtDailyBar, QmtDataError
 

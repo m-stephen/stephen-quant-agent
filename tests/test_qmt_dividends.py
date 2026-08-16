@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from stephen_quant.cli import build_parser
 from stephen_quant.qmt import (
     DIVIDEND_PARSER_VERSION,
     DIVIDEND_SCHEMA_SHA256,
@@ -22,7 +23,6 @@ from stephen_quant.qmt import (
     parse_qmt_dividend_value,
     verify_qmt_dat_manifest,
 )
-from stephen_quant.cli import build_parser
 
 MARKET_TZ = timezone(timedelta(hours=8))
 
