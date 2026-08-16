@@ -64,6 +64,17 @@ See `docs/V1_4_SPEC.md` for evidence contracts, default thresholds, and limitati
 
 See `docs/V1_5_SPEC.md` for portfolio, execution, cost, and timing contracts.
 
+## V1.6 PPO long-only allocation with cash
+
+- dependency-light linear Gaussian actor-critic reference policy
+- softmax long-only asset-plus-cash allocations
+- generalized advantage estimation and PPO clipped surrogate updates
+- net-of-cost reward with turnover and drawdown penalties
+- training-only normalization and frozen deterministic validation
+- reproducible policy hashes and JSON/Markdown training reports
+
+See `docs/V1_6_SPEC.md` for policy, reward, training, and validation integrity contracts.
+
 ## Quick start
 
 ```bash
