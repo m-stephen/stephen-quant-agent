@@ -12,7 +12,7 @@ from stephen_quant.qmt import DatExportConfig, DatExportResult, export_qmt_dat_d
 
 from .qmt_backtest import QmtBacktestRun, QmtBacktestRunConfig, run_qmt_backtest_workflow
 
-VALIDATION_VERSION = "qmt-dat-backtest-validation-1.0.0"
+VALIDATION_VERSION = "qmt-dat-backtest-validation-1.1.0"
 MINIMUM_RESEARCH_UNIVERSE = 30
 
 
@@ -68,12 +68,16 @@ def _write_atomic(path: Path, payload: bytes) -> str:
     return _sha256(payload)
 
 
-def _limitations(instruments: int) -> tuple[str, ...]:
-    items = [
-        "Direct DAT prices are unadjusted; corporate actions are not reconstructed.",
-        "The instrument universe is operator-supplied and may contain survivorship bias.",
-        "A successful run validates engineering integrity, not factor profitability.",
-    ]
+def _limitations(instruments: int, adjustment: str) -> tuple[str, ...]:
+    items = []
+    if adjustment == "none":
+        items.append("Direct DAT prices are unadjusted; corporate actions are not reconstructed.")
+    items.extend(
+        [
+            "The instrument universe is operator-supplied and may contain survivorship bias.",
+            "A successful run validates engineering integrity, not factor profitability.",
+        ]
+    )
     if instruments < MINIMUM_RESEARCH_UNIVERSE:
         items.append(
             f"The universe has {instruments} instruments, below the "
@@ -95,6 +99,12 @@ def _summary_payload(
         "gates": [
             {"name": "dat_schema_and_semantics", "passed": True},
             {"name": "raw_source_hashes", "passed": True},
+            {
+                "name": "corporate_action_snapshot",
+                "passed": True,
+                "available": export.adjustment == "back_ratio",
+                "required_for_research": True,
+            },
             {"name": "canonical_csv_snapshot", "passed": True},
             {"name": "trial_registered_before_backtest", "passed": True},
             {"name": "point_in_time_execution", "passed": True},
@@ -135,7 +145,7 @@ def _summary_markdown(payload: dict[str, object]) -> str:
         "",
         "- Engineering validation: **PASS**",
         "- Research-claim eligibility: **NO**",
-        "- Reason: unadjusted prices and operator-supplied universe",
+        "- Reason: operator-supplied universe may contain survivorship bias",
         "",
         "## Data and lineage",
         "",
@@ -175,7 +185,10 @@ def run_qmt_dat_backtest_validation(
     """Execute the direct-DAT engineering validation as one auditable command."""
 
     root = Path(output_dir).expanduser().resolve()
-    dataset_csv = root / "data" / "qmt-daily-none.csv"
+    adjustment = config.backtest.adjustment
+    if adjustment not in {"none", "back_ratio"}:
+        raise ValueError("direct DAT validation requires adjustment='none' or 'back_ratio'")
+    dataset_csv = root / "data" / f"qmt-daily-{adjustment}.csv"
     summary_json = root / "validation-summary.json"
     summary_markdown = root / "validation-summary.md"
     if not config.overwrite:
@@ -190,7 +203,7 @@ def run_qmt_dat_backtest_validation(
             start_date=config.data_start,
             end_date=config.data_end,
             stocks=config.stocks,
-            adjustment="none",
+            adjustment=adjustment,
             overwrite=config.overwrite,
         )
     )
@@ -202,7 +215,7 @@ def run_qmt_dat_backtest_validation(
         code_version=code_version,
         experiment_id=experiment_id,
     )
-    limitations = _limitations(export.exported_instruments)
+    limitations = _limitations(export.exported_instruments, export.adjustment)
     summary = _summary_payload(export, run, limitations)
     json_payload = (
         json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n"

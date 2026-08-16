@@ -123,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
     dat_validate.add_argument("--experiment-id")
     dat_validate.add_argument("--data-start", required=True)
     dat_validate.add_argument("--data-end", required=True)
+    dat_validate.add_argument("--adjustment", default="none")
     validation_universe = dat_validate.add_mutually_exclusive_group(required=True)
     validation_universe.add_argument("--stocks")
     validation_universe.add_argument("--stock-file")
@@ -308,7 +309,7 @@ def main() -> None:
                     backtest=QmtBacktestRunConfig(
                         factor_id=args.factor,
                         factor_version=args.factor_version,
-                        adjustment="none",
+                        adjustment=args.adjustment,
                         train_start=args.train_start,
                         train_end=args.train_end,
                         validation_start=args.validation_start,

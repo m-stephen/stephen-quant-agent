@@ -12,11 +12,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .csv_adapter import load_qmt_daily_csv
+from .dividends import apply_back_ratio_adjustment, load_qmt_dividend_records
 from .models import QmtDailyBar, QmtDataError
 from .xtquant_export import CANONICAL_HEADER, normalize_stocks
 
 PARSER_VERSION = "qmt-daily-dat-1.0.0"
-MANIFEST_VERSION = "qmt-dat-provenance-1.0.0"
+MANIFEST_VERSION = "qmt-dat-provenance-1.1.0"
 RECORD_SIZE = 64
 PRICE_SCALE = 1_000
 STOCK_VOLUME_SCALE = 100
@@ -103,8 +104,8 @@ def _parse_iso_window(config: DatExportConfig) -> tuple[date, date]:
         raise QmtDatError("start_date and end_date must be ISO dates") from exc
     if start > end:
         raise QmtDatError("start_date must not be after end_date")
-    if config.adjustment != "none":
-        raise QmtDatError("direct DAT parsing supports adjustment='none' only")
+    if config.adjustment not in {"none", "back_ratio"}:
+        raise QmtDatError("direct DAT parsing supports adjustment='none' or 'back_ratio'")
     return start, end
 
 
@@ -260,6 +261,14 @@ def verify_qmt_dat_manifest(
     for field, value in expected.items():
         if manifest.get(field) != value:
             raise QmtDatError(f"QMT DAT provenance {field} mismatch")
+    if adjustment == "back_ratio":
+        corporate_actions = manifest.get("corporate_actions")
+        if not isinstance(corporate_actions, dict):
+            raise QmtDatError("QMT DAT provenance has no corporate-action snapshot")
+        if not re.fullmatch(
+            r"[0-9a-f]{64}", str(corporate_actions.get("snapshot_sha256", ""))
+        ):
+            raise QmtDatError("QMT DAT provenance has an invalid corporate-action hash")
     if output.get("filename") != source.name:
         raise QmtDatError("QMT DAT provenance output filename mismatch")
     if output.get("sha256") != _sha256(source):
@@ -277,7 +286,7 @@ def verify_qmt_dat_manifest(
 
 
 def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
-    """Export selected unadjusted A-share daily DAT files to the canonical CSV contract."""
+    """Export selected raw or point-in-time back-ratio A-share daily DAT bars."""
 
     start, end = _parse_iso_window(config)
     root = _resolve_datadir(config.datadir)
@@ -309,6 +318,16 @@ def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
         )
     if empty:
         raise QmtDatError(f"no DAT bars in requested window for: {empty[:10]}")
+    corporate_actions: dict[str, object] | None = None
+    if config.adjustment == "back_ratio":
+        try:
+            actions, action_audit = load_qmt_dividend_records(
+                root / "DividData", instruments=stocks
+            )
+            rows = list(apply_back_ratio_adjustment(rows, actions))
+            corporate_actions = action_audit.to_dict()
+        except QmtDataError as exc:
+            raise QmtDatError(f"cannot apply QMT corporate actions: {exc}") from exc
     rows.sort(key=lambda item: (item.trade_date, item.instrument))
 
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -332,7 +351,7 @@ def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
                 )
                 for bar in rows
             )
-        dataset = load_qmt_daily_csv(temporary_csv, adjustment="none")
+        dataset = load_qmt_daily_csv(temporary_csv, adjustment=config.adjustment)
         output_sha256 = _sha256(temporary_csv)
         manifest = {
             "manifest_version": MANIFEST_VERSION,
@@ -340,7 +359,7 @@ def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
             "schema_sha256": SCHEMA_SHA256,
             "schema": _SCHEMA,
             "source_kind": "qmt_86400_dat_read_only",
-            "adjustment": "none",
+            "adjustment": config.adjustment,
             "requested_window": {"start": start.isoformat(), "end": end.isoformat()},
             "requested_instruments": list(stocks),
             "sources": [asdict(item) for item in sources],
@@ -352,6 +371,8 @@ def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
                 "end_date": dataset.audit.end_date,
             },
         }
+        if corporate_actions is not None:
+            manifest["corporate_actions"] = corporate_actions
         temporary_manifest.write_text(
             json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
             encoding="utf-8",
@@ -367,7 +388,7 @@ def export_qmt_dat_daily_csv(config: DatExportConfig) -> DatExportResult:
         schema_sha256=SCHEMA_SHA256,
         output_csv=str(destination),
         manifest_path=str(manifest_path),
-        adjustment="none",
+        adjustment=config.adjustment,
         requested_instruments=len(stocks),
         exported_instruments=dataset.audit.instruments,
         rows=dataset.audit.rows,
