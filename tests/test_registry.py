@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.integrity.snapshot import build_snapshot_manifest
@@ -37,3 +39,10 @@ def test_trial_counter_is_monotonic(tmp_path: Path) -> None:
     _, n1 = registry.create_trial(spec)
     _, n2 = registry.create_trial(spec)
     assert (n1, n2) == (1, 2)
+    assert registry.trial_count(experiment_id) == 2
+
+
+def test_trial_count_rejects_unknown_experiment(tmp_path: Path) -> None:
+    registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
+    with pytest.raises(ValueError, match="unknown experiment"):
+        registry.trial_count("exp_missing")

@@ -44,6 +44,16 @@ See `docs/V1_2_SPEC.md` for metric definitions and sample-integrity rules.
 
 See `docs/V1_3_SPEC.md` for split semantics and audit guarantees.
 
+## V1.4 falsification and multiplicity control
+
+- seeded cross-sectional signal-shuffle and forward-return placebos
+- repeated null distributions with finite-sample empirical p-values
+- trial-ledger-aware Deflated Sharpe Ratio
+- PBO computed from complete, audited CPCV path results
+- deterministic Alpha Court reports with explicit pass/reject thresholds
+
+See `docs/V1_4_SPEC.md` for evidence contracts, default thresholds, and limitations.
+
 ## Quick start
 
 ```bash
