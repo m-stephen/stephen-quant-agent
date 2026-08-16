@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from .models import ExperimentSpec, TrialSpec, utc_now_iso
 from .snapshot import SnapshotManifest
-
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;

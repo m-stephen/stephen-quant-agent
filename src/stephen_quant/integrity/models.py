@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 
 def utc_now_iso() -> str:
@@ -18,7 +17,7 @@ class PointInTimeRecord:
     effective_at: str
     available_at: str
     ingested_at: str
-    vendor_version: Optional[str] = None
+    vendor_version: str | None = None
 
 
 @dataclass(frozen=True)

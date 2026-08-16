@@ -18,6 +18,15 @@ The project deliberately starts with **V1.0: Evaluation Integrity Foundation** b
 - Codex project instructions in `AGENTS.md`
 - GitHub Actions CI
 
+## V1.1 factor foundation
+
+- immutable, versioned factor definitions
+- 15 momentum, trend, relative-strength, liquidity, and risk seed factors
+- deterministic dependency-light calculations
+- explicit failures for insufficient history, missing values, and future-unavailable inputs
+
+See `docs/V1_1_SPEC.md` for the factor and timing contracts.
+
 ## Quick start
 
 ```bash
