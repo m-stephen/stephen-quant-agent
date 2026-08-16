@@ -75,6 +75,17 @@ See `docs/V1_5_SPEC.md` for portfolio, execution, cost, and timing contracts.
 
 See `docs/V1_6_SPEC.md` for policy, reward, training, and validation integrity contracts.
 
+## V1.7 LLM Factor Research Agent
+
+- trial-first, provider-neutral LLM proposal workflow
+- point-in-time research sources and explicit knowledge cutoffs
+- exact JSON proposal schema with evidence citations and falsification plans
+- AST-validated factor DSL with no arbitrary code execution
+- persistent candidate fingerprints, duplicate rejection, and `proposed`-only status
+- deterministic prompt/response hashes and JSON/Markdown audit reports
+
+See `docs/V1_7_SPEC.md` for the agent boundary, safe DSL, and candidate lifecycle.
+
 ## Quick start
 
 ```bash
