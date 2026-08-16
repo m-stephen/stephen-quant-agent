@@ -38,7 +38,7 @@ from .factor_screen import (
     write_factor_redundancy_screen,
 )
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
-from .observations import build_qmt_factor_observations
+from .observations import build_qmt_factor_observations, combine_qmt_factor_observations
 from .qd_csv_adapter import (
     AMOUNT_THOUSAND_CNY_TO_CNY,
     QD_ADAPTER_VERSION,
@@ -116,6 +116,7 @@ __all__ = [
     "XtquantExportResult",
     "apply_back_ratio_adjustment",
     "build_qmt_factor_observations",
+    "combine_qmt_factor_observations",
     "compare_to_benchmark",
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",

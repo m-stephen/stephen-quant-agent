@@ -1,3 +1,13 @@
+from .composite_cpcv import (
+    COMPOSITE_CPCV_VERSION,
+    PREDECLARED_CONFIGURATIONS,
+    CompositeConfiguration,
+    CompositeCpcvConfig,
+    CompositeCpcvReport,
+    CompositeCpcvRun,
+    ConfigurationScore,
+    run_composite_cpcv_research,
+)
 from .factor_family_report import (
     FACTOR_FAMILY_REPORT_VERSION,
     FactorFamilyReportArtifacts,
@@ -21,10 +31,17 @@ from .qmt_dat_validation import (
 )
 
 __all__ = [
+    "COMPOSITE_CPCV_VERSION",
     "FACTOR_FAMILY_REPORT_VERSION",
     "MINIMUM_RESEARCH_UNIVERSE",
+    "PREDECLARED_CONFIGURATIONS",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
+    "CompositeConfiguration",
+    "CompositeCpcvConfig",
+    "CompositeCpcvReport",
+    "CompositeCpcvRun",
+    "ConfigurationScore",
     "FactorFamilyReportArtifacts",
     "FactorFamilyTrialSummary",
     "FactorFamilyValidationReport",
@@ -33,6 +50,7 @@ __all__ = [
     "QmtDatValidationConfig",
     "QmtDatValidationRun",
     "build_factor_family_validation_report",
+    "run_composite_cpcv_research",
     "run_qmt_backtest_workflow",
     "run_qmt_dat_backtest_validation",
     "write_factor_family_validation_report",

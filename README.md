@@ -306,6 +306,25 @@ Sharpe, positive excess return versus CSI 300, a passed placebo audit, and DSR o
 The sealed 2026 test window remains unopened unless the family passes. See
 `docs/V1_8_9_SPEC.md` and the frozen validation decision in `docs/V1_8_9_RESULT.md`.
 
+V1.8.10 treats the observed 2024 result as consumed research evidence and evaluates four
+predeclared composite rules with fold-local CPCV weighting. The command loads only the research
+history and the single next-open boundary bar; 2025 validation begins on the following session:
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.10.sqlite3" qd-composite-cpcv `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
+  --data-start 2021-07-01 `
+  --research-start 2022-01-04 --research-end 2024-12-31 `
+  --validation-start 2025-01-03 --validation-end 2025-12-31 `
+  --test-start 2026-01-05 --test-end 2026-08-14 `
+  --groups 6 --test-groups 3 --embargo-days 5 `
+  --output "reports\qd-v1.8.10-cpcv"
+```
+
+The frozen research gate requires mean path RankIC at least 0.02, at least 8/10 positive paths,
+clean CPCV hygiene, and PBO no greater than 0.20. See `docs/V1_8_10_SPEC.md`.
+
 ## Quick start
 
 ```bash

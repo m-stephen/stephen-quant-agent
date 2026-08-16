@@ -25,9 +25,11 @@ from .qmt import (
     write_qd_universe,
 )
 from .workflows import (
+    CompositeCpcvConfig,
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
+    run_composite_cpcv_research,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     write_factor_family_validation_report,
@@ -138,6 +140,23 @@ def build_parser() -> argparse.ArgumentParser:
     factor_screen.add_argument("--adjustment", default="back_ratio")
     factor_screen.add_argument("--threshold", type=float, default=0.8)
     factor_screen.add_argument("--output", default="artifacts/qd-factor-screen")
+
+    composite = sub.add_parser("qd-composite-cpcv")
+    composite.add_argument("--daily-dir", required=True)
+    composite.add_argument("--stock-file", required=True)
+    composite.add_argument("--data-start", required=True)
+    composite.add_argument("--research-start", required=True)
+    composite.add_argument("--research-end", required=True)
+    composite.add_argument("--validation-start", required=True)
+    composite.add_argument("--validation-end", required=True)
+    composite.add_argument("--test-start", required=True)
+    composite.add_argument("--test-end", required=True)
+    composite.add_argument("--adjustment", default="back_ratio")
+    composite.add_argument("--groups", type=int, default=6)
+    composite.add_argument("--test-groups", type=int, default=3)
+    composite.add_argument("--embargo-days", type=int, default=5)
+    composite.add_argument("--seed", type=int, default=42)
+    composite.add_argument("--output", default="reports/qd-composite-cpcv")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -370,6 +389,32 @@ def main() -> None:
                 sort_keys=True,
             )
         )
+        return
+
+    if args.command == "qd-composite-cpcv":
+        stocks = read_stock_file(args.stock_file)
+        run = run_composite_cpcv_research(
+            args.daily_dir,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            config=CompositeCpcvConfig(
+                data_start=args.data_start,
+                research_start=args.research_start,
+                research_end=args.research_end,
+                validation_start=args.validation_start,
+                validation_end=args.validation_end,
+                test_start=args.test_start,
+                test_end=args.test_end,
+                instruments=stocks,
+                adjustment=args.adjustment,
+                n_groups=args.groups,
+                n_test_groups=args.test_groups,
+                embargo_days=args.embargo_days,
+                seed=args.seed,
+            ),
+        )
+        print(run.report.to_json())
         return
 
     if args.command == "qmt-backtest":

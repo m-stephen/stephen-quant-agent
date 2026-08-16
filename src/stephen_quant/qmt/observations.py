@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from datetime import date
 
 from stephen_quant.baseline import BaselineObservation
+from stephen_quant.evaluation import average_ranks
 from stephen_quant.factors import FactorDefinition, compute_factor
 
 from .models import QmtDailyBar, QmtDataError
@@ -127,3 +128,75 @@ def build_qmt_factor_observations(
                 )
             )
     return tuple(observations)
+
+
+def combine_qmt_factor_observations(
+    components: dict[str, Sequence[BaselineObservation]],
+    weights: dict[str, float],
+    directions: dict[str, int],
+) -> tuple[BaselineObservation, ...]:
+    """Combine direction-adjusted cross-sectional ranks without fitting global transforms."""
+
+    if not components or set(components) != set(weights) or set(components) != set(directions):
+        raise QmtDataError("components, weights, and directions must have identical non-empty keys")
+    if any(weight < 0 for weight in weights.values()):
+        raise QmtDataError("composite weights cannot be negative")
+    total_weight = sum(weights.values())
+    if total_weight <= 0:
+        raise QmtDataError("composite weights must have positive total weight")
+    if any(direction not in {-1, 1} for direction in directions.values()):
+        raise QmtDataError("component directions must be -1 or 1")
+
+    by_component: dict[str, dict[tuple[str, str], BaselineObservation]] = {}
+    for name, rows in components.items():
+        indexed = {(row.execution_at, row.instrument): row for row in rows}
+        if len(indexed) != len(rows):
+            raise QmtDataError(f"duplicate composite observation key in {name}")
+        by_component[name] = indexed
+    key_sets = [set(indexed) for indexed in by_component.values()]
+    if any(keys != key_sets[0] for keys in key_sets[1:]):
+        raise QmtDataError("composite components do not cover the same observation panel")
+
+    normalized = {name: weight / total_weight for name, weight in weights.items()}
+    scores: dict[tuple[str, str], float] = {key: 0.0 for key in key_sets[0]}
+    dates = sorted({execution_at for execution_at, _ in key_sets[0]})
+    for execution_at in dates:
+        date_keys = sorted(key for key in key_sets[0] if key[0] == execution_at)
+        for name, indexed in by_component.items():
+            ranked = average_ranks(
+                [directions[name] * indexed[key].signal for key in date_keys]
+            )
+            scale = max(len(ranked) - 1, 1)
+            for key, rank in zip(date_keys, ranked, strict=True):
+                scores[key] += normalized[name] * (rank - 1) / scale
+
+    anchor = next(iter(by_component.values()))
+    combined: list[BaselineObservation] = []
+    for key in sorted(key_sets[0]):
+        base = anchor[key]
+        for indexed in by_component.values():
+            row = indexed[key]
+            if (
+                row.signal_at != base.signal_at
+                or row.signal_available_at != base.signal_available_at
+                or row.return_end_at != base.return_end_at
+                or row.forward_return != base.forward_return
+            ):
+                raise QmtDataError("composite components have inconsistent timing or labels")
+        combined.append(
+            BaselineObservation(
+                instrument=base.instrument,
+                signal=scores[key],
+                signal_at=base.signal_at,
+                signal_available_at=base.signal_available_at,
+                average_daily_value=base.average_daily_value,
+                liquidity_available_at=base.liquidity_available_at,
+                execution_at=base.execution_at,
+                return_end_at=base.return_end_at,
+                forward_return=base.forward_return,
+                can_buy_open=base.can_buy_open,
+                can_sell_open=base.can_sell_open,
+                tradability_reason=base.tradability_reason,
+            )
+        )
+    return tuple(combined)
