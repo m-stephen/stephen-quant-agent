@@ -54,6 +54,16 @@ See `docs/V1_3_SPEC.md` for split semantics and audit guarantees.
 
 See `docs/V1_4_SPEC.md` for evidence contracts, default thresholds, and limitations.
 
+## V1.5 executable Momentum Top-K baseline
+
+- deterministic point-in-time Top-K selection and equal weighting
+- configurable rebalance schedule, cash reserve, and concentration cap
+- commissions, slippage, and participation-sensitive market impact
+- ADV capacity limits with explicit capacity and funding clipping
+- net-of-cost NAV, drawdown, turnover, and execution audit reports
+
+See `docs/V1_5_SPEC.md` for portfolio, execution, cost, and timing contracts.
+
 ## Quick start
 
 ```bash
