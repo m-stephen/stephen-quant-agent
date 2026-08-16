@@ -10,8 +10,23 @@ from .models import (
     BaselineReport,
     OrderExecution,
 )
+from .stateful import (
+    STATEFUL_EXECUTION_VERSION,
+    PositionMark,
+    StatefulBar,
+    StatefulExecutionArtifacts,
+    StatefulExecutionConfig,
+    StatefulExecutionReport,
+    StatefulMetrics,
+    StatefulOrder,
+    StatefulPeriod,
+    TargetAllocation,
+    run_stateful_execution,
+    write_stateful_execution_report,
+)
 
 __all__ = [
+    "STATEFUL_EXECUTION_VERSION",
     "BacktestPeriod",
     "BaselineArtifacts",
     "BaselineConfig",
@@ -21,6 +36,17 @@ __all__ = [
     "BaselineObservation",
     "BaselineReport",
     "OrderExecution",
+    "PositionMark",
+    "StatefulBar",
+    "StatefulExecutionArtifacts",
+    "StatefulExecutionConfig",
+    "StatefulExecutionReport",
+    "StatefulMetrics",
+    "StatefulOrder",
+    "StatefulPeriod",
+    "TargetAllocation",
     "run_momentum_topk",
+    "run_stateful_execution",
     "write_baseline_report",
+    "write_stateful_execution_report",
 ]
