@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 
 METHOD_VERSION = "momentum-topk-baseline-1.0.0"
-COST_MODEL_VERSION = "linear-plus-sqrt-impact-1.0.0"
+COST_MODEL_VERSION = "linear-plus-sqrt-impact-1.1.0"
 
 
 @dataclass(frozen=True)
@@ -40,6 +40,7 @@ class BaselineConfig:
     cash_reserve: float = 0.0
     max_position_weight: float = 1.0
     commission_bps: float = 0.0
+    sell_tax_bps: float = 0.0
     slippage_bps: float = 0.0
     impact_coefficient_bps: float = 0.0
     max_participation_rate: float = 0.05
@@ -61,6 +62,7 @@ class OrderExecution:
     capacity_clipped_notional: float
     funding_clipped_notional: float
     commission_cost: float
+    sell_tax_cost: float
     slippage_cost: float
     market_impact_cost: float
     total_cost: float
@@ -136,6 +138,7 @@ class BaselineReport:
             f"- Top-K: {self.config.top_k}",
             f"- Rebalance every: {self.config.rebalance_every} period(s)",
             f"- Commission: {self.config.commission_bps:.4f} bps",
+            f"- Sell tax: {self.config.sell_tax_bps:.4f} bps",
             f"- Slippage: {self.config.slippage_bps:.4f} bps",
             f"- Impact coefficient: {self.config.impact_coefficient_bps:.4f} bps",
             f"- Maximum ADV participation: {self.config.max_participation_rate:.2%}",

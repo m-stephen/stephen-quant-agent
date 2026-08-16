@@ -14,6 +14,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 8. LLM-generated factors are candidates only; they must pass statistical validation and placebo tests.
 9. Do not optimize against the final test window.
 10. Prefer simple baselines before adding PPO/GNN/LLM complexity.
+11. Never commit QMT raw data, account identifiers, credentials, or terminal-specific paths.
 
 ## V1.0 scope
 - Experiment Registry
@@ -31,6 +32,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.5 momentum baseline
 - V1.6 PPO allocation layer
 - V1.7 LLM factor research agent
+- V1.8 QMT data adapter + end-to-end out-of-sample backtest
 
 ## Engineering style
 - Python >= 3.10.

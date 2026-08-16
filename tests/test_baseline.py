@@ -125,6 +125,32 @@ def test_higher_costs_cannot_improve_net_performance() -> None:
     assert costly.metrics.net_total_return < zero_cost.metrics.net_total_return
 
 
+def test_sell_tax_is_charged_only_on_sell_orders() -> None:
+    signals = (
+        {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0},
+        {"A": 1.0, "B": 2.0, "C": 4.0, "D": 3.0},
+    )
+    report = run_momentum_topk(
+        _observations(signals, forward_returns={item: 0.0 for item in "ABCD"}),
+        _lineage(),
+        BaselineConfig(top_k=2, sell_tax_bps=10.0, max_participation_rate=1.0),
+    )
+
+    first_orders = report.periods[0].orders
+    second_orders = report.periods[1].orders
+    assert all(order.sell_tax_cost == 0 for order in first_orders)
+    assert all(
+        order.sell_tax_cost > 0
+        for order in second_orders
+        if order.executed_notional < 0
+    )
+    assert all(
+        order.sell_tax_cost == 0
+        for order in second_orders
+        if order.executed_notional >= 0
+    )
+
+
 def test_capacity_limits_clip_orders_and_are_reported() -> None:
     report = run_momentum_topk(
         _observations(average_daily_value=100_000.0),

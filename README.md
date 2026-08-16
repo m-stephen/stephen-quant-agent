@@ -86,6 +86,36 @@ See `docs/V1_6_SPEC.md` for policy, reward, training, and validation integrity c
 
 See `docs/V1_7_SPEC.md` for the agent boundary, safe DSL, and candidate lifecycle.
 
+## V1.8 QMT end-to-end backtest
+
+- dependency-light Guojin QMT daily CSV adapter with Chinese and English header aliases
+- exact single-file SHA-256 snapshots and dataset quality audits
+- prior-close factor signals, next-session open execution, and next-open returns
+- Trial-first orchestration over the existing seed-factor and Momentum Top-K engines
+- China-compatible sell-side tax plus commissions, slippage, impact, and ADV capacity
+- deterministic JSON/Markdown reports registered to the Trial ledger
+
+See `docs/V1_8_SPEC.md` for the input contract, timing semantics, limitations, and acceptance test.
+
+Run a locked-window QMT backtest:
+
+```bash
+stephen-quant --db artifacts/qmt-v1.8.sqlite3 qmt-backtest \
+  --csv /private/path/qmt_daily.csv \
+  --output reports/qmt-v1.8 \
+  --adjustment front_ratio \
+  --factor ret_60 \
+  --train-start 2018-01-01 --train-end 2021-12-31 \
+  --validation-start 2022-01-01 --validation-end 2023-12-31 \
+  --test-start 2024-01-01 --test-end 2025-12-31 \
+  --top-k 10 --rebalance-every 5 \
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 --impact-bps 10
+```
+
+The raw CSV, registry database, and generated reports are ignored by Git. Keep them outside the
+public repository. Reuse the printed `experiment_id` with `--experiment-id` for every related retry
+so rejected and successful attempts accumulate in one multiplicity ledger.
+
 ## Quick start
 
 ```bash
@@ -148,6 +178,7 @@ stephen-quant --db artifacts/registry.sqlite3 audit
 - **V1.5** Momentum Top-K baseline and realistic costs
 - **V1.6** PPO long-only allocation + cash
 - **V1.7** LLM Factor Research Agent
+- **V1.8** QMT data adapter and end-to-end out-of-sample backtest
 
 ## Principle
 

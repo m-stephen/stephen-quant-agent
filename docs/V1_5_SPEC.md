@@ -24,6 +24,7 @@ V1.5 establishes a simple, auditable portfolio baseline before any reinforcement
 - Capacity-limited orders are clipped rather than assumed filled.
 - Sells execute before buys; buys are proportionally reduced if cash cannot cover trades and costs.
 - Commission and slippage are linear in absolute traded notional.
+- Optional sell tax is charged only on sell notional for markets such as China A-shares.
 - Market impact is `notional * impact_coefficient_bps * sqrt(participation) / 10,000`.
 - Costs are deducted from cash before the forward return is applied.
 
