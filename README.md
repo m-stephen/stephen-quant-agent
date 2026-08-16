@@ -27,6 +27,14 @@ The project deliberately starts with **V1.0: Evaluation Integrity Foundation** b
 
 See `docs/V1_1_SPEC.md` for the factor and timing contracts.
 
+## V1.2 alpha evaluation
+
+- cross-sectional IC, RankIC, ICIR, hit rate, and horizon decay
+- subperiod, market-regime, turnover, and factor-redundancy diagnostics
+- deterministic JSON and Markdown Alpha Cards with complete research lineage
+
+See `docs/V1_2_SPEC.md` for metric definitions and sample-integrity rules.
+
 ## Quick start
 
 ```bash
