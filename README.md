@@ -348,7 +348,8 @@ V1.8.12 adds stateful accounting for sparse dynamic-universe panels. A missing h
 dropped: trading is blocked, its mark is explicitly stale, and the stale-session count is audited.
 After 20 consecutive missing sessions it is conservatively written to zero; a later quote records
 a recovery before any pending exit executes. Limit-down exits remain blocked, and order capacity
-must carry a timestamp earlier than the execution open. See `docs/V1_8_12_SPEC.md`.
+must carry a timestamp earlier than the execution open. See `docs/V1_8_12_SPEC.md` and the frozen
+engineering decision in `docs/V1_8_12_RESULT.md`.
 
 ## Quick start
 
