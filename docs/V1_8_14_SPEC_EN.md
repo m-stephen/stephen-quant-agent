@@ -16,6 +16,15 @@ before observing any candidate return.
 Both use only OHLC values available by decision close. Their formulas and directions are immutable
 factor-registry entries and are tested for determinism and timing hygiene.
 
+## Sequential implementation
+
+1. The signal stage evaluates all four Trials with day-level cross-sectional CPCV and produces
+   detailed English and Chinese reports. Every stock from one trading day stays in the same fold.
+2. A failed signal gate ends the family immediately. No cost backtest, DSR, placebo, or validation
+   access is permitted.
+3. A passed signal gate authorizes a second in-research-window stateful execution and
+   falsification stage. It still does not open 2025.
+
 ## Four frozen Trials
 
 The machine-readable declaration is `configs/v1.8.14-candidates.json`:

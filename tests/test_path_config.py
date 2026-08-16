@@ -84,3 +84,18 @@ def test_dynamic_backtest_cli_accepts_ignored_path_config_without_inline_paths()
     assert args.daily_dir is None
     assert args.membership_jsonl is None
     assert args.benchmark_csv is None
+
+
+def test_dynamic_cpcv_cli_accepts_ignored_path_config_without_inline_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "qd-dynamic-cpcv",
+            "--paths-config",
+            "configs/qd-paths.local.json",
+        ]
+    )
+
+    assert args.paths_config == "configs/qd-paths.local.json"
+    assert args.daily_dir is None
+    assert args.membership_jsonl is None
+    assert args.candidate_manifest == "configs/v1.8.14-candidates.json"

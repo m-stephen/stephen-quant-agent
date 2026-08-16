@@ -384,6 +384,18 @@ predeclared candidate configurations. The machine-readable search space is froze
 `configs/v1.8.14-candidates.json`; 2025 and 2026 remain sealed. Review the bilingual design in
 `docs/V1_8_14_SPEC.md`.
 
+Run the frozen signal gate with the ignored local path configuration:
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.14.sqlite3" qd-dynamic-cpcv `
+  --paths-config "configs\qd-paths.local.json" `
+  --candidate-manifest "configs\v1.8.14-candidates.json" `
+  --output "reports\qd-v1.8.14-cpcv"
+```
+
+The command registers all four Trials before evaluation and writes JSON plus detailed English and
+Chinese Markdown reports. It never loads the reserved 2025 or 2026 partitions.
+
 ## Quick start
 
 ```bash

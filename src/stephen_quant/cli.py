@@ -35,6 +35,7 @@ from .workflows import (
     QmtDatValidationConfig,
     build_factor_family_validation_report,
     run_composite_cpcv_research,
+    run_dynamic_cpcv_research,
     run_dynamic_stateful_backtest,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
@@ -202,6 +203,15 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_backtest.add_argument("--initial-nav", type=float, default=1_000_000.0)
     dynamic_backtest.add_argument("--seed", type=int, default=42)
     dynamic_backtest.add_argument("--output", default="reports/qd-dynamic-backtest")
+
+    dynamic_cpcv = sub.add_parser("qd-dynamic-cpcv")
+    dynamic_cpcv.add_argument("--paths-config")
+    dynamic_cpcv.add_argument("--daily-dir")
+    dynamic_cpcv.add_argument("--membership-jsonl")
+    dynamic_cpcv.add_argument(
+        "--candidate-manifest", default="configs/v1.8.14-candidates.json"
+    )
+    dynamic_cpcv.add_argument("--output", default="reports/qd-v1.8.14-cpcv")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -539,6 +549,26 @@ def main() -> None:
                 seed=args.seed,
             ),
         )
+        print(run.report.to_json())
+        return
+
+    if args.command == "qd-dynamic-cpcv":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", args.daily_dir, "--daily-dir")
+            membership_jsonl = local_paths.choose(
+                "dynamic_membership_jsonl", args.membership_jsonl, "--membership-jsonl"
+            )
+            run = run_dynamic_cpcv_research(
+                daily_dir,
+                membership_jsonl,
+                args.candidate_manifest,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"qd-dynamic-cpcv failed: {exc}") from exc
         print(run.report.to_json())
         return
 
