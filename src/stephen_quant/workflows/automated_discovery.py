@@ -28,7 +28,10 @@ from stephen_quant.discovery import (
 from stephen_quant.falsification import write_alpha_court_report
 from stephen_quant.integrity.models import ExperimentSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
-from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manifest
+from stephen_quant.integrity.snapshot import (
+    build_composite_snapshot_manifest,
+    build_selected_files_snapshot_manifest,
+)
 from stephen_quant.qmt import (
     QdAlternativeAudit,
     QdAlternativeConfig,
@@ -207,6 +210,10 @@ class AutomatedDiscoveryReport:
                     f"- DSR probability: {court.deflated_sharpe.probability:.6f}",
                     f"- PBO: {court.pbo.probability:.6f}",
                     f"- Recorded trials: {court.recorded_trial_count}",
+                    f"- Walk-forward net return: {self.execution.walk_forward.net_total_return:.2%}",
+                    f"- Walk-forward annualized Sharpe: {self.execution.walk_forward.annualized_net_sharpe}",
+                    f"- Walk-forward max drawdown: {self.execution.walk_forward.max_drawdown:.2%}",
+                    f"- Walk-forward gate: {self.execution.walk_forward.passed}",
                 ]
             )
         if self.alternative_audits:
@@ -365,13 +372,29 @@ def run_automated_discovery(
     files = select_qd_daily_files(
         root, start_date=config.data_start, end_date=config.research_end
     )
-    source_manifest = build_selected_files_snapshot_manifest(root, files)
+    daily_manifest = build_selected_files_snapshot_manifest(root, files)
+    alternative_paths = alternative_paths or {}
+    alternative_datasets = _alternative_datasets(
+        alternative_paths,
+        config,
+        ingested_at=ingested_at,
+        instruments=tuple(sorted(set(instruments))),
+    )
+    snapshot_components = {"qd_daily": daily_manifest.snapshot_sha256}
+    snapshot_components.update(
+        {
+            source: dataset.audit.source_sha256
+            for source, dataset in alternative_datasets.items()
+        }
+    )
+    if dynamic_sha256 is not None:
+        snapshot_components["dynamic_universe"] = dynamic_sha256
+    source_manifest = build_composite_snapshot_manifest(snapshot_components)
     snapshot_id = registry.register_snapshot(
         source_manifest,
-        vendor_version="QD daily back-ratio research partitions",
-        notes="V1.8.16 research files only; validation and final test remain sealed.",
+        vendor_version="QD multi-source point-in-time research snapshot",
+        notes="V1.8.16 research sources only; validation and final test remain sealed.",
     )
-    alternative_paths = alternative_paths or {}
     source_keys = {
         "qd_fund_flow_dir": "qd_fund_flow",
         "qd_auction_dir": "qd_auction",
@@ -449,12 +472,6 @@ def run_automated_discovery(
                 }
             ),
         )
-    alternative_datasets = _alternative_datasets(
-        alternative_paths,
-        config,
-        ingested_at=ingested_at,
-        instruments=tuple(sorted(set(instruments))),
-    )
     observations: dict[str, tuple] = {}
     for item in candidates:
         if item.unique and item.schema.data_sources == ("qd_daily",):
@@ -619,20 +636,25 @@ def run_automated_discovery(
     first_trial = screening.scores[0].trial_id
     for fingerprint, baseline_report in execution_reports.items():
         artifacts = write_baseline_report(baseline_report, output / "execution")
-        trial_id = next(
-            score.trial_id
-            for score in execution.configurations  # type: ignore[union-attr]
-            if score.fingerprint == fingerprint
-        )
+        if fingerprint == "__walk_forward__":
+            trial_id = execution.alpha_court.lineage.trial_id  # type: ignore[union-attr]
+            artifact_prefix = "walk_forward"
+        else:
+            trial_id = next(
+                score.trial_id
+                for score in execution.configurations  # type: ignore[union-attr]
+                if score.fingerprint == fingerprint
+            )
+            artifact_prefix = "execution_baseline"
         registry.register_artifact(
             trial_id=trial_id,
-            kind="execution_baseline_json",
+            kind=f"{artifact_prefix}_json",
             path=str(artifacts.json_path),
             sha256=artifacts.json_sha256,
         )
         registry.register_artifact(
             trial_id=trial_id,
-            kind="execution_baseline_markdown",
+            kind=f"{artifact_prefix}_markdown",
             path=str(artifacts.markdown_path),
             sha256=artifacts.markdown_sha256,
         )

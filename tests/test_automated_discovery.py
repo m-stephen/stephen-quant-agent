@@ -10,6 +10,7 @@ from stephen_quant.workflows import (
     AutomatedDiscoveryConfig,
     load_automated_discovery_config,
     run_automated_discovery,
+    run_automated_discovery_suite,
 )
 
 
@@ -137,3 +138,41 @@ def test_manifest_loader_is_strict_and_normalizes_windows(tmp_path: Path) -> Non
         assert "fields are invalid" in str(exc)
     else:
         raise AssertionError("unknown manifest field was accepted")
+
+
+def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
+    tmp_path: Path,
+) -> None:
+    daily = tmp_path / "daily"
+    sessions = _write_daily(daily)
+    manifests = []
+    for horizon in ("next_open", "5d"):
+        payload = {
+            "manifest_version": "1.0.0",
+            **_config(sessions).__dict__, "horizon": horizon,
+        }
+        payload["windows"] = list(payload["windows"])
+        path = tmp_path / f"{horizon}.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        manifests.append(path.name)
+    suite = tmp_path / "suite.json"
+    suite.write_text(
+        json.dumps({"manifest_version": "1.0.0", "search_manifests": manifests}),
+        encoding="utf-8",
+    )
+    registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
+    run = run_automated_discovery_suite(
+        daily,
+        ("000001.SZ", "000002.SZ", "600000.SH", "600001.SH"),
+        registry=registry,
+        output_dir=tmp_path / "suite-report",
+        code_version="test-sha",
+        suite_manifest=suite,
+        ingested_at="2026-01-01T00:00:00+08:00",
+    )
+    assert len({item.experiment_id for item in run.report.runs}) == 2
+    assert [item.horizon for item in run.report.runs] == ["next_open", "5d"]
+    assert run.report.global_trial_count == 16
+    assert run.report.validation_window_opened is False
+    assert run.report.test_window_opened is False
+    assert run.json_path.is_file()

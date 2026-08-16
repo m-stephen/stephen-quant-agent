@@ -6,6 +6,13 @@ from .automated_discovery import (
     load_automated_discovery_config,
     run_automated_discovery,
 )
+from .automated_discovery_suite import (
+    AUTOMATED_DISCOVERY_SUITE_VERSION,
+    AutomatedDiscoverySuiteItem,
+    AutomatedDiscoverySuiteReport,
+    AutomatedDiscoverySuiteRun,
+    run_automated_discovery_suite,
+)
 from .composite_cpcv import (
     COMPOSITE_CPCV_VERSION,
     PREDECLARED_CONFIGURATIONS,
@@ -63,6 +70,7 @@ from .qmt_dat_validation import (
 )
 
 __all__ = [
+    "AUTOMATED_DISCOVERY_SUITE_VERSION",
     "AUTOMATED_DISCOVERY_VERSION",
     "COMPOSITE_CPCV_VERSION",
     "DYNAMIC_BACKTEST_VERSION",
@@ -76,6 +84,9 @@ __all__ = [
     "AutomatedDiscoveryConfig",
     "AutomatedDiscoveryReport",
     "AutomatedDiscoveryRun",
+    "AutomatedDiscoverySuiteItem",
+    "AutomatedDiscoverySuiteReport",
+    "AutomatedDiscoverySuiteRun",
     "CompositeConfiguration",
     "CompositeCpcvConfig",
     "CompositeCpcvReport",
@@ -103,6 +114,7 @@ __all__ = [
     "build_factor_family_validation_report",
     "load_automated_discovery_config",
     "run_automated_discovery",
+    "run_automated_discovery_suite",
     "run_composite_cpcv_research",
     "run_dynamic_cpcv_research",
     "run_dynamic_stateful_backtest",

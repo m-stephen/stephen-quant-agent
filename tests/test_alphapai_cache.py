@@ -34,9 +34,18 @@ def _response() -> dict[str, object]:
     }
 
 
+def _provenance() -> dict[str, str]:
+    return {
+        "prompt_version": "industry-one-page-v1",
+        "model_identifier": "alphapai-agent",
+        "tool_version": "openpai-v1",
+    }
+
+
 def test_alphapai_cache_is_immutable_hashed_and_point_in_time(tmp_path: Path) -> None:
     entry = capture_alphapai_response(
         endpoint="agent",
+        provenance=_provenance(),
         request_payload=_request(),
         response=_response(),
         fetched_at="2024-01-15T12:00:00+08:00",
@@ -49,6 +58,7 @@ def test_alphapai_cache_is_immutable_hashed_and_point_in_time(tmp_path: Path) ->
     loaded = load_alphapai_cache(
         tmp_path,
         endpoint="agent",
+        provenance=_provenance(),
         request_payload=_request(),
         decision_at="2024-01-16T09:30:00+08:00",
     )
@@ -58,6 +68,7 @@ def test_alphapai_cache_is_immutable_hashed_and_point_in_time(tmp_path: Path) ->
         load_alphapai_cache(
             tmp_path,
             endpoint="agent",
+            provenance=_provenance(),
             request_payload=_request(),
             decision_at="2024-01-14T09:30:00+08:00",
         )
@@ -68,12 +79,14 @@ def test_alphapai_cache_fails_closed_on_miss_tamper_and_secrets(tmp_path: Path) 
         load_alphapai_cache(
             tmp_path,
             endpoint="agent",
+            provenance=_provenance(),
             request_payload=_request(),
             decision_at="2024-01-16T09:30:00+08:00",
         )
     with pytest.raises(ResearchAgentError, match="credential"):
         capture_alphapai_response(
             endpoint="agent",
+            provenance=_provenance(),
             request_payload={**_request(), "api_key": "must-not-be-cached"},
             response=_response(),
             fetched_at="2024-01-15T12:00:00+08:00",
@@ -82,6 +95,7 @@ def test_alphapai_cache_fails_closed_on_miss_tamper_and_secrets(tmp_path: Path) 
 
     entry = capture_alphapai_response(
         endpoint="agent",
+        provenance=_provenance(),
         request_payload=_request(),
         response=_response(),
         fetched_at="2024-01-15T12:00:00+08:00",
@@ -95,6 +109,7 @@ def test_alphapai_cache_fails_closed_on_miss_tamper_and_secrets(tmp_path: Path) 
         load_alphapai_cache(
             tmp_path,
             endpoint="agent",
+            provenance=_provenance(),
             request_payload=_request(),
             decision_at="2024-01-16T09:30:00+08:00",
         )
@@ -104,6 +119,7 @@ def test_alphapai_capture_rejects_failed_or_future_knowledge() -> None:
     with pytest.raises(ResearchAgentError, match="business request failed"):
         capture_alphapai_response(
             endpoint="agent",
+            provenance=_provenance(),
             request_payload=_request(),
             response={"code": 42900, "message": "limited"},
             fetched_at="2024-01-15T12:00:00+08:00",
@@ -114,6 +130,7 @@ def test_alphapai_capture_rejects_failed_or_future_knowledge() -> None:
     with pytest.raises(ResearchAgentError, match="knowledge cutoff"):
         capture_alphapai_response(
             endpoint="agent",
+            provenance=_provenance(),
             request_payload=_request(),
             response=future,
             fetched_at="2024-01-15T12:00:00+08:00",
@@ -130,6 +147,11 @@ def test_hot_topics_dates_are_bounded_by_cutoff() -> None:
     with pytest.raises(ResearchAgentError, match="exceeds knowledge cutoff"):
         capture_alphapai_response(
             endpoint="hot_topics",
+            provenance={
+                "prompt_version": "not_applicable",
+                "model_identifier": "not_applicable",
+                "tool_version": "openpai-hot-topics-v1",
+            },
             request_payload={"limit": 1},
             response=response,
             fetched_at="2024-01-15T12:00:00+08:00",

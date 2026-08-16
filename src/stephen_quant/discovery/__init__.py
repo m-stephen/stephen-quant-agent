@@ -9,6 +9,8 @@ from .execution import (
     DiscoveryExecutionConfig,
     DiscoveryExecutionReport,
     ExecutionCandidateScore,
+    WalkForwardBlock,
+    WalkForwardSummary,
     run_discovery_execution,
 )
 from .generator import (
@@ -47,6 +49,8 @@ __all__ = [
     "ScreeningReport",
     "ScreeningWindow",
     "SearchCampaign",
+    "WalkForwardBlock",
+    "WalkForwardSummary",
     "generate_candidates",
     "run_discovery_cpcv",
     "run_discovery_execution",

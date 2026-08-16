@@ -58,6 +58,7 @@ def _published_date(reference: dict[str, object]) -> date | None:
 class AlphaPaiCacheEntry:
     cache_version: str
     endpoint: str
+    provenance: dict[str, str]
     request_payload: dict[str, object]
     request_sha256: str
     response_sha256: str
@@ -72,6 +73,7 @@ class AlphaPaiCacheEntry:
 def capture_alphapai_response(
     *,
     endpoint: str,
+    provenance: dict[str, str],
     request_payload: dict[str, object],
     response: dict[str, object],
     fetched_at: str,
@@ -81,6 +83,15 @@ def capture_alphapai_response(
 
     if not endpoint.strip():
         raise ResearchAgentError("AlphaPai endpoint cannot be empty")
+    required_provenance = {"prompt_version", "model_identifier", "tool_version"}
+    if set(provenance) != required_provenance or any(
+        not isinstance(value, str) or not value.strip() for value in provenance.values()
+    ):
+        raise ResearchAgentError(
+            "AlphaPai provenance requires prompt_version, model_identifier and tool_version"
+        )
+    if _contains_secret(provenance):
+        raise ResearchAgentError("AlphaPai provenance contains a credential-like field")
     if _contains_secret(request_payload):
         raise ResearchAgentError("AlphaPai cache request contains a credential-like field")
     fetched = _aware(fetched_at, "fetched_at")
@@ -119,8 +130,15 @@ def capture_alphapai_response(
     return AlphaPaiCacheEntry(
         cache_version=ALPHAPAI_CACHE_VERSION,
         endpoint=endpoint.strip(),
+        provenance=provenance,
         request_payload=request_payload,
-        request_sha256=_sha256({"endpoint": endpoint.strip(), "request": request_payload}),
+        request_sha256=_sha256(
+            {
+                "endpoint": endpoint.strip(),
+                "provenance": provenance,
+                "request": request_payload,
+            }
+        ),
         response_sha256=_sha256(response),
         fetched_at=fetched.isoformat(),
         knowledge_cutoff_at=cutoff.isoformat(),
@@ -145,6 +163,7 @@ def load_alphapai_cache(
     cache_dir: str | Path,
     *,
     endpoint: str,
+    provenance: dict[str, str],
     request_payload: dict[str, object],
     decision_at: str,
 ) -> AlphaPaiCacheEntry:
@@ -153,7 +172,9 @@ def load_alphapai_cache(
     if _contains_secret(request_payload):
         raise ResearchAgentError("AlphaPai cache request contains a credential-like field")
     decision = _aware(decision_at, "decision_at")
-    request_hash = _sha256({"endpoint": endpoint.strip(), "request": request_payload})
+    request_hash = _sha256(
+        {"endpoint": endpoint.strip(), "provenance": provenance, "request": request_payload}
+    )
     path = Path(cache_dir).expanduser().resolve() / f"{request_hash}.json"
     if not path.is_file():
         raise ResearchAgentError("AlphaPai cache miss; online fallback is forbidden")
@@ -166,6 +187,8 @@ def load_alphapai_cache(
         raise ResearchAgentError("unsupported AlphaPai cache version")
     if entry.request_sha256 != request_hash:
         raise ResearchAgentError("AlphaPai cache request hash mismatch")
+    if entry.provenance != provenance:
+        raise ResearchAgentError("AlphaPai cache provenance mismatch")
     if entry.response_sha256 != _sha256(entry.response):
         raise ResearchAgentError("AlphaPai cache response hash mismatch")
     if _aware(entry.fetched_at, "fetched_at") > decision:

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import asdict, dataclass
+from collections import defaultdict
+from dataclasses import asdict, dataclass, replace
 from statistics import stdev
 
 from stephen_quant.baseline import (
@@ -12,7 +13,7 @@ from stephen_quant.baseline import (
     BaselineReport,
     run_momentum_topk,
 )
-from stephen_quant.evaluation import EvaluationObservation
+from stephen_quant.evaluation import EvaluationObservation, spearman_correlation
 from stephen_quant.falsification import (
     AlphaCourtReport,
     AuditThresholds,
@@ -45,6 +46,7 @@ class DiscoveryExecutionConfig:
     max_placebo_p_value: float = 0.05
     min_dsr_probability: float = 0.95
     maximum_pbo: float = 0.20
+    walk_forward_blocks: int = 6
 
     def validate(self) -> None:
         if self.top_k < 1:
@@ -59,6 +61,8 @@ class DiscoveryExecutionConfig:
             raise ValueError("min_dsr_probability must be between zero and one")
         if not 0 <= self.maximum_pbo < 1:
             raise ValueError("maximum_pbo must be in [0, 1)")
+        if self.walk_forward_blocks < 3:
+            raise ValueError("walk_forward_blocks must be at least three")
         if any(
             not math.isfinite(value) or value < 0
             for value in (
@@ -95,7 +99,31 @@ class DiscoveryExecutionReport:
     configurations: tuple[ExecutionCandidateScore, ...]
     selected_fingerprint: str
     alpha_court: AlphaCourtReport
+    walk_forward: WalkForwardSummary
     decision: str
+
+
+@dataclass(frozen=True)
+class WalkForwardBlock:
+    block_number: int
+    train_start: str
+    train_end: str
+    deploy_start: str
+    deploy_end: str
+    selected_fingerprint: str
+    training_mean_rank_ic: float
+
+
+@dataclass(frozen=True)
+class WalkForwardSummary:
+    method_version: str
+    blocks: tuple[WalkForwardBlock, ...]
+    periods: int
+    net_total_return: float
+    annualized_net_sharpe: float | None
+    max_drawdown: float
+    total_cost: float
+    passed: bool
 
 
 def _non_overlapping(
@@ -134,6 +162,124 @@ def _evaluation_rows(
         )
         for row in observations
         if row.eligible
+    )
+
+
+def _training_rank_ic(
+    rows: tuple[BaselineObservation, ...], dates: set[str], direction: int
+) -> float:
+    grouped: dict[str, list[BaselineObservation]] = defaultdict(list)
+    for row in rows:
+        day = row.execution_at[:10]
+        if day in dates and row.eligible:
+            grouped[day].append(row)
+    values = []
+    for day in sorted(grouped):
+        cross_section = sorted(grouped[day], key=lambda row: row.instrument)
+        if len(cross_section) < 3:
+            continue
+        values.append(
+            spearman_correlation(
+                [direction * row.signal for row in cross_section],
+                [row.forward_return for row in cross_section],
+            )
+        )
+    if not values:
+        raise ValueError("walk-forward training block has no valid cross-section")
+    return sum(values) / len(values)
+
+
+def _walk_forward(
+    ranked_fingerprints: tuple[str, ...],
+    candidate_by_fingerprint: dict[str, GeneratedCandidate],
+    observations: dict[str, tuple[BaselineObservation, ...]],
+    *,
+    lineage: BaselineLineage,
+    horizon_sessions: int,
+    config: DiscoveryExecutionConfig,
+) -> tuple[WalkForwardSummary, BaselineReport]:
+    common_keys = set.intersection(
+        *(
+            {(row.execution_at, row.instrument) for row in observations[fingerprint]}
+            for fingerprint in ranked_fingerprints
+        )
+    )
+    common_dates = {
+        row.execution_at[:10]
+        for row in observations[ranked_fingerprints[0]]
+        if row.eligible and (row.execution_at, row.instrument) in common_keys
+    }
+    dates = sorted(common_dates)
+    if len(dates) < config.walk_forward_blocks * 2:
+        raise ValueError("walk-forward research history is too short for configured blocks")
+    width, remainder = divmod(len(dates), config.walk_forward_blocks)
+    blocks: list[list[str]] = []
+    offset = 0
+    for block_index in range(config.walk_forward_blocks):
+        size = width + (1 if block_index < remainder else 0)
+        blocks.append(dates[offset : offset + size])
+        offset += size
+
+    selections: list[WalkForwardBlock] = []
+    deployment_rows: list[BaselineObservation] = []
+    for block_index in range(1, len(blocks)):
+        train_dates = {day for block in blocks[:block_index] for day in block}
+        deploy_dates = set(blocks[block_index])
+        scores = {
+            fingerprint: _training_rank_ic(
+                observations[fingerprint],
+                train_dates,
+                candidate_by_fingerprint[fingerprint].schema.direction,
+            )
+            for fingerprint in ranked_fingerprints
+        }
+        selected = max(scores, key=lambda fingerprint: (scores[fingerprint], fingerprint))
+        direction = candidate_by_fingerprint[selected].schema.direction
+        selections.append(
+            WalkForwardBlock(
+                block_number=block_index,
+                train_start=min(train_dates),
+                train_end=max(train_dates),
+                deploy_start=min(deploy_dates),
+                deploy_end=max(deploy_dates),
+                selected_fingerprint=selected,
+                training_mean_rank_ic=scores[selected],
+            )
+        )
+        deployment_rows.extend(
+            replace(row, signal=direction * row.signal)
+            for row in observations[selected]
+            if row.execution_at[:10] in deploy_dates
+            and (row.execution_at, row.instrument) in common_keys
+        )
+    replay = run_momentum_topk(
+        _non_overlapping(tuple(deployment_rows), horizon_sessions),
+        lineage,
+        BaselineConfig(
+            top_k=config.top_k,
+            direction=1,
+            commission_bps=config.commission_bps,
+            sell_tax_bps=config.sell_tax_bps,
+            slippage_bps=config.slippage_bps,
+            impact_coefficient_bps=config.impact_coefficient_bps,
+            max_participation_rate=config.max_participation_rate,
+            periods_per_year=max(1, 252 // horizon_sessions),
+        ),
+        initial_nav=config.initial_nav,
+    )
+    passed = replay.metrics.net_sharpe is not None and replay.metrics.net_sharpe > 0
+    return (
+        WalkForwardSummary(
+            method_version="expanding-window-factor-selection-1.0.0",
+            blocks=tuple(selections),
+            periods=replay.metrics.periods,
+            net_total_return=replay.metrics.net_total_return,
+            annualized_net_sharpe=replay.metrics.net_sharpe,
+            max_drawdown=replay.metrics.max_drawdown,
+            total_cost=replay.metrics.total_cost,
+            passed=passed,
+        ),
+        replay,
     )
 
 
@@ -243,7 +389,7 @@ def run_discovery_execution(
 
     winner = max(scores, key=lambda item: (item.raw_net_sharpe, item.fingerprint))
     winner_schema = candidate_by_fingerprint[winner.fingerprint].schema
-    recorded_trials = registry.trial_count(campaign.spec.experiment_id)
+    recorded_trials = registry.global_trial_count()
     dsr = deflated_sharpe_ratio(
         observed_sharpe=winner.raw_net_sharpe,
         trial_sharpes=[item.raw_net_sharpe for item in scores],
@@ -289,7 +435,29 @@ def run_discovery_execution(
             max_pbo=config.maximum_pbo,
         ),
     )
-    decision = "PASS_ALPHA_COURT" if alpha_court.decision.passed else "REJECT_ALPHA_COURT"
+    walk_forward, walk_forward_report = _walk_forward(
+        tuple(item.fingerprint for item in ranked),
+        candidate_by_fingerprint,
+        observations,
+        lineage=BaselineLineage(
+            "walk_forward_selector",
+            "1.0.0",
+            snapshot_id,
+            campaign.spec.experiment_id,
+            winner.trial_id,
+            code_version,
+        ),
+        horizon_sessions=horizon_sessions,
+        config=config,
+    )
+    reports["__walk_forward__"] = walk_forward_report
+    decision = (
+        "PASS_ALPHA_COURT"
+        if alpha_court.decision.passed and walk_forward.passed
+        else "REJECT_WALK_FORWARD"
+        if alpha_court.decision.passed
+        else "REJECT_ALPHA_COURT"
+    )
     return (
         DiscoveryExecutionReport(
             method_version=EXECUTION_DISCOVERY_VERSION,
@@ -298,6 +466,7 @@ def run_discovery_execution(
             configurations=tuple(scores),
             selected_fingerprint=winner.fingerprint,
             alpha_court=alpha_court,
+            walk_forward=walk_forward,
             decision=decision,
         ),
         reports,

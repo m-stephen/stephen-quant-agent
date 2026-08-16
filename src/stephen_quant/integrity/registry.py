@@ -250,6 +250,13 @@ class ExperimentRegistry:
                 raise ValueError(f"unknown experiment: {experiment_id}")
             return str(row[0])
 
+    def global_trial_count(self) -> int:
+        """Count all attempts in the registry across experiments and agents."""
+
+        self.initialize()
+        with self.connect() as conn:
+            return int(conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0])
+
     def record_trial_result(self, trial_id: str, result_json: str) -> None:
         """Write a trial outcome once; rejected attempts remain immutable evidence."""
 
