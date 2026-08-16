@@ -279,3 +279,45 @@ class ExperimentRegistry:
         self.initialize()
         with self.connect() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM factor_candidates").fetchone()[0])
+
+    def register_artifact(
+        self,
+        *,
+        trial_id: str,
+        kind: str,
+        path: str,
+        sha256: str | None = None,
+    ) -> str:
+        """Attach a generated artifact to a registered Trial."""
+
+        if not kind or not path:
+            raise ValueError("artifact kind and path cannot be empty")
+        artifact_id = f"artifact_{uuid.uuid4().hex[:16]}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO artifacts (artifact_id, created_at, trial_id, kind, path, sha256)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (artifact_id, utc_now_iso(), trial_id, kind, path, sha256),
+            )
+        return artifact_id
+
+    def trial_result(self, trial_id: str) -> str | None:
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT result_json FROM trials WHERE trial_id = ?", (trial_id,)
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"unknown trial: {trial_id}")
+            return None if row[0] is None else str(row[0])
+
+    def artifact_count(self, trial_id: str) -> int:
+        self.initialize()
+        with self.connect() as conn:
+            return int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM artifacts WHERE trial_id = ?", (trial_id,)
+                ).fetchone()[0]
+            )

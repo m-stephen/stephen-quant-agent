@@ -42,7 +42,12 @@ def _validate_config(config: BaselineConfig) -> None:
         raise BaselineError("periods_per_year must be positive")
     if not 0 < config.max_participation_rate <= 1:
         raise BaselineError("max_participation_rate must be in (0, 1]")
-    costs = (config.commission_bps, config.slippage_bps, config.impact_coefficient_bps)
+    costs = (
+        config.commission_bps,
+        config.sell_tax_bps,
+        config.slippage_bps,
+        config.impact_coefficient_bps,
+    )
     if any(not math.isfinite(value) or value < 0 for value in costs):
         raise BaselineError("cost assumptions must be finite and non-negative")
     if not config.cost_model_version:
@@ -122,16 +127,17 @@ def _target_weights(
 
 def _costs(
     notional: float, average_daily_value: float, config: BaselineConfig
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     absolute = abs(notional)
     if absolute == 0:
-        return 0.0, 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0
     commission = absolute * config.commission_bps / 10_000
+    sell_tax = absolute * config.sell_tax_bps / 10_000 if notional < 0 else 0.0
     slippage = absolute * config.slippage_bps / 10_000
     participation = absolute / average_daily_value
     impact_bps = config.impact_coefficient_bps * math.sqrt(participation)
     impact = absolute * impact_bps / 10_000
-    return commission, slippage, impact
+    return commission, sell_tax, slippage, impact
 
 
 def _buy_scale(
@@ -205,10 +211,10 @@ def _execute_rebalance(
     for instrument in universe:
         row = by_instrument[instrument]
         trade = executed.get(instrument, 0.0)
-        commission, slippage, impact = _costs(
+        commission, sell_tax, slippage, impact = _costs(
             trade, row.average_daily_value, config
         )
-        cost = commission + slippage + impact
+        cost = commission + sell_tax + slippage + impact
         total_cost += cost
         orders.append(
             OrderExecution(
@@ -228,6 +234,7 @@ def _execute_rebalance(
                     abs(capacity_executions[instrument]) - abs(trade), 0.0
                 ),
                 commission_cost=commission,
+                sell_tax_cost=sell_tax,
                 slippage_cost=slippage,
                 market_impact_cost=impact,
                 total_cost=cost,
