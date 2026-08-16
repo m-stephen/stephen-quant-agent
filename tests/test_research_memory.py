@@ -58,6 +58,7 @@ def test_research_memory_records_failure_duplicate_and_research_only_policy() ->
     )
     assert memory.feedback_partition == "research_only"
     assert [item.outcome for item in memory.experiences] == ["screened_out", "duplicate"]
+    assert {item.family for item in memory.experiences} == {"price_momentum"}
     assert memory.recommendations[0].operation == "explore"
     assert "Research Memory" in memory.to_markdown("en")
     assert "研究记忆" in memory.to_markdown("zh")

@@ -79,9 +79,10 @@ class ResearchMemory:
         return "\n".join(lines) + "\n"
 
 
-def _family(schema_id: str) -> str:
-    pieces = schema_id.rsplit("_", 2)
-    return pieces[0] if len(pieces) == 3 else schema_id
+def _family(schema_id: str, horizon: str) -> str:
+    base = schema_id.removesuffix(f"_{horizon}")
+    family, separator, window = base.rpartition("_")
+    return family if separator and window.isdigit() else base
 
 
 def build_research_memory(
@@ -120,7 +121,7 @@ def build_research_memory(
             ResearchExperience(
                 fingerprint=schema.fingerprint,
                 schema_id=schema.schema_id,
-                family=_family(schema.schema_id),
+                family=_family(schema.schema_id, schema.horizon),
                 horizon=schema.horizon,
                 proposal_number=candidate.proposal_number,
                 parent_fingerprints=schema.parent_fingerprints,
