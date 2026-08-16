@@ -17,6 +17,8 @@ from .qmt import (
     export_qmt_daily_csv,
     export_qmt_dat_daily_csv,
     read_stock_file,
+    select_qd_training_universe,
+    write_qd_universe,
 )
 from .workflows import (
     QmtBacktestRunConfig,
@@ -98,6 +100,17 @@ def build_parser() -> argparse.ArgumentParser:
     qmt.add_argument("--max-participation-rate", type=float, default=0.05)
     qmt.add_argument("--initial-nav", type=float, default=1_000_000.0)
     qmt.add_argument("--seed", type=int, default=42)
+    qmt.add_argument("--benchmark-csv")
+    qmt.add_argument("--benchmark-name", default="benchmark")
+    qmt.add_argument("--placebo-repetitions", type=int, default=0)
+
+    qd_universe = sub.add_parser("qd-select-universe")
+    qd_universe.add_argument("--daily-dir", required=True)
+    qd_universe.add_argument("--fundamental-dir", required=True)
+    qd_universe.add_argument("--train-start", required=True)
+    qd_universe.add_argument("--train-end", required=True)
+    qd_universe.add_argument("--top-n", type=int, required=True)
+    qd_universe.add_argument("--output", default="artifacts/qd-universe")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -210,6 +223,32 @@ def main() -> None:
             print(f"[{flag}] {finding.check}: {finding.detail}")
         raise SystemExit(0 if all(x.passed for x in findings) else 1)
 
+    if args.command == "qd-select-universe":
+        selection = select_qd_training_universe(
+            args.daily_dir,
+            args.fundamental_dir,
+            train_start=args.train_start,
+            train_end=args.train_end,
+            top_n=args.top_n,
+        )
+        artifacts = write_qd_universe(selection, args.output)
+        print(
+            json.dumps(
+                {
+                    "selection_sha256": selection.selection_sha256,
+                    "source_snapshot_sha256": selection.source_snapshot_sha256,
+                    "instruments": selection.instruments,
+                    "json_path": str(artifacts.json_path),
+                    "markdown_path": str(artifacts.markdown_path),
+                    "stock_file_path": str(artifacts.stock_file_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
     if args.command == "qmt-backtest":
         stocks = ()
         if args.stocks:
@@ -239,6 +278,9 @@ def main() -> None:
                 initial_nav=args.initial_nav,
                 seed=args.seed,
                 instruments=stocks,
+                benchmark_csv=args.benchmark_csv,
+                benchmark_name=args.benchmark_name,
+                placebo_repetitions=args.placebo_repetitions,
                 portfolio=BaselineConfig(
                     top_k=args.top_k,
                     rebalance_every=args.rebalance_every,

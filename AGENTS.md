@@ -38,6 +38,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.3 one-command DAT engineering backtest validation on the long-lived data-test branch
 - V1.8.4 read-only DividData corporate actions + point-in-time back-ratio adjustment
 - V1.8.5 QD date-partitioned CSV adapter + historical daily backtest validation
+- V1.8.6 training-only QD universe + benchmark comparison + placebo audit
 
 ## Engineering style
 - Python >= 3.10.

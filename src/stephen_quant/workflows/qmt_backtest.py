@@ -22,13 +22,17 @@ from stephen_quant.integrity.snapshot import (
 )
 from stephen_quant.qmt import (
     build_qmt_factor_observations,
+    compare_to_benchmark,
     load_qd_daily_directory,
     load_qmt_daily_csv,
+    run_qd_placebo_audit,
     select_qd_daily_files,
     verify_qmt_dat_manifest,
+    write_benchmark_comparison,
+    write_qd_placebo_audit,
 )
 
-WORKFLOW_VERSION = "qmt-backtest-workflow-1.1.0"
+WORKFLOW_VERSION = "qmt-backtest-workflow-1.2.0"
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,9 @@ class QmtBacktestRunConfig:
     initial_nav: float = 1_000_000.0
     seed: int = 42
     instruments: tuple[str, ...] = ()
+    benchmark_csv: str | None = None
+    benchmark_name: str = "benchmark"
+    placebo_repetitions: int = 0
 
     def hyperparams_json(self) -> str:
         payload = {
@@ -55,6 +62,9 @@ class QmtBacktestRunConfig:
             "adv_lookback": self.adv_lookback,
             "initial_nav": self.initial_nav,
             "instruments": sorted(item.upper() for item in self.instruments),
+            "benchmark_csv": self.benchmark_csv,
+            "benchmark_name": self.benchmark_name,
+            "placebo_repetitions": self.placebo_repetitions,
             "portfolio": asdict(self.portfolio),
         }
         return json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -75,6 +85,10 @@ class QmtBacktestRun:
     report_markdown_sha256: str
     provenance_manifest_path: Path | None = None
     provenance_manifest_sha256: str | None = None
+    benchmark_comparison_path: Path | None = None
+    benchmark_comparison_sha256: str | None = None
+    placebo_audit_path: Path | None = None
+    placebo_audit_sha256: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -93,6 +107,12 @@ class QmtBacktestRun:
         if self.provenance_manifest_path is not None:
             payload["provenance_manifest_path"] = str(self.provenance_manifest_path)
             payload["provenance_manifest_sha256"] = self.provenance_manifest_sha256
+        if self.benchmark_comparison_path is not None:
+            payload["benchmark_comparison_path"] = str(self.benchmark_comparison_path)
+            payload["benchmark_comparison_sha256"] = self.benchmark_comparison_sha256
+        if self.placebo_audit_path is not None:
+            payload["placebo_audit_path"] = str(self.placebo_audit_path)
+            payload["placebo_audit_sha256"] = self.placebo_audit_sha256
         return payload
 
 
@@ -119,6 +139,10 @@ def _validate_split_dates(config: QmtBacktestRunConfig) -> None:
         raise ValueError("adv_lookback must be positive")
     if config.initial_nav <= 0:
         raise ValueError("initial_nav must be positive")
+    if config.placebo_repetitions < 0:
+        raise ValueError("placebo_repetitions cannot be negative")
+    if config.benchmark_csv and not config.benchmark_name.strip():
+        raise ValueError("benchmark_name cannot be empty")
 
 
 def _write_audit(path: Path, content: str) -> str:
@@ -252,6 +276,51 @@ def run_qmt_backtest_workflow(
             ("baseline_report_json", artifacts.json_path, artifacts.json_sha256),
             ("baseline_report_markdown", artifacts.markdown_path, artifacts.markdown_sha256),
         ]
+        benchmark_artifacts = None
+        if config.benchmark_csv:
+            comparison = compare_to_benchmark(
+                report,
+                config.benchmark_csv,
+                benchmark_name=config.benchmark_name,
+            )
+            benchmark_artifacts = write_benchmark_comparison(comparison, trial_output)
+            artifact_specs.extend(
+                (
+                    (
+                        "benchmark_comparison_json",
+                        benchmark_artifacts.json_path,
+                        benchmark_artifacts.json_sha256,
+                    ),
+                    (
+                        "benchmark_comparison_markdown",
+                        benchmark_artifacts.markdown_path,
+                        benchmark_artifacts.markdown_sha256,
+                    ),
+                )
+            )
+        placebo_artifacts = None
+        if config.placebo_repetitions:
+            placebo = run_qd_placebo_audit(
+                observations,
+                direction=definition.direction,
+                repetitions=config.placebo_repetitions,
+                seed=config.seed,
+            )
+            placebo_artifacts = write_qd_placebo_audit(placebo, trial_output)
+            artifact_specs.extend(
+                (
+                    (
+                        "placebo_audit_json",
+                        placebo_artifacts.json_path,
+                        placebo_artifacts.json_sha256,
+                    ),
+                    (
+                        "placebo_audit_markdown",
+                        placebo_artifacts.markdown_path,
+                        placebo_artifacts.markdown_sha256,
+                    ),
+                )
+            )
         if provenance is not None:
             artifact_specs.append(("qmt_dat_provenance_manifest", *provenance))
         for kind, path, digest in artifact_specs:
@@ -275,6 +344,16 @@ def run_qmt_backtest_workflow(
             report_markdown_sha256=artifacts.markdown_sha256,
             provenance_manifest_path=provenance[0] if provenance else None,
             provenance_manifest_sha256=provenance[1] if provenance else None,
+            benchmark_comparison_path=(
+                benchmark_artifacts.json_path if benchmark_artifacts else None
+            ),
+            benchmark_comparison_sha256=(
+                benchmark_artifacts.json_sha256 if benchmark_artifacts else None
+            ),
+            placebo_audit_path=placebo_artifacts.json_path if placebo_artifacts else None,
+            placebo_audit_sha256=(
+                placebo_artifacts.json_sha256 if placebo_artifacts else None
+            ),
         )
         registry.record_trial_result(
             trial_id,

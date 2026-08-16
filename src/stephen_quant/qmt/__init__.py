@@ -1,3 +1,10 @@
+from .benchmark import (
+    BENCHMARK_METHOD_VERSION,
+    BenchmarkArtifacts,
+    BenchmarkComparison,
+    compare_to_benchmark,
+    write_benchmark_comparison,
+)
 from .csv_adapter import ADAPTER_VERSION, COLUMN_ALIASES, load_qmt_daily_csv
 from .dat_binary import (
     MANIFEST_VERSION,
@@ -32,6 +39,20 @@ from .qd_csv_adapter import (
     load_qd_daily_directory,
     select_qd_daily_files,
 )
+from .qd_universe import (
+    QD_UNIVERSE_METHOD_VERSION,
+    QdUniverseArtifacts,
+    QdUniverseSelection,
+    select_qd_training_universe,
+    write_qd_universe,
+)
+from .research_audit import (
+    PLACEBO_AUDIT_VERSION,
+    QdPlaceboArtifacts,
+    QdPlaceboAudit,
+    run_qd_placebo_audit,
+    write_qd_placebo_audit,
+)
 from .xtquant_export import (
     EXPORTER_VERSION,
     XtquantExportConfig,
@@ -47,20 +68,29 @@ from .xtquant_export import (
 __all__ = [
     "ADAPTER_VERSION",
     "AMOUNT_THOUSAND_CNY_TO_CNY",
+    "BENCHMARK_METHOD_VERSION",
     "COLUMN_ALIASES",
     "DIVIDEND_PARSER_VERSION",
     "DIVIDEND_SCHEMA_SHA256",
     "EXPORTER_VERSION",
     "MANIFEST_VERSION",
     "PARSER_VERSION",
+    "PLACEBO_AUDIT_VERSION",
     "QD_ADAPTER_VERSION",
     "QD_COLUMN_ALIASES",
+    "QD_UNIVERSE_METHOD_VERSION",
     "SCHEMA_SHA256",
     "VOLUME_LOT_TO_SHARE",
+    "BenchmarkArtifacts",
+    "BenchmarkComparison",
     "DatExportConfig",
     "DatExportResult",
     "DatSourceAudit",
     "DividendSourceFile",
+    "QdPlaceboArtifacts",
+    "QdPlaceboAudit",
+    "QdUniverseArtifacts",
+    "QdUniverseSelection",
     "QmtDailyBar",
     "QmtDatError",
     "QmtDataAudit",
@@ -74,6 +104,7 @@ __all__ = [
     "XtquantExportResult",
     "apply_back_ratio_adjustment",
     "build_qmt_factor_observations",
+    "compare_to_benchmark",
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
@@ -85,6 +116,11 @@ __all__ = [
     "parse_qmt_daily_dat",
     "parse_qmt_dividend_value",
     "read_stock_file",
+    "run_qd_placebo_audit",
     "select_qd_daily_files",
+    "select_qd_training_universe",
     "verify_qmt_dat_manifest",
+    "write_benchmark_comparison",
+    "write_qd_placebo_audit",
+    "write_qd_universe",
 ]

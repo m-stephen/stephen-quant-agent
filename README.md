@@ -206,6 +206,38 @@ stephen-quant --db artifacts\qd-v1.8.5.sqlite3 qmt-backtest `
 The fixed universe must be declared before the test window. Missing sessions are not forward-filled.
 See `docs/V1_8_5_SPEC.md` for the data and integrity contract.
 
+V1.8.6 replaces the manually supplied universe with a reproducible selection made only from the
+training window. It ranks complete-history, non-ST stocks that were already listed at the start of
+training by their training-period mean daily amount, then freezes the selected files and result:
+
+```powershell
+stephen-quant qd-select-universe `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --fundamental-dir "E:\QD\基本数据\基本面指标" `
+  --train-start 2022-01-01 --train-end 2023-12-31 `
+  --top-n 20 --output "artifacts\qd-v1.8.6-universe"
+```
+
+The resulting stock file can be evaluated against a declared benchmark and two deterministic
+placebo tests:
+
+```powershell
+stephen-quant --db artifacts\qd-v1.8.6.sqlite3 qmt-backtest `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
+  --benchmark-csv "E:\QD\基本数据\10大指数\沪深300.csv" `
+  --benchmark-name "沪深300" --placebo-repetitions 199 `
+  --output "reports\qd-v1.8.6" --adjustment back_ratio --factor ret_60 `
+  --train-start 2022-01-01 --train-end 2023-12-31 `
+  --validation-start 2024-01-01 --validation-end 2024-12-31 `
+  --test-start 2025-01-02 --test-end 2025-12-30 `
+  --top-k 5 --rebalance-every 5 `
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 --impact-bps 10
+```
+
+See `docs/V1_8_6_SPEC.md`. PBO and DSR are intentionally deferred until the trial ledger contains
+enough genuinely independent strategy attempts; they are not inferred from one fixed baseline.
+
 ## Quick start
 
 ```bash
