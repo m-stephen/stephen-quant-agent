@@ -4,14 +4,19 @@ from pathlib import Path
 
 import pytest
 
+from stephen_quant.baseline import BaselineObservation
 from stephen_quant.discovery import (
     CampaignBudget,
     CampaignSpec,
     FactorSchema,
     FactorTemplate,
+    GeneratedCandidate,
     GenerationPlan,
+    ScreeningConfig,
+    ScreeningWindow,
     SearchCampaign,
     generate_candidates,
+    run_training_screen,
 )
 from stephen_quant.factors.engine import compute_factor
 from stephen_quant.factors.registry import FactorRegistry
@@ -177,3 +182,125 @@ def test_generator_is_deterministic_and_campaign_can_resume(tmp_path: Path) -> N
     assert resumed.summary()["proposal_count"] == 4
     with pytest.raises(ValueError, match="budget exhausted"):
         resumed.propose(generated[0].schema)
+
+
+def _screen_rows(*, reverse: bool = False) -> tuple[BaselineObservation, ...]:
+    rows: list[BaselineObservation] = []
+    for day in range(2, 5):
+        for instrument_index, instrument in enumerate(("000001.SZ", "000002.SZ", "600000.SH")):
+            signal = float(3 - instrument_index if reverse else instrument_index + 1)
+            rows.append(
+                BaselineObservation(
+                    instrument=instrument,
+                    signal=signal,
+                    signal_at=f"2024-01-0{day - 1}T15:00:00+08:00",
+                    signal_available_at=f"2024-01-0{day - 1}T15:01:00+08:00",
+                    average_daily_value=1_000_000.0,
+                    liquidity_available_at=f"2024-01-0{day - 1}T15:01:00+08:00",
+                    execution_at=f"2024-01-0{day}T09:30:00+08:00",
+                    return_end_at=f"2024-01-0{day + 1}T09:30:00+08:00",
+                    forward_return=(instrument_index + 1) / 100,
+                )
+            )
+    return tuple(rows)
+
+
+def test_training_screen_counts_every_measurement_and_applies_shortlist(tmp_path: Path) -> None:
+    registry, experiment_id = _experiment(tmp_path)
+    spec = CampaignSpec(
+        name="screen",
+        experiment_id=experiment_id,
+        budget=CampaignBudget(schema=3, cpcv=1, execution=1),
+        horizons=("5d",),
+        ranking_metric="training_fold_rank_ic",
+        stopping_rule="three proposals",
+        sealed_windows=("2025", "2026"),
+    )
+    campaign = SearchCampaign(registry, spec)
+    schemas = (
+        _schema("period_return(close, 2)"),
+        FactorSchema(
+            **{
+                **_schema("period_return(close, 3)").__dict__,
+                "schema_id": "price_momentum_3",
+            }
+        ),
+        FactorSchema(
+            **{
+                **_schema("volatility(close, 2)").__dict__,
+                "schema_id": "price_volatility_2",
+            }
+        ),
+    )
+    generated: list[GeneratedCandidate] = []
+    for schema in schemas:
+        unique, proposal_id, number = campaign.propose(schema)
+        generated.append(GeneratedCandidate(schema, proposal_id, number, unique))
+    panels = {
+        schemas[0].fingerprint: _screen_rows(),
+        schemas[1].fingerprint: _screen_rows(),
+        schemas[2].fingerprint: _screen_rows(reverse=True),
+    }
+    report = run_training_screen(
+        registry,
+        campaign,
+        tuple(generated),
+        panels,
+        window=ScreeningWindow(
+            research_start="2024-01-01",
+            research_end="2024-01-31",
+            validation_start="2025-01-01",
+            validation_end="2025-12-31",
+            test_start="2026-01-01",
+            test_end="2026-12-31",
+        ),
+        config=ScreeningConfig(minimum_mean_rank_ic=0.01),
+    )
+    assert len(report.shortlisted_fingerprints) == 1
+    assert registry.trial_count(experiment_id) == 3
+    decisions = campaign.summary()["decisions"]
+    assert decisions == {"screened_out": 2, "shortlisted": 1}
+
+
+def test_training_screen_rejects_reserved_window_observations(tmp_path: Path) -> None:
+    registry, experiment_id = _experiment(tmp_path)
+    spec = CampaignSpec(
+        name="sealed",
+        experiment_id=experiment_id,
+        budget=CampaignBudget(schema=1, cpcv=1, execution=0),
+        horizons=("5d",),
+        ranking_metric="rank_ic",
+        stopping_rule="one",
+        sealed_windows=("2025", "2026"),
+    )
+    campaign = SearchCampaign(registry, spec)
+    schema = _schema()
+    unique, proposal_id, number = campaign.propose(schema)
+    generated = (GeneratedCandidate(schema, proposal_id, number, unique),)
+    leaked = tuple(
+        BaselineObservation(
+            **{
+                **row.__dict__,
+                "execution_at": "2025-01-02T09:30:00+08:00",
+                "return_end_at": "2025-01-03T09:30:00+08:00",
+            }
+        )
+        for row in _screen_rows()
+    )
+    with pytest.raises(ValueError, match="sealed"):
+        run_training_screen(
+            registry,
+            campaign,
+            generated,
+            {schema.fingerprint: leaked},
+            window=ScreeningWindow(
+                research_start="2024-01-01",
+                research_end="2024-12-31",
+                validation_start="2025-01-01",
+                validation_end="2025-12-31",
+                test_start="2026-01-01",
+                test_end="2026-12-31",
+            ),
+            config=ScreeningConfig(),
+        )
+    assert registry.trial_count(experiment_id) == 0

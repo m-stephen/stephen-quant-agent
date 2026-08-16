@@ -365,7 +365,14 @@ class ExperimentRegistry:
     ) -> tuple[str, int]:
         """Record every proposal, including duplicates and static rejections."""
 
-        allowed_decisions = {"generated", "duplicate", "rejected", "shortlisted", "evaluated"}
+        allowed_decisions = {
+            "generated",
+            "duplicate",
+            "rejected",
+            "screened_out",
+            "shortlisted",
+            "evaluated",
+        }
         if decision not in allowed_decisions:
             raise ValueError(f"unsupported campaign decision: {decision}")
         if not fingerprint or not schema_json:
@@ -408,6 +415,40 @@ class ExperimentRegistry:
                 ),
             )
         return proposal_id, proposal_number
+
+    def transition_campaign_proposal(
+        self,
+        proposal_id: str,
+        *,
+        decision: str,
+        trial_id: str | None,
+        reason: str | None = None,
+    ) -> None:
+        """Attach an immutable measurement Trial and advance a generated proposal once."""
+
+        if decision not in {"rejected", "screened_out", "shortlisted", "evaluated"}:
+            raise ValueError(f"unsupported campaign transition: {decision}")
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT decision FROM campaign_proposals WHERE proposal_id = ?",
+                (proposal_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"unknown campaign proposal: {proposal_id}")
+            if str(row[0]) != "generated":
+                raise ValueError(f"campaign proposal is already decided: {proposal_id}")
+            if trial_id is not None and conn.execute(
+                "SELECT 1 FROM trials WHERE trial_id = ?", (trial_id,)
+            ).fetchone() is None:
+                raise ValueError(f"unknown trial: {trial_id}")
+            conn.execute(
+                """
+                UPDATE campaign_proposals SET decision = ?, reason = ?, trial_id = ?
+                WHERE proposal_id = ?
+                """,
+                (decision, reason, trial_id, proposal_id),
+            )
 
     def campaign_summary(self, campaign_id: str) -> dict[str, object]:
         self.initialize()

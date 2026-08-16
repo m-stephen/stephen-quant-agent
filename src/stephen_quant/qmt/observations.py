@@ -31,14 +31,17 @@ def build_qmt_factor_observations(
     test_start: str,
     test_end: str,
     adv_lookback: int = 20,
+    horizon_sessions: int = 1,
 ) -> tuple[BaselineObservation, ...]:
-    """Build prior-close signals and next-open execution returns from a strict panel."""
+    """Build prior-close signals and forward open-to-open returns from a strict panel."""
 
     start, end = _date(test_start, "test_start"), _date(test_end, "test_end")
     if start > end:
         raise QmtDataError("test_start must not be after test_end")
     if adv_lookback < 1:
         raise QmtDataError("adv_lookback must be positive")
+    if horizon_sessions < 1:
+        raise QmtDataError("horizon_sessions must be positive")
     unsupported = set(definition.required_fields) - {"open", "high", "low", "close", "volume", "amount"}
     if unsupported:
         raise QmtDataError(
@@ -54,7 +57,7 @@ def build_qmt_factor_observations(
     ordered_dates = sorted(all_dates)
     execution_indexes = [
         index
-        for index, day in enumerate(ordered_dates[:-1])
+        for index, day in enumerate(ordered_dates[:-horizon_sessions])
         if start <= date.fromisoformat(day) <= end
     ]
     if not execution_indexes:
@@ -65,7 +68,9 @@ def build_qmt_factor_observations(
         raise QmtDataError(
             f"test window needs at least {history} complete prior trading bars"
         )
-    required_dates = ordered_dates[first_required : execution_indexes[-1] + 2]
+    required_dates = ordered_dates[
+        first_required : execution_indexes[-1] + horizon_sessions + 1
+    ]
     missing = [
         (instrument, day)
         for instrument in instruments
@@ -81,12 +86,12 @@ def build_qmt_factor_observations(
         local_execution_index = execution_index - first_required
         signal_index = local_execution_index - 1
         execution_day = ordered_dates[execution_index]
-        return_end_day = ordered_dates[execution_index + 1]
+        return_end_day = ordered_dates[execution_index + horizon_sessions]
         for instrument in instruments:
             series = [by_instrument[instrument][day] for day in required_dates]
             signal_bar = series[signal_index]
             execution_bar = series[local_execution_index]
-            return_end_bar = series[local_execution_index + 1]
+            return_end_bar = series[local_execution_index + horizon_sessions]
             adv_window = series[
                 local_execution_index - adv_lookback : local_execution_index
             ]

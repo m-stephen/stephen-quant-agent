@@ -137,6 +137,27 @@ def test_observations_use_prior_close_and_next_open(tmp_path: Path) -> None:
     assert first.execution_at.startswith(dates[6].isoformat())
     assert first.return_end_at.startswith(dates[7].isoformat())
 
+    three_session = build_qmt_factor_observations(
+        dataset.bars,
+        build_seed_registry().get("ret_5"),
+        test_start=dates[6].isoformat(),
+        test_end=dates[6].isoformat(),
+        adv_lookback=3,
+        horizon_sessions=3,
+    )
+    assert three_session[0].execution_at.startswith(dates[6].isoformat())
+    assert three_session[0].return_end_at.startswith(dates[9].isoformat())
+
+    with pytest.raises(QmtDataError, match="horizon_sessions"):
+        build_qmt_factor_observations(
+            dataset.bars,
+            build_seed_registry().get("ret_5"),
+            test_start=dates[6].isoformat(),
+            test_end=dates[6].isoformat(),
+            adv_lookback=3,
+            horizon_sessions=0,
+        )
+
 
 def test_observation_builder_rejects_incomplete_panel(tmp_path: Path) -> None:
     source = tmp_path / "daily.csv"
