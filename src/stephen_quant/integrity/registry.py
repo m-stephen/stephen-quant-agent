@@ -181,3 +181,19 @@ class ExperimentRegistry:
                 "experiments": conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0],
                 "trials": conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0],
             }
+
+    def trial_count(self, experiment_id: str) -> int:
+        """Count every registered attempt, including failed or result-less trials."""
+
+        self.initialize()
+        with self.connect() as conn:
+            experiment = conn.execute(
+                "SELECT 1 FROM experiments WHERE experiment_id = ?", (experiment_id,)
+            ).fetchone()
+            if experiment is None:
+                raise ValueError(f"unknown experiment: {experiment_id}")
+            return int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM trials WHERE experiment_id = ?", (experiment_id,)
+                ).fetchone()[0]
+            )
