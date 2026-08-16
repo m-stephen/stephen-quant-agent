@@ -15,6 +15,7 @@ from stephen_quant.qmt import (
     select_qd_training_universe,
     write_qd_universe,
 )
+from stephen_quant.qmt.qd_csv_adapter import _open_tradability
 from stephen_quant.workflows import QmtBacktestRunConfig, run_qmt_backtest_workflow
 
 INSTRUMENTS = ("000001.SZ", "000002.SZ", "600000.SH", "600001.SH")
@@ -161,6 +162,33 @@ def test_qd_adapter_marks_main_board_and_chinext_open_limits(tmp_path: Path) -> 
     assert dataset.audit.open_upper_limit_bars == 1
     assert dataset.audit.open_lower_limit_bars == 1
     assert dataset.audit.tradability_unavailable_bars == 0
+
+
+def test_qd_price_limit_rules_cover_boards_new_shares_and_historical_st() -> None:
+    assert _open_tradability(
+        "601001.SH", "晋控煤业", "2025-01-02", 8.0, 7.27
+    ) == (False, True, "open_at_upper_limit")
+    assert _open_tradability(
+        "002001.SZ", "新和成", "2025-01-02", 11.0, 10.0
+    ) == (False, True, "open_at_upper_limit")
+    assert _open_tradability(
+        "300001.SZ", "ST特锐德", "2025-01-02", 12.0, 10.0
+    ) == (False, True, "open_at_upper_limit")
+    assert _open_tradability(
+        "688001.SH", "华兴源创", "2025-01-02", 8.0, 10.0
+    ) == (True, False, "open_at_lower_limit")
+    assert _open_tradability(
+        "600001.SH", "ST示例", "2025-01-02", 10.5, 10.0
+    ) == (False, True, "open_at_upper_limit")
+    assert _open_tradability(
+        "600001.SH", "ST示例", "2026-07-06", 10.5, 10.0
+    ) == (True, True, "normal")
+    assert _open_tradability(
+        "001001.SZ", "N示例", "2025-01-02", 20.0, 10.0
+    ) == (True, True, "no_price_limit")
+    assert _open_tradability(
+        "001001.SZ", "C示例", "2025-01-03", 20.0, 10.0
+    ) == (True, True, "no_price_limit")
 
 
 def test_qd_directory_runs_existing_trial_first_backtest_workflow(tmp_path: Path) -> None:

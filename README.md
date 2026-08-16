@@ -261,6 +261,9 @@ The 2026 dates are ledger reservations only in this command. Their files are nei
 hashed. See `docs/V1_8_7_SPEC.md` and the frozen reference decision in
 `docs/V1_8_7_RESULT.md`.
 
+The versioned board prefixes, IPO no-limit markers, historical ST handling, rounding formula, and
+official exchange references are documented in `docs/QD_PRICE_LIMIT_RULES.md`.
+
 V1.8.8 expands the immutable registry to 23 definitions and makes research status explicit. Build
 the catalog before starting new factor Trials:
 

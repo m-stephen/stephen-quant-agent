@@ -21,10 +21,11 @@ rows in the frozen source and is therefore rejected.
 QD daily rows contain the security name, previous close, and open. At the 09:30 execution point,
 the adapter infers the daily limit using information available by then:
 
-- ST names: 5%;
-- ChiNext and STAR prefixes: 20%;
+- Shanghai/Shenzhen main-board prefixes: 10%;
+- historical main-board ST names: 5% before 2026-07-06, then 10%;
+- ChiNext and STAR prefixes, including ST names: 20%;
 - Beijing exchange or 4/8 prefixes: 30%;
-- other supported A-shares: 10%.
+- names beginning with `N` or `C`: no daily price limit.
 
 Prices are rounded to a CNY 0.01 tick with half-up rounding. A buy at the upper limit or a sell at
 the lower limit receives zero execution. The desired but blocked notional and blocked-order count
@@ -34,6 +35,9 @@ This is a conservative open-auction assumption, not a queue-fill simulator. It i
 training-selected, seasoned-stock universe; IPO no-limit periods are outside the supported rule.
 When name or previous close is absent, the audit marks tradability as unavailable rather than
 claiming that the check ran.
+
+See `docs/QD_PRICE_LIMIT_RULES.md` for the board prefixes, historical exceptions, formulas, and
+official exchange sources.
 
 ## Suspension rule
 

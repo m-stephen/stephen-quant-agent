@@ -38,6 +38,7 @@ class QmtDataAudit:
     open_upper_limit_bars: int = 0
     open_lower_limit_bars: int = 0
     tradability_unavailable_bars: int = 0
+    no_price_limit_bars: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

@@ -12,7 +12,7 @@ from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manif
 from .csv_adapter import _decode, _normalize_header, _parse_date, _parse_number, _validate_bar
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 
-QD_ADAPTER_VERSION = "qd-daily-directory-1.1.0"
+QD_ADAPTER_VERSION = "qd-daily-directory-1.2.0"
 QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "trade_date": ("日期", "交易日期", "trade_date", "date"),
     "instrument": ("代码", "股票代码", "证券代码", "ts_code", "instrument"),
@@ -110,21 +110,29 @@ def _resolve_columns(fieldnames: list[str] | None) -> dict[str, str]:
     return mapping
 
 
-def _price_limit_rate(instrument: str, name: str) -> Decimal:
-    normalized_name = name.strip().upper()
+def _price_limit_rate(instrument: str, name: str, trade_date: str) -> Decimal | None:
+    normalized_name = "".join(name.strip().upper().split())
     code, _, exchange = instrument.partition(".")
-    if "ST" in normalized_name:
-        return Decimal("0.05")
+    if normalized_name.startswith(("N", "C")):
+        return None
     if exchange == "BJ" or code.startswith(("4", "8")):
         return Decimal("0.30")
     if code.startswith(("300", "301", "688", "689")):
         return Decimal("0.20")
+    main_board = (exchange == "SH" and code.startswith(("600", "601", "603", "605"))) or (
+        exchange == "SZ" and code.startswith(("000", "001", "002", "003"))
+    )
+    if not main_board:
+        raise QmtDataError(f"unsupported A-share price-limit board: {instrument}")
+    if "ST" in normalized_name and trade_date < "2026-07-06":
+        return Decimal("0.05")
     return Decimal("0.10")
 
 
 def _open_tradability(
     instrument: str,
     name: str,
+    trade_date: str,
     raw_open: float,
     previous_close: float,
 ) -> tuple[bool, bool, str]:
@@ -132,7 +140,9 @@ def _open_tradability(
         raise QmtDataError("previous_close must be positive")
     tick = Decimal("0.01")
     prior = Decimal(str(previous_close))
-    rate = _price_limit_rate(instrument, name)
+    rate = _price_limit_rate(instrument, name, trade_date)
+    if rate is None:
+        return True, True, "no_price_limit"
     upper = (prior * (Decimal(1) + rate)).quantize(tick, rounding=ROUND_HALF_UP)
     lower = (prior * (Decimal(1) - rate)).quantize(tick, rounding=ROUND_HALF_UP)
     opening = Decimal(str(raw_open)).quantize(tick, rounding=ROUND_HALF_UP)
@@ -250,7 +260,7 @@ def load_qd_daily_directory(
                     row_number=row_number,
                 )
                 can_buy_open, can_sell_open, tradability_reason = _open_tradability(
-                    instrument, name, raw_open, previous_close
+                    instrument, name, trade_date, raw_open, previous_close
                 )
             bar = QmtDailyBar(
                 instrument=instrument,
@@ -343,6 +353,9 @@ def load_qd_daily_directory(
             ),
             tradability_unavailable_bars=sum(
                 bar.tradability_reason == "unavailable" for bar in bars
+            ),
+            no_price_limit_bars=sum(
+                bar.tradability_reason == "no_price_limit" for bar in bars
             ),
         ),
     )
