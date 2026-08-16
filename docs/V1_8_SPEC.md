@@ -8,8 +8,36 @@ the included momentum baseline is profitable.
 
 The public repository contains only the adapter, schema, tests, and workflow. Raw QMT data, account
 identifiers, credentials, installation paths, registry databases, and generated reports remain
-local and are ignored by Git. V1.8 deliberately does not require `xtquant` or a running QMT terminal
-in CI. Direct terminal connectivity can be implemented later in a private integration project.
+local and are ignored by Git. CI deliberately does not require `xtquant` or a running QMT terminal.
+At runtime, the optional exporter reads local market data only; trading/account integration remains
+outside the public project.
+
+### Native QMT cache conversion
+
+A QMT installation may store data in proprietary binary form instead of CSV. The observed layout is:
+
+```text
+datadir/
+  SH|SZ|BJ/
+    86400/*.DAT                  daily bars
+    60/*.DAT                     one-minute bars
+    300/*.DAT                    five-minute bars
+    0/<instrument>/<date>.dat    tick/detail data
+  DividData/*.ldb                corporate-action LevelDB data
+```
+
+These files are not decoded directly. V1.8.1 dynamically loads the installation's official
+Python-compatible `xtquant` package and calls `xtdata.get_local_data` with `period="1d"`,
+`fill_data=False`, and server reads disabled by that API. The QMT client must already be logged in
+and its quote/Python service must be running. The exporter never starts the client, downloads
+history, subscribes to quotes, accesses a trading account, or places orders.
+
+The exporter accepts an explicit comma-separated stock list, a UTF-8 stock-list file, or a QMT
+sector. It writes to a temporary file, validates that file through the canonical V1.8 adapter, and
+only then atomically moves it to the destination. Existing destinations are refused unless the
+operator explicitly supplies `--overwrite`. Empty instruments and partially corrupt bars fail;
+fully unavailable zero/NaN bars are omitted and counted so the later strict-panel backtest can
+reject non-executable windows rather than invent prices.
 
 ## Input contract
 
