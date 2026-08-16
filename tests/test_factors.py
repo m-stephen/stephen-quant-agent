@@ -50,8 +50,10 @@ def test_factor_catalog_marks_compatibility_and_frozen_status(tmp_path) -> None:
     assert entries["ret_60"].research_status == "rejected_validation"
     assert entries["mom_120_skip_20"].research_status == "predeclared_unvalidated"
     assert entries["mom_120_skip_20"].qd_compatible
-    assert entries["overnight_gap_reversal_20"].research_status == "predeclared_v1_8_14"
-    assert entries["close_location_20"].research_status == "predeclared_v1_8_14"
+    assert entries["overnight_gap_reversal_20"].research_status == (
+        "rejected_v1_8_14_signal_gate"
+    )
+    assert entries["close_location_20"].research_status == "rejected_v1_8_14_signal_gate"
     assert not entries["rs_index_60"].qd_compatible
     assert artifacts.json_sha256
     assert artifacts.markdown_sha256

@@ -91,8 +91,8 @@ def build_factor_catalog(
             status = "predeclared_unvalidated"
             reason = "Predeclared in V1.8.8; no return-based selection has been performed."
         elif definition.factor_id in V1_8_14_FACTOR_IDS:
-            status = "predeclared_v1_8_14"
-            reason = "Predeclared in V1.8.14 before CPCV or return evaluation."
+            status = "rejected_v1_8_14_signal_gate"
+            reason = "Rejected by the frozen V1.8.14 dynamic-universe CPCV signal gate."
         else:
             status = "available_untested"
             reason = "Registered seed definition; requires its own Trial before interpretation."

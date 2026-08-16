@@ -396,6 +396,10 @@ stephen-quant --db "artifacts\qd-v1.8.14.sqlite3" qd-dynamic-cpcv `
 The command registers all four Trials before evaluation and writes JSON plus detailed English and
 Chinese Markdown reports. It never loads the reserved 2025 or 2026 partitions.
 
+The frozen V1.8.14 signal gate rejected all four candidates, so execution falsification was not
+run and the reserved windows remain sealed. Review the bilingual result in
+`docs/V1_8_14_RESULT.md`.
+
 ## Quick start
 
 ```bash
