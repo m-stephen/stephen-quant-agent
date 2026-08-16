@@ -39,6 +39,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.4 read-only DividData corporate actions + point-in-time back-ratio adjustment
 - V1.8.5 QD date-partitioned CSV adapter + historical daily backtest validation
 - V1.8.6 training-only QD universe + benchmark comparison + placebo audit
+- V1.8.7 validation-only diagnostics + conservative open-limit execution constraints
 
 ## Engineering style
 - Python >= 3.10.

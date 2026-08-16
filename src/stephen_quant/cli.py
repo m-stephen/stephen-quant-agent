@@ -103,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     qmt.add_argument("--benchmark-csv")
     qmt.add_argument("--benchmark-name", default="benchmark")
     qmt.add_argument("--placebo-repetitions", type=int, default=0)
+    qmt.add_argument("--evaluation-window", choices=("validation", "test"), default="test")
 
     qd_universe = sub.add_parser("qd-select-universe")
     qd_universe.add_argument("--daily-dir", required=True)
@@ -281,6 +282,7 @@ def main() -> None:
                 benchmark_csv=args.benchmark_csv,
                 benchmark_name=args.benchmark_name,
                 placebo_repetitions=args.placebo_repetitions,
+                evaluation_window=args.evaluation_window,
                 portfolio=BaselineConfig(
                     top_k=args.top_k,
                     rebalance_every=args.rebalance_every,

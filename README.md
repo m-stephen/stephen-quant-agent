@@ -238,6 +238,28 @@ stephen-quant --db artifacts\qd-v1.8.6.sqlite3 qmt-backtest `
 See `docs/V1_8_6_SPEC.md`. PBO and DSR are intentionally deferred until the trial ledger contains
 enough genuinely independent strategy attempts; they are not inferred from one fixed baseline.
 
+V1.8.7 adds a validation-only mode that deliberately excludes the reserved test window from the
+data snapshot. For QD rows with a daily name and previous close, the open execution model also
+blocks buys at the inferred upper limit and sells at the inferred lower limit:
+
+```powershell
+stephen-quant --db artifacts\qd-v1.8.7.sqlite3 qmt-backtest `
+  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
+  --evaluation-window validation `
+  --benchmark-csv "E:\QD\基本数据\10大指数\沪深300.csv" `
+  --benchmark-name "沪深300" --placebo-repetitions 199 `
+  --output "reports\qd-v1.8.7" --adjustment back_ratio --factor ret_60 `
+  --train-start 2022-01-01 --train-end 2023-12-31 `
+  --validation-start 2024-01-02 --validation-end 2024-12-31 `
+  --test-start 2026-01-05 --test-end 2026-08-14 `
+  --top-k 5 --rebalance-every 5 `
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 --impact-bps 10
+```
+
+The 2026 dates are ledger reservations only in this command. Their files are neither loaded nor
+hashed. See `docs/V1_8_7_SPEC.md`.
+
 ## Quick start
 
 ```bash

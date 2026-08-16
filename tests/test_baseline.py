@@ -165,6 +165,48 @@ def test_capacity_limits_clip_orders_and_are_reported() -> None:
     assert all(order.participation_rate <= 0.01 for order in first.orders)
 
 
+def test_open_limit_blocks_impossible_buy_and_sell_orders() -> None:
+    rows = _observations(
+        (
+            {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0},
+            {"A": 1.0, "B": 2.0, "C": 4.0, "D": 3.0},
+        ),
+        forward_returns={item: 0.0 for item in "ABCD"},
+    )
+    rows[0] = BaselineObservation(
+        **{
+            **rows[0].__dict__,
+            "can_buy_open": False,
+            "tradability_reason": "open_at_upper_limit",
+        }
+    )
+    second_execution = rows[4].execution_at
+    for index, row in enumerate(rows):
+        if row.instrument == "B" and row.execution_at == second_execution:
+            rows[index] = BaselineObservation(
+                **{
+                    **row.__dict__,
+                    "can_sell_open": False,
+                    "tradability_reason": "open_at_lower_limit",
+                }
+            )
+
+    report = run_momentum_topk(
+        rows,
+        _lineage(),
+        BaselineConfig(top_k=2, max_position_weight=0.5, max_participation_rate=1.0),
+    )
+
+    first = {order.instrument: order for order in report.periods[0].orders}
+    second = {order.instrument: order for order in report.periods[1].orders}
+    assert first["A"].executed_notional == 0
+    assert first["A"].tradability_clipped_notional == pytest.approx(500_000)
+    assert second["B"].executed_notional == 0
+    assert second["B"].tradability_clipped_notional == pytest.approx(500_000)
+    assert report.metrics.tradability_blocked_orders == 2
+    assert report.metrics.tradability_clipped_notional == pytest.approx(1_000_000)
+
+
 def test_unfunded_buys_are_scaled_without_negative_cash() -> None:
     report = run_momentum_topk(
         _observations(forward_returns={item: 0.0 for item in "ABCD"}),

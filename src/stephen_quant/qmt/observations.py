@@ -121,6 +121,9 @@ def build_qmt_factor_observations(
                     execution_at=_at(execution_bar.trade_date, "09:30:00"),
                     return_end_at=_at(return_end_day, "09:30:00"),
                     forward_return=return_end_bar.open / execution_bar.open - 1.0,
+                    can_buy_open=execution_bar.can_buy_open,
+                    can_sell_open=execution_bar.can_sell_open,
+                    tradability_reason=execution_bar.tradability_reason,
                 )
             )
     return tuple(observations)

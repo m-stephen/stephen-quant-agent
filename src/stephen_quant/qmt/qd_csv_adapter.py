@@ -4,6 +4,7 @@ import csv
 import io
 import re
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manifest
@@ -11,7 +12,7 @@ from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manif
 from .csv_adapter import _decode, _normalize_header, _parse_date, _parse_number, _validate_bar
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 
-QD_ADAPTER_VERSION = "qd-daily-directory-1.0.0"
+QD_ADAPTER_VERSION = "qd-daily-directory-1.1.0"
 QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "trade_date": ("日期", "交易日期", "trade_date", "date"),
     "instrument": ("代码", "股票代码", "证券代码", "ts_code", "instrument"),
@@ -22,6 +23,10 @@ QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "volume": ("成交量(手)", "成交量（手）", "vol"),
     "amount": ("成交额(千元)", "成交额（千元）", "amount"),
     "adjustment_factor": ("复权因子", "adj_factor", "adjustment_factor"),
+}
+QD_OPTIONAL_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
+    "name": ("名称", "证券名称", "股票名称", "name"),
+    "previous_close": ("昨日收盘价", "昨收", "pre_close", "previous_close"),
 }
 VOLUME_LOT_TO_SHARE = 100.0
 AMOUNT_THOUSAND_CNY_TO_CNY = 1000.0
@@ -92,7 +97,50 @@ def _resolve_columns(fieldnames: list[str] | None) -> dict[str, str]:
         if len(matches) > 1:
             raise QmtDataError(f"ambiguous QD columns for {canonical}: {matches}")
         mapping[canonical] = matches[0]
+    for canonical, aliases in QD_OPTIONAL_COLUMN_ALIASES.items():
+        matches = [
+            normalized[_normalize_header(alias)]
+            for alias in aliases
+            if _normalize_header(alias) in normalized
+        ]
+        if len(matches) > 1:
+            raise QmtDataError(f"ambiguous QD columns for {canonical}: {matches}")
+        if matches:
+            mapping[canonical] = matches[0]
     return mapping
+
+
+def _price_limit_rate(instrument: str, name: str) -> Decimal:
+    normalized_name = name.strip().upper()
+    code, _, exchange = instrument.partition(".")
+    if "ST" in normalized_name:
+        return Decimal("0.05")
+    if exchange == "BJ" or code.startswith(("4", "8")):
+        return Decimal("0.30")
+    if code.startswith(("300", "301", "688", "689")):
+        return Decimal("0.20")
+    return Decimal("0.10")
+
+
+def _open_tradability(
+    instrument: str,
+    name: str,
+    raw_open: float,
+    previous_close: float,
+) -> tuple[bool, bool, str]:
+    if previous_close <= 0:
+        raise QmtDataError("previous_close must be positive")
+    tick = Decimal("0.01")
+    prior = Decimal(str(previous_close))
+    rate = _price_limit_rate(instrument, name)
+    upper = (prior * (Decimal(1) + rate)).quantize(tick, rounding=ROUND_HALF_UP)
+    lower = (prior * (Decimal(1) - rate)).quantize(tick, rounding=ROUND_HALF_UP)
+    opening = Decimal(str(raw_open)).quantize(tick, rounding=ROUND_HALF_UP)
+    if opening >= upper:
+        return False, True, "open_at_upper_limit"
+    if opening <= lower:
+        return True, False, "open_at_lower_limit"
+    return True, True, "normal"
 
 
 def _required_cell(
@@ -181,15 +229,33 @@ def load_qd_daily_directory(
             if adjustment_factor <= 0:
                 raise QmtDataError(f"row {row_number}: adjustment_factor must be positive")
             price_scale = adjustment_factor if declared_adjustment == "back_ratio" else 1.0
+            raw_open = _parse_number(
+                _required_cell(row, mapping["open"], "open", row_number=row_number),
+                "open",
+                row_number=row_number,
+            )
+            can_buy_open, can_sell_open, tradability_reason = True, True, "unavailable"
+            if "name" in mapping and "previous_close" in mapping:
+                name = _required_cell(
+                    row, mapping["name"], "name", row_number=row_number
+                )
+                previous_close = _parse_number(
+                    _required_cell(
+                        row,
+                        mapping["previous_close"],
+                        "previous_close",
+                        row_number=row_number,
+                    ),
+                    "previous_close",
+                    row_number=row_number,
+                )
+                can_buy_open, can_sell_open, tradability_reason = _open_tradability(
+                    instrument, name, raw_open, previous_close
+                )
             bar = QmtDailyBar(
                 instrument=instrument,
                 trade_date=trade_date,
-                open=_parse_number(
-                    _required_cell(row, mapping["open"], "open", row_number=row_number),
-                    "open",
-                    row_number=row_number,
-                )
-                * price_scale,
+                open=raw_open * price_scale,
                 high=_parse_number(
                     _required_cell(row, mapping["high"], "high", row_number=row_number),
                     "high",
@@ -220,6 +286,9 @@ def load_qd_daily_directory(
                     row_number=row_number,
                 )
                 * AMOUNT_THOUSAND_CNY_TO_CNY,
+                can_buy_open=can_buy_open,
+                can_sell_open=can_sell_open,
+                tradability_reason=tradability_reason,
             )
             _validate_bar(bar, row_number=row_number)
             bars.append(bar)
@@ -235,8 +304,15 @@ def load_qd_daily_directory(
     warnings = (
         "The fixed universe is user-supplied and may contain survivorship bias.",
         "QD daily partitions omit suspended sessions; strict-panel evaluation will reject gaps.",
-        "Name, industry, valuation, adjusted-pre-close, and vendor technical factors are ignored.",
+        "Industry, valuation, adjusted-pre-close, and vendor technical factors are ignored.",
     )
+    if mapping_reference is not None and not {
+        "name",
+        "previous_close",
+    } <= set(mapping_reference):
+        warnings += (
+            "Open-limit tradability was unavailable because name or previous close was absent.",
+        )
     if zero_volume:
         warnings += ("Zero-volume or zero-amount bars are retained.",)
     return QmtDataset(
@@ -259,5 +335,14 @@ def load_qd_daily_directory(
                 "volume_lot_to_share": VOLUME_LOT_TO_SHARE,
                 "amount_thousand_cny_to_cny": AMOUNT_THOUSAND_CNY_TO_CNY,
             },
+            open_upper_limit_bars=sum(
+                bar.tradability_reason == "open_at_upper_limit" for bar in bars
+            ),
+            open_lower_limit_bars=sum(
+                bar.tradability_reason == "open_at_lower_limit" for bar in bars
+            ),
+            tradability_unavailable_bars=sum(
+                bar.tradability_reason == "unavailable" for bar in bars
+            ),
         ),
     )

@@ -118,6 +118,51 @@ def test_qd_directory_adapter_rejects_row_date_filename_mismatch(tmp_path: Path)
         )
 
 
+def test_qd_adapter_marks_main_board_and_chinext_open_limits(tmp_path: Path) -> None:
+    day = date(2025, 1, 2)
+    with (tmp_path / f"{day:%Y%m%d}.csv").open(
+        "w", encoding="utf-8-sig", newline=""
+    ) as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "日期",
+                "代码",
+                "名称",
+                "开盘价",
+                "最高价",
+                "最低价",
+                "收盘价",
+                "昨日收盘价",
+                "成交量(手)",
+                "成交额(千元)",
+                "复权因子",
+            ]
+        )
+        writer.writerow(
+            ["20250102", "000001.SZ", "平安银行", 11, 11, 11, 11, 10, 100, 100, 1]
+        )
+        writer.writerow(
+            ["20250102", "300001.SZ", "特锐德", 8, 8, 8, 8, 10, 100, 100, 1]
+        )
+
+    dataset = load_qd_daily_directory(
+        tmp_path,
+        start_date=day.isoformat(),
+        end_date=day.isoformat(),
+        instruments=("000001.SZ", "300001.SZ"),
+    )
+    bars = {bar.instrument: bar for bar in dataset.bars}
+
+    assert not bars["000001.SZ"].can_buy_open
+    assert bars["000001.SZ"].tradability_reason == "open_at_upper_limit"
+    assert not bars["300001.SZ"].can_sell_open
+    assert bars["300001.SZ"].tradability_reason == "open_at_lower_limit"
+    assert dataset.audit.open_upper_limit_bars == 1
+    assert dataset.audit.open_lower_limit_bars == 1
+    assert dataset.audit.tradability_unavailable_bars == 0
+
+
 def test_qd_directory_runs_existing_trial_first_backtest_workflow(tmp_path: Path) -> None:
     source = tmp_path / "daily"
     source.mkdir()
@@ -159,6 +204,44 @@ def test_qd_directory_runs_existing_trial_first_backtest_workflow(tmp_path: Path
     assert registry.trial_count(run.experiment_id) == 1
     assert run.report.lineage.snapshot_id == run.snapshot_id
     assert run.data_audit_path.exists()
+
+
+def test_qd_validation_window_does_not_snapshot_reserved_test_data(tmp_path: Path) -> None:
+    source = tmp_path / "daily"
+    source.mkdir()
+    dates = _write_directory(source)
+    future = source / "20260105.csv"
+    future.write_text("must not be read\n", encoding="utf-8")
+    registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
+    config = QmtBacktestRunConfig(
+        factor_id="ret_5",
+        factor_version="1.0.0",
+        adjustment="none",
+        train_start="2023-01-01",
+        train_end="2023-12-31",
+        validation_start=dates[6].isoformat(),
+        validation_end=dates[8].isoformat(),
+        test_start="2026-01-05",
+        test_end="2026-08-14",
+        adv_lookback=3,
+        instruments=INSTRUMENTS,
+        evaluation_window="validation",
+        portfolio=BaselineConfig(top_k=2, max_position_weight=0.5),
+    )
+
+    run = run_qmt_backtest_workflow(
+        source,
+        registry=registry,
+        output_dir=tmp_path / "reports",
+        config=config,
+        code_version="test-sha",
+    )
+    audit = json.loads(run.data_audit_path.read_text(encoding="utf-8"))
+
+    assert run.evaluation_window == "validation"
+    assert run.report.metrics.periods == 3
+    assert audit["end_date"] == dates[9].isoformat()
+    assert audit["source_files"] == 10
 
 
 def test_qd_universe_uses_training_only_metadata_and_liquidity(tmp_path: Path) -> None:

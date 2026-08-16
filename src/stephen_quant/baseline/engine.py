@@ -183,6 +183,15 @@ def _execute_rebalance(
         instrument: targets.get(instrument, 0.0) * nav - holdings.get(instrument, 0.0)
         for instrument in universe
     }
+    tradable_desired = {
+        instrument: (
+            0.0
+            if (notional > 0 and not by_instrument[instrument].can_buy_open)
+            or (notional < 0 and not by_instrument[instrument].can_sell_open)
+            else notional
+        )
+        for instrument, notional in desired.items()
+    }
     capacity = {
         instrument: by_instrument[instrument].average_daily_value
         * config.max_participation_rate
@@ -192,7 +201,7 @@ def _execute_rebalance(
         instrument: math.copysign(min(abs(notional), capacity[instrument]), notional)
         if notional
         else 0.0
-        for instrument, notional in desired.items()
+        for instrument, notional in tradable_desired.items()
     }
     sells = {item: value for item, value in capacity_executions.items() if value < 0}
     buys = {item: value for item, value in capacity_executions.items() if value > 0}
@@ -228,7 +237,9 @@ def _execute_rebalance(
                 executed_notional=trade,
                 participation_rate=abs(trade) / row.average_daily_value,
                 capacity_clipped_notional=max(
-                    abs(desired[instrument]) - abs(capacity_executions[instrument]), 0.0
+                    abs(tradable_desired[instrument])
+                    - abs(capacity_executions[instrument]),
+                    0.0,
                 ),
                 funding_clipped_notional=max(
                     abs(capacity_executions[instrument]) - abs(trade), 0.0
@@ -238,6 +249,12 @@ def _execute_rebalance(
                 slippage_cost=slippage,
                 market_impact_cost=impact,
                 total_cost=cost,
+                can_buy_open=row.can_buy_open,
+                can_sell_open=row.can_sell_open,
+                tradability_reason=row.tradability_reason,
+                tradability_clipped_notional=max(
+                    abs(desired[instrument]) - abs(tradable_desired[instrument]), 0.0
+                ),
             )
         )
 
@@ -292,8 +309,16 @@ def _metrics(
         total_cost=sum(period.total_cost for period in periods),
         capacity_clipped_notional=sum(order.capacity_clipped_notional for order in orders),
         funding_clipped_notional=sum(order.funding_clipped_notional for order in orders),
+        tradability_clipped_notional=sum(
+            order.tradability_clipped_notional for order in orders
+        ),
+        tradability_blocked_orders=sum(
+            order.tradability_clipped_notional > 1e-9 for order in orders
+        ),
         clipped_orders=sum(
-            order.capacity_clipped_notional > 1e-9 or order.funding_clipped_notional > 1e-9
+            order.capacity_clipped_notional > 1e-9
+            or order.funding_clipped_notional > 1e-9
+            or order.tradability_clipped_notional > 1e-9
             for order in orders
         ),
     )

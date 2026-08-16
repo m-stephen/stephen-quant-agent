@@ -32,7 +32,7 @@ from stephen_quant.qmt import (
     write_qd_placebo_audit,
 )
 
-WORKFLOW_VERSION = "qmt-backtest-workflow-1.2.0"
+WORKFLOW_VERSION = "qmt-backtest-workflow-1.3.0"
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,7 @@ class QmtBacktestRunConfig:
     benchmark_csv: str | None = None
     benchmark_name: str = "benchmark"
     placebo_repetitions: int = 0
+    evaluation_window: str = "test"
 
     def hyperparams_json(self) -> str:
         payload = {
@@ -65,6 +66,7 @@ class QmtBacktestRunConfig:
             "benchmark_csv": self.benchmark_csv,
             "benchmark_name": self.benchmark_name,
             "placebo_repetitions": self.placebo_repetitions,
+            "evaluation_window": self.evaluation_window,
             "portfolio": asdict(self.portfolio),
         }
         return json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -77,6 +79,7 @@ class QmtBacktestRun:
     experiment_id: str
     trial_id: str
     trial_number: int
+    evaluation_window: str
     report: BaselineReport
     output_dir: Path
     data_audit_path: Path
@@ -97,6 +100,7 @@ class QmtBacktestRun:
             "experiment_id": self.experiment_id,
             "trial_id": self.trial_id,
             "trial_number": self.trial_number,
+            "evaluation_window": self.evaluation_window,
             "output_dir": str(self.output_dir),
             "data_audit_path": str(self.data_audit_path),
             "data_audit_sha256": self.data_audit_sha256,
@@ -141,6 +145,8 @@ def _validate_split_dates(config: QmtBacktestRunConfig) -> None:
         raise ValueError("initial_nav must be positive")
     if config.placebo_repetitions < 0:
         raise ValueError("placebo_repetitions cannot be negative")
+    if config.evaluation_window not in {"validation", "test"}:
+        raise ValueError("evaluation_window must be validation or test")
     if config.benchmark_csv and not config.benchmark_name.strip():
         raise ValueError("benchmark_name cannot be empty")
 
@@ -171,7 +177,19 @@ def run_qmt_backtest_workflow(
     if not code_version:
         raise ValueError("code_version cannot be empty")
     source_path = Path(source).expanduser().resolve()
+    evaluation_start = (
+        config.validation_start
+        if config.evaluation_window == "validation"
+        else config.test_start
+    )
+    evaluation_end = (
+        config.validation_end if config.evaluation_window == "validation" else config.test_end
+    )
     if source_path.is_file():
+        if config.evaluation_window == "validation":
+            raise ValueError(
+                "validation-only evaluation requires a date-partitioned directory source"
+            )
         manifest = build_file_snapshot_manifest(source_path)
         vendor_version = f"Guojin QMT / {config.adjustment}"
         snapshot_notes = "Exact local CSV export used by the V1.8 backtest workflow."
@@ -181,13 +199,14 @@ def run_qmt_backtest_workflow(
         selected_files = select_qd_daily_files(
             source_path,
             start_date=config.train_start,
-            end_date=config.test_end,
+            end_date=evaluation_end,
             include_next_after_end=True,
         )
         manifest = build_selected_files_snapshot_manifest(source_path, selected_files)
         vendor_version = "QD date-partitioned A-share daily CSV / raw"
         snapshot_notes = (
-            "Exact QD daily partitions from train start through the first session after test end."
+            "Exact QD daily partitions from train start through the first session after the "
+            f"{config.evaluation_window} evaluation end."
         )
     else:
         raise ValueError(f"Backtest source does not exist: {source_path}")
@@ -201,8 +220,8 @@ def run_qmt_backtest_workflow(
             ExperimentSpec(
                 name=f"qmt_{config.factor_id}_topk",
                 hypothesis=(
-                    f"{config.factor_id} has positive out-of-sample net performance "
-                    "under declared QMT execution costs."
+                    f"{config.factor_id} has positive {config.evaluation_window}-window net "
+                    "performance under declared QMT execution costs."
                 ),
                 dataset_snapshot_id=snapshot_id,
                 code_version=code_version,
@@ -235,7 +254,7 @@ def run_qmt_backtest_workflow(
             dataset = load_qd_daily_directory(
                 source_path,
                 start_date=config.train_start,
-                end_date=config.test_end,
+                end_date=evaluation_end,
                 instruments=config.instruments,
                 adjustment=config.adjustment,
                 include_next_after_end=True,
@@ -250,8 +269,8 @@ def run_qmt_backtest_workflow(
         observations = build_qmt_factor_observations(
             dataset.bars,
             definition,
-            test_start=config.test_start,
-            test_end=config.test_end,
+            test_start=evaluation_start,
+            test_end=evaluation_end,
             adv_lookback=config.adv_lookback,
         )
         report = run_momentum_topk(
@@ -336,6 +355,7 @@ def run_qmt_backtest_workflow(
             experiment_id=experiment_id,
             trial_id=trial_id,
             trial_number=trial_number,
+            evaluation_window=config.evaluation_window,
             report=report,
             output_dir=trial_output,
             data_audit_path=audit_path,
