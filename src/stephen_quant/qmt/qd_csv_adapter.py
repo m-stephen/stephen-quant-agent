@@ -12,7 +12,7 @@ from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manif
 from .csv_adapter import _decode, _normalize_header, _parse_date, _parse_number, _validate_bar
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 
-QD_ADAPTER_VERSION = "qd-daily-directory-1.3.1"
+QD_ADAPTER_VERSION = "qd-daily-directory-1.4.0"
 QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "trade_date": ("日期", "交易日期", "trade_date", "date"),
     "instrument": ("代码", "股票代码", "证券代码", "ts_code", "instrument"),
@@ -294,6 +294,7 @@ def load_qd_daily_directory(
                     row_number=row_number,
                 )
                 * AMOUNT_THOUSAND_CNY_TO_CNY,
+                adjustment_factor=adjustment_factor,
                 can_buy_open=can_buy_open,
                 can_sell_open=can_sell_open,
                 tradability_reason=tradability_reason,

@@ -94,6 +94,8 @@ def test_qd_directory_adapter_converts_units_and_freezes_selected_files(tmp_path
 
     assert len(dataset.bars) == 12
     assert dataset.bars[0].open == 25.0
+    assert dataset.bars[0].adjustment_factor == 2.5
+    assert dataset.bars[0].close / dataset.bars[0].adjustment_factor == 10.0
     assert dataset.bars[0].volume == 1_000_050
     assert dataset.bars[0].amount == 100_000_250
     assert dataset.audit.source_files == 3

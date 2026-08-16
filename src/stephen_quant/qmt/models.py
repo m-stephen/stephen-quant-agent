@@ -14,6 +14,7 @@ class QmtDailyBar:
     close: float
     volume: float
     amount: float
+    adjustment_factor: float = 1.0
     can_buy_open: bool = True
     can_sell_open: bool = True
     tradability_reason: str = "unrestricted"
