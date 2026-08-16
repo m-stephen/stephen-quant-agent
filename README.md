@@ -341,7 +341,8 @@ stephen-quant qd-dynamic-universe `
 
 Each close produces a next-session membership list plus entries, exits, turnover, and explicit
 exclusion counts. Same-day fundamental metadata is mandatory; future metadata is never
-backfilled. See `docs/V1_8_11_SPEC.md`.
+backfilled. See `docs/V1_8_11_SPEC.md` and the frozen data decision in
+`docs/V1_8_11_RESULT.md`.
 
 ## Quick start
 
