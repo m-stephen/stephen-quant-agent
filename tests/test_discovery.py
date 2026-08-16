@@ -8,6 +8,7 @@ from stephen_quant.baseline import BaselineObservation
 from stephen_quant.discovery import (
     CampaignBudget,
     CampaignSpec,
+    DiscoveryCpcvConfig,
     FactorSchema,
     FactorTemplate,
     GeneratedCandidate,
@@ -16,6 +17,7 @@ from stephen_quant.discovery import (
     ScreeningWindow,
     SearchCampaign,
     generate_candidates,
+    run_discovery_cpcv,
     run_training_screen,
 )
 from stephen_quant.factors.engine import compute_factor
@@ -304,3 +306,93 @@ def test_training_screen_rejects_reserved_window_observations(tmp_path: Path) ->
             config=ScreeningConfig(),
         )
     assert registry.trial_count(experiment_id) == 0
+
+
+def _cpcv_rows(*, variant: bool = False) -> tuple[BaselineObservation, ...]:
+    rows: list[BaselineObservation] = []
+    instruments = ("000001.SZ", "000002.SZ", "600000.SH", "600001.SH")
+    signals = (1.0, 3.0, 2.0, 4.0) if variant else (1.0, 2.0, 3.0, 4.0)
+    for day in range(2, 14):
+        for index, instrument in enumerate(instruments):
+            rows.append(
+                BaselineObservation(
+                    instrument=instrument,
+                    signal=signals[index],
+                    signal_at=f"2024-01-{day - 1:02d}T15:00:00+08:00",
+                    signal_available_at=f"2024-01-{day - 1:02d}T15:01:00+08:00",
+                    average_daily_value=1_000_000.0,
+                    liquidity_available_at=f"2024-01-{day - 1:02d}T15:01:00+08:00",
+                    execution_at=f"2024-01-{day:02d}T09:30:00+08:00",
+                    return_end_at=f"2024-01-{day + 1:02d}T09:30:00+08:00",
+                    forward_return=(index + 1) / 100,
+                )
+            )
+    return tuple(rows)
+
+
+def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) -> None:
+    registry, experiment_id = _experiment(tmp_path)
+    spec = CampaignSpec(
+        name="cpcv",
+        experiment_id=experiment_id,
+        budget=CampaignBudget(schema=2, cpcv=2, execution=1),
+        horizons=("5d",),
+        ranking_metric="mean_path_rank_ic",
+        stopping_rule="two CPCV candidates",
+        sealed_windows=("2025", "2026"),
+    )
+    campaign = SearchCampaign(registry, spec)
+    schemas = (
+        _schema("period_return(close, 2)"),
+        FactorSchema(
+            **{
+                **_schema("period_return(close, 3)").__dict__,
+                "schema_id": "price_momentum_3",
+            }
+        ),
+    )
+    generated: list[GeneratedCandidate] = []
+    for schema in schemas:
+        unique, proposal_id, number = campaign.propose(schema)
+        generated.append(GeneratedCandidate(schema, proposal_id, number, unique))
+    panels = {
+        schemas[0].fingerprint: _cpcv_rows(),
+        schemas[1].fingerprint: _cpcv_rows(variant=True),
+    }
+    window = ScreeningWindow(
+        research_start="2024-01-01",
+        research_end="2024-01-31",
+        validation_start="2025-01-01",
+        validation_end="2025-12-31",
+        test_start="2026-01-01",
+        test_end="2026-12-31",
+    )
+    screening = run_training_screen(
+        registry,
+        campaign,
+        tuple(generated),
+        panels,
+        window=window,
+        config=ScreeningConfig(
+            minimum_mean_rank_ic=0.01,
+            maximum_peer_rank_correlation=1.0,
+        ),
+    )
+    report = run_discovery_cpcv(
+        registry,
+        campaign,
+        screening,
+        tuple(generated),
+        panels,
+        snapshot_id=registry.experiment_snapshot_id(experiment_id),
+        code_version="test",
+        window=window,
+        config=DiscoveryCpcvConfig(groups=6, test_groups=3, embargo_days=0),
+    )
+    assert report.hygiene_passed is True
+    assert report.signal_gate_passed is True
+    assert report.validation_window_opened is False
+    assert report.pbo.paths == 10
+    assert registry.trial_count(experiment_id) == 4
+    assert "Validation window opened: no" in report.to_markdown(language="en")
+    assert "是否打开验证期: 否" in report.to_markdown(language="zh")

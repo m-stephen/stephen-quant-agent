@@ -1,4 +1,10 @@
 from .campaign import CampaignSpec, SearchCampaign
+from .cpcv import (
+    DiscoveryCpcvConfig,
+    DiscoveryCpcvReport,
+    DiscoveryCpcvScore,
+    run_discovery_cpcv,
+)
 from .generator import (
     FactorTemplate,
     GeneratedCandidate,
@@ -19,6 +25,9 @@ __all__ = [
     "CampaignBudget",
     "CampaignSpec",
     "CandidateScreenScore",
+    "DiscoveryCpcvConfig",
+    "DiscoveryCpcvReport",
+    "DiscoveryCpcvScore",
     "DiscoveryError",
     "FactorSchema",
     "FactorTemplate",
@@ -30,6 +39,7 @@ __all__ = [
     "ScreeningWindow",
     "SearchCampaign",
     "generate_candidates",
+    "run_discovery_cpcv",
     "run_training_screen",
     "seed_generation_plan",
 ]
