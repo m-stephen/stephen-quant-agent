@@ -18,7 +18,12 @@ from .qmt import (
     export_qmt_dat_daily_csv,
     read_stock_file,
 )
-from .workflows import QmtBacktestRunConfig, run_qmt_backtest_workflow
+from .workflows import (
+    QmtBacktestRunConfig,
+    QmtDatValidationConfig,
+    run_qmt_backtest_workflow,
+    run_qmt_dat_backtest_validation,
+)
 
 
 def _git_head() -> str:
@@ -111,6 +116,37 @@ def build_parser() -> argparse.ArgumentParser:
     dat_universe.add_argument("--stocks")
     dat_universe.add_argument("--stock-file")
     dat_export.add_argument("--overwrite", action="store_true")
+
+    dat_validate = sub.add_parser("qmt-dat-validate")
+    dat_validate.add_argument("--datadir", required=True)
+    dat_validate.add_argument("--output", default="reports/qmt-dat-validation")
+    dat_validate.add_argument("--experiment-id")
+    dat_validate.add_argument("--data-start", required=True)
+    dat_validate.add_argument("--data-end", required=True)
+    validation_universe = dat_validate.add_mutually_exclusive_group(required=True)
+    validation_universe.add_argument("--stocks")
+    validation_universe.add_argument("--stock-file")
+    dat_validate.add_argument("--factor", default="ret_60")
+    dat_validate.add_argument("--factor-version", default="1.0.0")
+    dat_validate.add_argument("--train-start", required=True)
+    dat_validate.add_argument("--train-end", required=True)
+    dat_validate.add_argument("--validation-start", required=True)
+    dat_validate.add_argument("--validation-end", required=True)
+    dat_validate.add_argument("--test-start", required=True)
+    dat_validate.add_argument("--test-end", required=True)
+    dat_validate.add_argument("--adv-lookback", type=int, default=20)
+    dat_validate.add_argument("--top-k", type=int, default=10)
+    dat_validate.add_argument("--rebalance-every", type=int, default=5)
+    dat_validate.add_argument("--cash-reserve", type=float, default=0.02)
+    dat_validate.add_argument("--max-position-weight", type=float, default=0.1)
+    dat_validate.add_argument("--commission-bps", type=float, default=3.0)
+    dat_validate.add_argument("--sell-tax-bps", type=float, default=5.0)
+    dat_validate.add_argument("--slippage-bps", type=float, default=5.0)
+    dat_validate.add_argument("--impact-bps", type=float, default=10.0)
+    dat_validate.add_argument("--max-participation-rate", type=float, default=0.05)
+    dat_validate.add_argument("--initial-nav", type=float, default=1_000_000.0)
+    dat_validate.add_argument("--seed", type=int, default=42)
+    dat_validate.add_argument("--overwrite", action="store_true")
     return parser
 
 
@@ -248,6 +284,56 @@ def main() -> None:
             )
         except QmtDatError as exc:
             raise SystemExit(f"qmt-dat-export failed: {exc}") from exc
+        print(json.dumps(result.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "qmt-dat-validate":
+        stocks = ()
+        if args.stocks:
+            stocks = tuple(item.strip() for item in args.stocks.split(",") if item.strip())
+        elif args.stock_file:
+            stocks = read_stock_file(args.stock_file)
+        try:
+            result = run_qmt_dat_backtest_validation(
+                args.datadir,
+                registry=registry,
+                output_dir=args.output,
+                experiment_id=args.experiment_id,
+                code_version=_git_head(),
+                config=QmtDatValidationConfig(
+                    data_start=args.data_start,
+                    data_end=args.data_end,
+                    stocks=stocks,
+                    overwrite=args.overwrite,
+                    backtest=QmtBacktestRunConfig(
+                        factor_id=args.factor,
+                        factor_version=args.factor_version,
+                        adjustment="none",
+                        train_start=args.train_start,
+                        train_end=args.train_end,
+                        validation_start=args.validation_start,
+                        validation_end=args.validation_end,
+                        test_start=args.test_start,
+                        test_end=args.test_end,
+                        adv_lookback=args.adv_lookback,
+                        initial_nav=args.initial_nav,
+                        seed=args.seed,
+                        portfolio=BaselineConfig(
+                            top_k=args.top_k,
+                            rebalance_every=args.rebalance_every,
+                            cash_reserve=args.cash_reserve,
+                            max_position_weight=args.max_position_weight,
+                            commission_bps=args.commission_bps,
+                            sell_tax_bps=args.sell_tax_bps,
+                            slippage_bps=args.slippage_bps,
+                            impact_coefficient_bps=args.impact_bps,
+                            max_participation_rate=args.max_participation_rate,
+                        ),
+                    ),
+                ),
+            )
+        except ValueError as exc:
+            raise SystemExit(f"qmt-dat-validate failed: {exc}") from exc
         print(json.dumps(result.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
         return
 
