@@ -23,6 +23,7 @@ class BaselineObservation:
     can_buy_open: bool = True
     can_sell_open: bool = True
     tradability_reason: str = "unrestricted"
+    eligible: bool = True
 
 
 @dataclass(frozen=True)

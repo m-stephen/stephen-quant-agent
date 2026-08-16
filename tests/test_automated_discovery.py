@@ -81,13 +81,15 @@ def _config(sessions: list[date]) -> AutomatedDiscoveryConfig:
         windows=(2, 3),
         schema_budget=6,
         cpcv_budget=2,
-        execution_budget=1,
+        execution_budget=2,
+        execution_top_k=2,
+        placebo_repetitions=9,
         maximum_peer_rank_correlation=1.0,
         groups=6,
         test_groups=3,
         embargo_days=1,
         minimum_positive_paths=8,
-        maximum_pbo=1.0,
+        maximum_pbo=0.99,
     )
 
 
@@ -111,6 +113,7 @@ def test_automated_discovery_runs_generation_screen_cpcv_and_bilingual_reports(
     assert run.report.validation_window_opened is False
     assert run.report.test_window_opened is False
     assert registry.trial_count(run.report.experiment_id) == 8
+    assert run.report.execution is None
     assert run.json_path.is_file()
     assert run.schemas_path.is_file()
     assert "Automated Factor Discovery" in run.markdown_en_path.read_text(encoding="utf-8")

@@ -99,6 +99,7 @@ def _evaluation(
             regime="unspecified",
         )
         for row in rows
+        if row.eligible
     )
 
 

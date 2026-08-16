@@ -175,6 +175,31 @@ def test_observation_builder_rejects_incomplete_panel(tmp_path: Path) -> None:
         )
 
 
+def test_observation_builder_marks_point_in_time_dynamic_eligibility(tmp_path: Path) -> None:
+    source = tmp_path / "daily.csv"
+    _write_qmt_csv(source)
+    dataset = load_qmt_daily_csv(source, adjustment="front_ratio")
+    dates = _trading_dates()
+    observations = build_qmt_factor_observations(
+        dataset.bars,
+        build_seed_registry().get("ret_5"),
+        test_start=dates[6].isoformat(),
+        test_end=dates[7].isoformat(),
+        adv_lookback=3,
+        eligible_by_execution_date={
+            dates[6].isoformat(): ("000001.SZ", "000002.SZ"),
+            dates[7].isoformat(): ("600000.SH", "600001.SH"),
+        },
+    )
+    by_date = {
+        day: {row.instrument for row in observations if row.execution_at.startswith(day) and row.eligible}
+        for day in (dates[6].isoformat(), dates[7].isoformat())
+    }
+    assert by_date[dates[6].isoformat()] == {"000001.SZ", "000002.SZ"}
+    assert by_date[dates[7].isoformat()] == {"600000.SH", "600001.SH"}
+    assert any(not row.eligible for row in observations if row.execution_at.startswith(dates[7].isoformat()))
+
+
 def test_qmt_workflow_runs_end_to_end_and_counts_repeated_trials(tmp_path: Path) -> None:
     source = tmp_path / "daily.csv"
     _write_qmt_csv(source, chinese=True)

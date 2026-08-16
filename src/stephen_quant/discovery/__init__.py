@@ -5,6 +5,12 @@ from .cpcv import (
     DiscoveryCpcvScore,
     run_discovery_cpcv,
 )
+from .execution import (
+    DiscoveryExecutionConfig,
+    DiscoveryExecutionReport,
+    ExecutionCandidateScore,
+    run_discovery_execution,
+)
 from .generator import (
     FactorTemplate,
     GeneratedCandidate,
@@ -29,6 +35,9 @@ __all__ = [
     "DiscoveryCpcvReport",
     "DiscoveryCpcvScore",
     "DiscoveryError",
+    "DiscoveryExecutionConfig",
+    "DiscoveryExecutionReport",
+    "ExecutionCandidateScore",
     "FactorSchema",
     "FactorTemplate",
     "GeneratedCandidate",
@@ -40,6 +49,7 @@ __all__ = [
     "SearchCampaign",
     "generate_candidates",
     "run_discovery_cpcv",
+    "run_discovery_execution",
     "run_training_screen",
     "seed_generation_plan",
 ]

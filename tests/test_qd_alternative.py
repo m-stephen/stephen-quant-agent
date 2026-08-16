@@ -5,10 +5,14 @@ from pathlib import Path
 
 import pytest
 
+from stephen_quant.baseline import BaselineObservation
+from stephen_quant.discovery import FactorSchema
 from stephen_quant.qmt import (
     SOURCE_FIELDS,
+    AlternativeObservation,
     QdAlternativeConfig,
     QmtDataError,
+    build_alternative_factor_observations,
     load_qd_alternative_directory,
 )
 from stephen_quant.research_agent import analyze_formula
@@ -111,3 +115,53 @@ def test_alternative_adapter_rejects_schema_drift_partition_mismatch_and_bad_tim
 def test_safe_dsl_accepts_registered_alternative_fields() -> None:
     analysis = analyze_formula("mean(net_inflow_amount, 5) / mean(auction_amount, 5)")
     assert analysis.required_fields == ("auction_amount", "net_inflow_amount")
+
+
+def test_alternative_factor_uses_only_values_available_before_execution() -> None:
+    source = tuple(
+        AlternativeObservation(
+            source_kind="auction",
+            instrument="000001.SZ",
+            name="sample",
+            trade_date=f"2024-01-0{day}",
+            effective_at=f"2024-01-0{day}T09:25:00+08:00",
+            available_at=f"2024-01-0{day}T09:26:00+08:00",
+            ingested_at="2024-02-01T12:00:00+08:00",
+            values=(("auction_return", float(day)),),
+        )
+        for day in (2, 3, 4)
+    )
+    anchors = tuple(
+        BaselineObservation(
+            instrument="000001.SZ",
+            signal=0.0,
+            signal_at=f"2024-01-0{day - 1}T15:00:00+08:00",
+            signal_available_at=f"2024-01-0{day - 1}T15:01:00+08:00",
+            average_daily_value=1_000_000.0,
+            liquidity_available_at=f"2024-01-0{day - 1}T15:01:00+08:00",
+            execution_at=f"2024-01-0{day}T09:30:00+08:00",
+            return_end_at=f"2024-01-0{day + 1}T09:30:00+08:00",
+            forward_return=0.01,
+        )
+        for day in (3, 4)
+    )
+    schema = FactorSchema(
+        schema_id="auction_mean_2",
+        version="1.0.0",
+        name="Auction mean",
+        event="auction",
+        context="pre_open",
+        quality="point_in_time",
+        direction=1,
+        output="score",
+        horizon="1d",
+        formula="mean(auction_return, 2)",
+        data_sources=("qd_auction",),
+        required_fields=("auction_return",),
+        availability_lag_days=0,
+        economic_rationale="Opening auction demand.",
+    )
+    rows = build_alternative_factor_observations(source, schema.compile(), anchors)
+    assert [row.signal for row in rows] == [2.5, 3.5]
+    assert rows[0].signal_available_at == "2024-01-03T09:26:00+08:00"
+    assert rows[0].signal_available_at < rows[0].execution_at

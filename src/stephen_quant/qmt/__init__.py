@@ -49,6 +49,7 @@ from .qd_alternative import (
     QdAlternativeDataset,
     load_qd_alternative_directory,
 )
+from .qd_alternative_factors import build_alternative_factor_observations
 from .qd_csv_adapter import (
     AMOUNT_THOUSAND_CNY_TO_CNY,
     QD_ADAPTER_VERSION,
@@ -170,6 +171,7 @@ __all__ = [
     "XtquantExportError",
     "XtquantExportResult",
     "apply_back_ratio_adjustment",
+    "build_alternative_factor_observations",
     "build_dynamic_universe",
     "build_fundamental_factor_observations",
     "build_qmt_factor_observations",

@@ -32,6 +32,7 @@ def build_qmt_factor_observations(
     test_end: str,
     adv_lookback: int = 20,
     horizon_sessions: int = 1,
+    eligible_by_execution_date: dict[str, tuple[str, ...]] | None = None,
 ) -> tuple[BaselineObservation, ...]:
     """Build prior-close signals and forward open-to-open returns from a strict panel."""
 
@@ -77,9 +78,102 @@ def build_qmt_factor_observations(
         for day in required_dates
         if day not in by_instrument[instrument]
     ]
-    if missing:
+    if missing and eligible_by_execution_date is None:
         preview = ", ".join(f"{instrument}@{day}" for instrument, day in missing[:5])
         raise QmtDataError(f"incomplete QMT panel; missing {len(missing)} bars: {preview}")
+
+    if eligible_by_execution_date is not None:
+        normalized_eligibility = {
+            day: {instrument.upper() for instrument in members}
+            for day, members in eligible_by_execution_date.items()
+        }
+        dynamic: list[BaselineObservation] = []
+        for execution_index in execution_indexes:
+            execution_day = ordered_dates[execution_index]
+            return_end_day = ordered_dates[execution_index + horizon_sessions]
+            eligible = normalized_eligibility.get(execution_day, set())
+            recently_eligible: set[str] = set()
+            for recent_index in range(
+                max(execution_index - horizon_sessions, 0), execution_index + 1
+            ):
+                recently_eligible.update(
+                    normalized_eligibility.get(ordered_dates[recent_index], set())
+                )
+            history_dates = ordered_dates[execution_index - history : execution_index]
+            for instrument in sorted(recently_eligible):
+                instrument_bars = by_instrument.get(instrument, {})
+                needed = (*history_dates, execution_day, return_end_day)
+                if any(day not in instrument_bars for day in needed):
+                    continue
+                history_series = tuple(instrument_bars[day] for day in history_dates)
+                execution_bar = instrument_bars[execution_day]
+                return_end_bar = instrument_bars[return_end_day]
+                adv_window = history_series[-adv_lookback:]
+                average_daily_value = sum(item.amount for item in adv_window) / adv_lookback
+                if average_daily_value <= 0:
+                    continue
+                data = {
+                    field: [getattr(item, field) for item in history_series]
+                    for field in definition.required_fields
+                }
+                availability = {
+                    field: [_at(item.trade_date, "15:01:00") for item in history_series]
+                    for field in definition.required_fields
+                }
+                signal = compute_factor(
+                    definition,
+                    data,
+                    availability,
+                    as_of_index=len(history_series) - 1,
+                    observation_times=[
+                        _at(item.trade_date, "15:00:00") for item in history_series
+                    ],
+                    decision_at=_at(execution_day, "09:30:00"),
+                )
+                signal_bar = history_series[-1]
+                dynamic.append(
+                    BaselineObservation(
+                        instrument=instrument,
+                        signal=signal.value,
+                        signal_at=_at(signal_bar.trade_date, "15:00:00"),
+                        signal_available_at=_at(signal_bar.trade_date, "15:01:00"),
+                        average_daily_value=average_daily_value,
+                        liquidity_available_at=_at(signal_bar.trade_date, "15:01:00"),
+                        execution_at=_at(execution_day, "09:30:00"),
+                        return_end_at=_at(return_end_day, "09:30:00"),
+                        forward_return=return_end_bar.open / execution_bar.open - 1.0,
+                        can_buy_open=execution_bar.can_buy_open,
+                        can_sell_open=execution_bar.can_sell_open,
+                        tradability_reason=execution_bar.tradability_reason,
+                        eligible=instrument in eligible,
+                    )
+                )
+        if not dynamic:
+            raise QmtDataError("dynamic universe produced no factor observations")
+        return tuple(dynamic)
+
+    series_by_instrument = {
+        instrument: tuple(by_instrument[instrument][day] for day in required_dates)
+        for instrument in instruments
+    }
+    data_by_instrument = {
+        instrument: {
+            field: [getattr(item, field) for item in series]
+            for field in definition.required_fields
+        }
+        for instrument, series in series_by_instrument.items()
+    }
+    availability_by_instrument = {
+        instrument: {
+            field: [_at(item.trade_date, "15:01:00") for item in series]
+            for field in definition.required_fields
+        }
+        for instrument, series in series_by_instrument.items()
+    }
+    observation_times_by_instrument = {
+        instrument: [_at(item.trade_date, "15:00:00") for item in series]
+        for instrument, series in series_by_instrument.items()
+    }
 
     observations: list[BaselineObservation] = []
     for execution_index in execution_indexes:
@@ -88,7 +182,7 @@ def build_qmt_factor_observations(
         execution_day = ordered_dates[execution_index]
         return_end_day = ordered_dates[execution_index + horizon_sessions]
         for instrument in instruments:
-            series = [by_instrument[instrument][day] for day in required_dates]
+            series = series_by_instrument[instrument]
             signal_bar = series[signal_index]
             execution_bar = series[local_execution_index]
             return_end_bar = series[local_execution_index + horizon_sessions]
@@ -100,20 +194,12 @@ def build_qmt_factor_observations(
                 raise QmtDataError(
                     f"non-positive ADV for {instrument} before {execution_day}"
                 )
-            data = {
-                field: [getattr(item, field) for item in series]
-                for field in definition.required_fields
-            }
-            availability = {
-                field: [_at(item.trade_date, "15:01:00") for item in series]
-                for field in definition.required_fields
-            }
             signal = compute_factor(
                 definition,
-                data,
-                availability,
+                data_by_instrument[instrument],
+                availability_by_instrument[instrument],
                 as_of_index=signal_index,
-                observation_times=[_at(item.trade_date, "15:00:00") for item in series],
+                observation_times=observation_times_by_instrument[instrument],
                 decision_at=_at(execution_day, "09:30:00"),
             )
             observations.append(
@@ -130,6 +216,7 @@ def build_qmt_factor_observations(
                     can_buy_open=execution_bar.can_buy_open,
                     can_sell_open=execution_bar.can_sell_open,
                     tradability_reason=execution_bar.tradability_reason,
+                    eligible=True,
                 )
             )
     return tuple(observations)
@@ -202,6 +289,7 @@ def combine_qmt_factor_observations(
                 can_buy_open=base.can_buy_open,
                 can_sell_open=base.can_sell_open,
                 tradability_reason=base.tradability_reason,
+                eligible=base.eligible,
             )
         )
     return tuple(combined)

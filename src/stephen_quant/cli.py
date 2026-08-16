@@ -613,10 +613,13 @@ def main() -> None:
         try:
             local_paths = load_local_path_config(args.paths_config)
             daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
-            stock_file = local_paths.choose(
-                "discovery_stock_file", None, "--stock-file"
-            )
             config = load_automated_discovery_config(args.manifest)
+            membership_path = local_paths.paths.get("dynamic_membership_jsonl")
+            stock_file = None
+            if membership_path is None:
+                stock_file = local_paths.choose(
+                    "discovery_stock_file", None, "--stock-file"
+                )
             alternative_paths = {
                 key: str(path)
                 for key, path in local_paths.paths.items()
@@ -630,13 +633,14 @@ def main() -> None:
             }
             run = run_automated_discovery(
                 daily_dir,
-                read_stock_file(stock_file),
+                read_stock_file(stock_file) if stock_file else (),
                 registry=registry,
                 output_dir=args.output,
                 code_version=_git_head(),
                 config=config,
                 alternative_paths=alternative_paths,
                 ingested_at=args.ingested_at,
+                dynamic_membership_path=membership_path,
             )
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"qd-auto-discover failed: {exc}") from exc

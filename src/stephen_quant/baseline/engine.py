@@ -114,11 +114,14 @@ def _group_observations(
 def _target_weights(
     rows: Sequence[BaselineObservation], config: BaselineConfig
 ) -> tuple[tuple[str, ...], dict[str, float]]:
-    if len(rows) < config.top_k:
+    eligible = [row for row in rows if row.eligible]
+    if len(eligible) < config.top_k:
         raise BaselineError(
-            f"cross-section has {len(rows)} assets but top_k requires {config.top_k}"
+            f"cross-section has {len(eligible)} eligible assets but top_k requires {config.top_k}"
         )
-    ranked = sorted(rows, key=lambda row: (-config.direction * row.signal, row.instrument))
+    ranked = sorted(
+        eligible, key=lambda row: (-config.direction * row.signal, row.instrument)
+    )
     selected = tuple(row.instrument for row in ranked[: config.top_k])
     equal_weight = (1 - config.cash_reserve) / config.top_k
     weight = min(equal_weight, config.max_position_weight)

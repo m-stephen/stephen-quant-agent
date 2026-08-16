@@ -133,7 +133,8 @@ def _daily_rank_ic(
 ) -> dict[str, float]:
     by_day: dict[str, list[BaselineObservation]] = defaultdict(list)
     for row in rows:
-        by_day[_timestamp_date(row.execution_at)].append(row)
+        if row.eligible:
+            by_day[_timestamp_date(row.execution_at)].append(row)
     result: dict[str, float] = {}
     for day in sorted(by_day):
         cross_section = sorted(by_day[day], key=lambda row: row.instrument)

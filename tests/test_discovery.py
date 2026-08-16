@@ -9,6 +9,9 @@ from stephen_quant.discovery import (
     CampaignBudget,
     CampaignSpec,
     DiscoveryCpcvConfig,
+    DiscoveryCpcvReport,
+    DiscoveryCpcvScore,
+    DiscoveryExecutionConfig,
     FactorSchema,
     FactorTemplate,
     GeneratedCandidate,
@@ -18,10 +21,12 @@ from stephen_quant.discovery import (
     SearchCampaign,
     generate_candidates,
     run_discovery_cpcv,
+    run_discovery_execution,
     run_training_screen,
 )
 from stephen_quant.factors.engine import compute_factor
 from stephen_quant.factors.registry import FactorRegistry
+from stephen_quant.falsification import PBOResult
 from stephen_quant.integrity.models import ExperimentSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.integrity.snapshot import build_snapshot_manifest
@@ -396,3 +401,108 @@ def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) ->
     assert registry.trial_count(experiment_id) == 4
     assert "Validation window opened: no" in report.to_markdown(language="en")
     assert "是否打开验证期: 否" in report.to_markdown(language="zh")
+
+
+def test_execution_tournament_counts_trials_and_builds_alpha_court(tmp_path: Path) -> None:
+    registry, experiment_id = _experiment(tmp_path)
+    campaign = SearchCampaign(
+        registry,
+        CampaignSpec(
+            name="execution",
+            experiment_id=experiment_id,
+            budget=CampaignBudget(schema=2, cpcv=2, execution=2),
+            horizons=("1d",),
+            ranking_metric="cost_adjusted_sharpe",
+            stopping_rule="two execution candidates",
+            sealed_windows=("2025", "2026"),
+        ),
+    )
+    schemas = (
+        FactorSchema(**{**_schema().__dict__, "schema_id": "execution_good", "horizon": "1d"}),
+        FactorSchema(
+            **{
+                **_schema("period_return(close, 3)").__dict__,
+                "schema_id": "execution_weak",
+                "horizon": "1d",
+            }
+        ),
+    )
+    generated = []
+    for schema in schemas:
+        unique, proposal_id, number = campaign.propose(schema)
+        generated.append(GeneratedCandidate(schema, proposal_id, number, unique))
+
+    panels: dict[str, tuple[BaselineObservation, ...]] = {}
+    for candidate_index, schema in enumerate(schemas):
+        rows = []
+        for day in range(2, 22):
+            for instrument_index in range(10):
+                signal = float(
+                    instrument_index
+                    if candidate_index == 0
+                    else -instrument_index
+                )
+                market_noise = ((day + instrument_index * 2) % 5 - 2) * 0.0007
+                rows.append(
+                    BaselineObservation(
+                        instrument=f"asset_{instrument_index:02d}",
+                        signal=signal,
+                        signal_at=f"2024-02-{day - 1:02d}T15:00:00+08:00",
+                        signal_available_at=f"2024-02-{day - 1:02d}T15:01:00+08:00",
+                        average_daily_value=10_000_000.0,
+                        liquidity_available_at=f"2024-02-{day - 1:02d}T15:01:00+08:00",
+                        execution_at=f"2024-02-{day:02d}T09:30:00+08:00",
+                        return_end_at=f"2024-02-{day + 1:02d}T09:30:00+08:00",
+                        forward_return=(instrument_index - 4.5) * 0.002 + market_noise,
+                    )
+                )
+        panels[schema.fingerprint] = tuple(rows)
+
+    configurations = tuple(
+        DiscoveryCpcvScore(
+            schema_id=schema.schema_id,
+            fingerprint=schema.fingerprint,
+            trial_id=f"prior_{index}",
+            trial_number=index,
+            mean_path_rank_ic=0.05 - index * 0.01,
+            positive_paths=10,
+            path_scores={f"path_{path}": 0.05 - index * 0.01 for path in range(10)},
+        )
+        for index, schema in enumerate(schemas, start=1)
+    )
+    cpcv = DiscoveryCpcvReport(
+        method_version="test",
+        campaign_id=campaign.campaign_id,
+        experiment_id=experiment_id,
+        cpcv_manifest_sha256="manifest",
+        hygiene_passed=True,
+        configurations=configurations,
+        selected_fingerprint=schemas[0].fingerprint,
+        pbo=PBOResult("test", 0.0, (), 10, 10, 2, "manifest"),
+        signal_gate_passed=True,
+        validation_window_opened=False,
+        decision="PASS_SIGNAL_GATE",
+    )
+    report, baselines = run_discovery_execution(
+        registry,
+        campaign,
+        cpcv,
+        tuple(generated),
+        panels,
+        snapshot_id=registry.experiment_snapshot_id(experiment_id),
+        code_version="test",
+        window=ScreeningWindow(
+            "2024-01-01",
+            "2024-12-31",
+            "2025-01-01",
+            "2025-12-31",
+            "2026-01-01",
+            "2026-12-31",
+        ),
+        horizon_sessions=1,
+        config=DiscoveryExecutionConfig(top_k=3, placebo_repetitions=19),
+    )
+    assert len(report.configurations) == 2
+    assert len(baselines) == 2
+    assert report.alpha_court.recorded_trial_count == 2
+    assert registry.trial_count(experiment_id) == 2
