@@ -11,11 +11,25 @@ from stephen_quant.cross_validation import (
     SampleInterval,
     SplitLineage,
     audit_manifest,
+    embargo_affects_any,
     fit_transform_fold,
     generate_cpcv_manifest,
+    interval_sets_overlap,
     purge_and_embargo,
     write_split_artifacts,
 )
+
+
+def test_indexed_interval_and_embargo_queries_match_closed_boundaries() -> None:
+    test = (_sample("test", date(2025, 1, 1), date(2025, 1, 10), date(2025, 1, 13)),)
+    overlap = (_sample("overlap", date(2025, 1, 1), date(2025, 1, 13), date(2025, 1, 14)),)
+    separate = (_sample("separate", date(2025, 1, 1), date(2025, 1, 14), date(2025, 1, 15)),)
+    embargoed = (_sample("embargoed", date(2025, 1, 15), date(2025, 1, 16), date(2025, 1, 17)),)
+
+    assert interval_sets_overlap(overlap, test)
+    assert not interval_sets_overlap(separate, test)
+    assert embargo_affects_any(embargoed, test, timedelta(days=2))
+    assert not embargo_affects_any(embargoed, test, timedelta(days=1))
 
 
 def _sample(

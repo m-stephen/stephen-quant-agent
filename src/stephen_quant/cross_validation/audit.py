@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from stephen_quant.integrity.audit import AuditFinding
 
-from .engine import _is_embargoed, intervals_overlap
+from .engine import embargo_affects_any, interval_sets_overlap
 from .models import FoldManifest, SampleInterval, SplitManifest
 
 
@@ -19,8 +19,8 @@ def audit_fold(
     train = [by_id[sample_id] for sample_id in fold.train_ids]
     test = [by_id[sample_id] for sample_id in fold.test_ids]
     disjoint = not (set(fold.train_ids) & set(fold.test_ids))
-    no_overlap = not any(intervals_overlap(left, right) for left in train for right in test)
-    no_embargo = not any(_is_embargoed(sample, test, embargo) for sample in train)
+    no_overlap = not interval_sets_overlap(train, test)
+    no_embargo = not embargo_affects_any(train, test, embargo)
     complete_lineage = all(
         (
             fold.fold_id,

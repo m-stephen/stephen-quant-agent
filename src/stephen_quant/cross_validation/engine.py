@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime, timedelta
@@ -41,10 +42,58 @@ def _is_embargoed(
     if embargo <= timedelta(0):
         return False
     feature_time = parse_timestamp(candidate.feature_at)
-    return any(
-        test_end < feature_time <= test_end + embargo
-        for test_end in (parse_timestamp(sample.label_end_at) for sample in test_samples)
+    test_ends = sorted(parse_timestamp(sample.label_end_at) for sample in test_samples)
+    position = bisect_left(test_ends, feature_time) - 1
+    return position >= 0 and test_ends[position] >= feature_time - embargo
+
+
+def _interval_index(
+    samples: Sequence[SampleInterval],
+) -> tuple[list[datetime], list[datetime]]:
+    ordered = sorted(
+        (parse_timestamp(sample.label_start_at), parse_timestamp(sample.label_end_at))
+        for sample in samples
     )
+    starts: list[datetime] = []
+    prefix_max_ends: list[datetime] = []
+    for start, end in ordered:
+        starts.append(start)
+        prefix_max_ends.append(max(end, prefix_max_ends[-1]) if prefix_max_ends else end)
+    return starts, prefix_max_ends
+
+
+def _overlaps_index(
+    sample: SampleInterval,
+    starts: Sequence[datetime],
+    prefix_max_ends: Sequence[datetime],
+) -> bool:
+    position = bisect_right(starts, parse_timestamp(sample.label_end_at)) - 1
+    return position >= 0 and prefix_max_ends[position] >= parse_timestamp(sample.label_start_at)
+
+
+def interval_sets_overlap(
+    candidates: Sequence[SampleInterval], test_samples: Sequence[SampleInterval]
+) -> bool:
+    """Return whether two interval sets overlap using indexed closed-interval queries."""
+
+    starts, prefix_max_ends = _interval_index(test_samples)
+    return any(_overlaps_index(sample, starts, prefix_max_ends) for sample in candidates)
+
+
+def embargo_affects_any(
+    candidates: Sequence[SampleInterval],
+    test_samples: Sequence[SampleInterval],
+    embargo: timedelta,
+) -> bool:
+    if embargo <= timedelta(0) or not candidates or not test_samples:
+        return False
+    test_ends = sorted(parse_timestamp(sample.label_end_at) for sample in test_samples)
+    for candidate in candidates:
+        feature_time = parse_timestamp(candidate.feature_at)
+        position = bisect_left(test_ends, feature_time) - 1
+        if position >= 0 and test_ends[position] >= feature_time - embargo:
+            return True
+    return False
 
 
 def purge_and_embargo(
@@ -60,13 +109,22 @@ def purge_and_embargo(
     retained: list[str] = []
     purged: list[str] = []
     embargoed: list[str] = []
+    starts, prefix_max_ends = _interval_index(test_samples)
+    test_ends = sorted(parse_timestamp(sample.label_end_at) for sample in test_samples)
     for candidate in sorted(train_candidates, key=lambda item: (item.feature_at, item.sample_id)):
-        if any(intervals_overlap(candidate, test) for test in test_samples):
+        if _overlaps_index(candidate, starts, prefix_max_ends):
             purged.append(candidate.sample_id)
-        elif _is_embargoed(candidate, test_samples, embargo):
-            embargoed.append(candidate.sample_id)
         else:
-            retained.append(candidate.sample_id)
+            feature_time = parse_timestamp(candidate.feature_at)
+            position = bisect_left(test_ends, feature_time) - 1
+            if (
+                embargo > timedelta(0)
+                and position >= 0
+                and test_ends[position] >= feature_time - embargo
+            ):
+                embargoed.append(candidate.sample_id)
+            else:
+                retained.append(candidate.sample_id)
     return tuple(retained), tuple(purged), tuple(embargoed)
 
 
