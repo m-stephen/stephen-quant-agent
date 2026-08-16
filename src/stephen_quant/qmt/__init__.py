@@ -1,4 +1,16 @@
 from .csv_adapter import ADAPTER_VERSION, COLUMN_ALIASES, load_qmt_daily_csv
+from .dat_binary import (
+    MANIFEST_VERSION,
+    PARSER_VERSION,
+    SCHEMA_SHA256,
+    DatExportConfig,
+    DatExportResult,
+    DatSourceAudit,
+    QmtDatError,
+    export_qmt_dat_daily_csv,
+    parse_qmt_daily_dat,
+    verify_qmt_dat_manifest,
+)
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 from .observations import build_qmt_factor_observations
 from .xtquant_export import (
@@ -17,7 +29,14 @@ __all__ = [
     "ADAPTER_VERSION",
     "COLUMN_ALIASES",
     "EXPORTER_VERSION",
+    "MANIFEST_VERSION",
+    "PARSER_VERSION",
+    "SCHEMA_SHA256",
+    "DatExportConfig",
+    "DatExportResult",
+    "DatSourceAudit",
     "QmtDailyBar",
+    "QmtDatError",
     "QmtDataAudit",
     "QmtDataError",
     "QmtDataset",
@@ -26,9 +45,12 @@ __all__ = [
     "XtquantExportResult",
     "build_qmt_factor_observations",
     "export_qmt_daily_csv",
+    "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
     "load_qmt_daily_csv",
     "load_xtdata",
     "normalize_stocks",
+    "parse_qmt_daily_dat",
     "read_stock_file",
+    "verify_qmt_dat_manifest",
 ]

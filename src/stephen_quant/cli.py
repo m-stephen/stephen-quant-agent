@@ -9,7 +9,15 @@ from .integrity.audit import audit_registry
 from .integrity.models import ExperimentSpec, TrialSpec
 from .integrity.registry import ExperimentRegistry
 from .integrity.snapshot import build_snapshot_manifest
-from .qmt import XtquantExportConfig, XtquantExportError, export_qmt_daily_csv, read_stock_file
+from .qmt import (
+    DatExportConfig,
+    QmtDatError,
+    XtquantExportConfig,
+    XtquantExportError,
+    export_qmt_daily_csv,
+    export_qmt_dat_daily_csv,
+    read_stock_file,
+)
 from .workflows import QmtBacktestRunConfig, run_qmt_backtest_workflow
 
 
@@ -92,6 +100,17 @@ def build_parser() -> argparse.ArgumentParser:
     universe.add_argument("--stock-file")
     universe.add_argument("--sector")
     export.add_argument("--overwrite", action="store_true")
+
+    dat_export = sub.add_parser("qmt-dat-export")
+    dat_export.add_argument("--datadir", required=True)
+    dat_export.add_argument("--output-csv", required=True)
+    dat_export.add_argument("--start", required=True)
+    dat_export.add_argument("--end", required=True)
+    dat_export.add_argument("--adjustment", default="none")
+    dat_universe = dat_export.add_mutually_exclusive_group(required=True)
+    dat_universe.add_argument("--stocks")
+    dat_universe.add_argument("--stock-file")
+    dat_export.add_argument("--overwrite", action="store_true")
     return parser
 
 
@@ -206,6 +225,29 @@ def main() -> None:
             )
         except XtquantExportError as exc:
             raise SystemExit(f"qmt-export failed: {exc}") from exc
+        print(json.dumps(result.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "qmt-dat-export":
+        stocks = ()
+        if args.stocks:
+            stocks = tuple(item.strip() for item in args.stocks.split(",") if item.strip())
+        elif args.stock_file:
+            stocks = read_stock_file(args.stock_file)
+        try:
+            result = export_qmt_dat_daily_csv(
+                DatExportConfig(
+                    datadir=args.datadir,
+                    output_csv=args.output_csv,
+                    start_date=args.start,
+                    end_date=args.end,
+                    adjustment=args.adjustment,
+                    stocks=stocks,
+                    overwrite=args.overwrite,
+                )
+            )
+        except QmtDatError as exc:
+            raise SystemExit(f"qmt-dat-export failed: {exc}") from exc
         print(json.dumps(result.to_dict(), indent=2, sort_keys=True, ensure_ascii=False))
         return
 
