@@ -39,6 +39,16 @@ from .factor_screen import (
 )
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 from .observations import build_qmt_factor_observations, combine_qmt_factor_observations
+from .qd_alternative import (
+    DEFAULT_CLOCKS,
+    QD_ALTERNATIVE_ADAPTER_VERSION,
+    SOURCE_FIELDS,
+    AlternativeObservation,
+    QdAlternativeAudit,
+    QdAlternativeConfig,
+    QdAlternativeDataset,
+    load_qd_alternative_directory,
+)
 from .qd_csv_adapter import (
     AMOUNT_THOUSAND_CNY_TO_CNY,
     QD_ADAPTER_VERSION,
@@ -103,6 +113,7 @@ __all__ = [
     "AMOUNT_THOUSAND_CNY_TO_CNY",
     "BENCHMARK_METHOD_VERSION",
     "COLUMN_ALIASES",
+    "DEFAULT_CLOCKS",
     "DIVIDEND_PARSER_VERSION",
     "DIVIDEND_SCHEMA_SHA256",
     "DYNAMIC_UNIVERSE_VERSION",
@@ -113,12 +124,15 @@ __all__ = [
     "PARSER_VERSION",
     "PLACEBO_AUDIT_VERSION",
     "QD_ADAPTER_VERSION",
+    "QD_ALTERNATIVE_ADAPTER_VERSION",
     "QD_COLUMN_ALIASES",
     "QD_FUNDAMENTAL_ADAPTER_VERSION",
     "QD_FUNDAMENTAL_FACTOR_VERSION",
     "QD_UNIVERSE_METHOD_VERSION",
     "SCHEMA_SHA256",
+    "SOURCE_FIELDS",
     "VOLUME_LOT_TO_SHARE",
+    "AlternativeObservation",
     "BenchmarkArtifacts",
     "BenchmarkComparison",
     "ConfirmedFundamentalObservation",
@@ -135,6 +149,9 @@ __all__ = [
     "FactorScreenArtifacts",
     "FundamentalFactorAudit",
     "FundamentalFactorObservation",
+    "QdAlternativeAudit",
+    "QdAlternativeConfig",
+    "QdAlternativeDataset",
     "QdFundamentalAudit",
     "QdFundamentalDataset",
     "QdPlaceboArtifacts",
@@ -161,6 +178,7 @@ __all__ = [
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
+    "load_qd_alternative_directory",
     "load_qd_confirmed_fundamentals",
     "load_qd_daily_directory",
     "load_qmt_daily_csv",
