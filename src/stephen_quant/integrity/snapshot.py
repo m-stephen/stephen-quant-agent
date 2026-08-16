@@ -135,3 +135,33 @@ def build_selected_files_snapshot_manifest(
         files=tuple(items),
         snapshot_sha256=snapshot_digest.hexdigest(),
     )
+
+
+def build_composite_snapshot_manifest(
+    components: dict[str, str],
+) -> SnapshotManifest:
+    """Freeze named child-manifest hashes as one experiment-level dataset identity."""
+
+    if not components:
+        raise ValueError("Composite snapshot components cannot be empty")
+    items: list[SnapshotFile] = []
+    digest = hashlib.sha256()
+    for name, component_hash in sorted(components.items()):
+        if not name or "/" in name or "\\" in name:
+            raise ValueError(f"Invalid composite snapshot component name: {name}")
+        if len(component_hash) != 64 or any(
+            character not in "0123456789abcdef" for character in component_hash.lower()
+        ):
+            raise ValueError(f"Invalid composite snapshot hash for {name}")
+        path = f"{name}.manifest.sha256"
+        normalized = component_hash.lower()
+        items.append(SnapshotFile(path=path, sha256=normalized, size_bytes=0))
+        digest.update(path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(normalized.encode("ascii"))
+        digest.update(b"\0\n")
+    return SnapshotManifest(
+        root="composite://v1",
+        files=tuple(items),
+        snapshot_sha256=digest.hexdigest(),
+    )

@@ -34,6 +34,9 @@ from .workflows import (
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
+    load_automated_discovery_config,
+    run_automated_discovery,
+    run_automated_discovery_suite,
     run_composite_cpcv_research,
     run_dynamic_cpcv_research,
     run_dynamic_stateful_backtest,
@@ -219,6 +222,18 @@ def build_parser() -> argparse.ArgumentParser:
     fundamental_cpcv.add_argument("--membership-jsonl")
     fundamental_cpcv.add_argument("--candidate-manifest", default="configs/v1.8.15-candidates.json")
     fundamental_cpcv.add_argument("--output", default="reports/qd-v1.8.15-cpcv")
+
+    auto_discovery = sub.add_parser("qd-auto-discover")
+    auto_discovery.add_argument("--paths-config", required=True)
+    auto_discovery.add_argument("--manifest", default="configs/v1.8.16-search.json")
+    auto_discovery.add_argument("--ingested-at", required=True)
+    auto_discovery.add_argument("--output", default="reports/qd-v1.8.16-auto")
+
+    auto_suite = sub.add_parser("qd-auto-discover-suite")
+    auto_suite.add_argument("--paths-config", required=True)
+    auto_suite.add_argument("--suite-manifest", default="configs/v1.8.16-suite.json")
+    auto_suite.add_argument("--ingested-at", required=True)
+    auto_suite.add_argument("--output", default="reports/qd-v1.8.16-suite")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -598,6 +613,55 @@ def main() -> None:
             )
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"qd-fundamental-cpcv failed: {exc}") from exc
+        print(run.report.to_json())
+        return
+
+    if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.paths.get("dynamic_membership_jsonl")
+            stock_file = None
+            if membership_path is None:
+                stock_file = local_paths.choose(
+                    "discovery_stock_file", None, "--stock-file"
+                )
+            alternative_paths = {
+                key: str(path)
+                for key, path in local_paths.paths.items()
+                if key
+                in {
+                    "qd_fund_flow_dir",
+                    "qd_auction_dir",
+                    "qd_margin_dir",
+                    "qd_industry_dir",
+                }
+            }
+            common = {
+                "registry": registry,
+                "output_dir": args.output,
+                "code_version": _git_head(),
+                "alternative_paths": alternative_paths,
+                "ingested_at": args.ingested_at,
+                "dynamic_membership_path": membership_path,
+            }
+            stocks = read_stock_file(stock_file) if stock_file else ()
+            if args.command == "qd-auto-discover":
+                run = run_automated_discovery(
+                    daily_dir,
+                    stocks,
+                    config=load_automated_discovery_config(args.manifest),
+                    **common,
+                )
+            else:
+                run = run_automated_discovery_suite(
+                    daily_dir,
+                    stocks,
+                    suite_manifest=args.suite_manifest,
+                    **common,
+                )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"{args.command} failed: {exc}") from exc
         print(run.report.to_json())
         return
 

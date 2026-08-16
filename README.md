@@ -400,6 +400,26 @@ The frozen V1.8.14 signal gate rejected all four candidates, so execution falsif
 run and the reserved windows remain sealed. Review the bilingual result in
 `docs/V1_8_14_RESULT.md`.
 
+## V1.8.16 automated factor discovery
+
+V1.8.16 provides a one-command, integrity-first loop for structured candidate generation,
+training-only screening, purged CPCV, cost-aware execution, placebo/DSR/PBO falsification,
+walk-forward validation, research memory, and fail-closed portfolio authorization. The three
+horizons are independent Experiments under one frozen global Trial budget.
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.16.sqlite3" qd-auto-discover-suite `
+  --paths-config "configs\qd-paths.local.json" `
+  --suite-manifest "configs\v1.8.16-suite.json" `
+  --ingested-at "2026-08-17T12:00:00+08:00" `
+  --output "reports\qd-v1.8.16"
+```
+
+Machine-specific paths and all generated data remain ignored. See the
+[English design](docs/V1_8_16_SPEC_EN.md) and [中文设计](docs/V1_8_16_SPEC_ZH.md).
+The frozen three-horizon outcome is available in [English](docs/V1_8_16_RESULT_EN.md)
+and [中文](docs/V1_8_16_RESULT_ZH.md).
+
 ## Quick start
 
 ```bash

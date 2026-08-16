@@ -76,6 +76,34 @@ CREATE TABLE IF NOT EXISTS factor_candidates (
     status TEXT NOT NULL,
     FOREIGN KEY(trial_id) REFERENCES trials(trial_id)
 );
+
+CREATE TABLE IF NOT EXISTS research_campaigns (
+    campaign_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    experiment_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    schema_budget INTEGER NOT NULL,
+    cpcv_budget INTEGER NOT NULL,
+    execution_budget INTEGER NOT NULL,
+    specification_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY(experiment_id) REFERENCES experiments(experiment_id)
+);
+
+CREATE TABLE IF NOT EXISTS campaign_proposals (
+    proposal_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    campaign_id TEXT NOT NULL,
+    proposal_number INTEGER NOT NULL,
+    fingerprint TEXT NOT NULL,
+    schema_json TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    reason TEXT,
+    trial_id TEXT,
+    FOREIGN KEY(campaign_id) REFERENCES research_campaigns(campaign_id),
+    FOREIGN KEY(trial_id) REFERENCES trials(trial_id),
+    UNIQUE(campaign_id, proposal_number)
+);
 """
 
 
@@ -222,6 +250,13 @@ class ExperimentRegistry:
                 raise ValueError(f"unknown experiment: {experiment_id}")
             return str(row[0])
 
+    def global_trial_count(self) -> int:
+        """Count all attempts in the registry across experiments and agents."""
+
+        self.initialize()
+        with self.connect() as conn:
+            return int(conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0])
+
     def record_trial_result(self, trial_id: str, result_json: str) -> None:
         """Write a trial outcome once; rejected attempts remain immutable evidence."""
 
@@ -279,6 +314,201 @@ class ExperimentRegistry:
         self.initialize()
         with self.connect() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM factor_candidates").fetchone()[0])
+
+    def create_research_campaign(
+        self,
+        *,
+        experiment_id: str,
+        name: str,
+        schema_budget: int,
+        cpcv_budget: int,
+        execution_budget: int,
+        specification_json: str,
+    ) -> str:
+        """Freeze one bounded factor-search campaign before proposals are measured."""
+
+        if not name.strip():
+            raise ValueError("campaign name cannot be empty")
+        if schema_budget < 1:
+            raise ValueError("schema_budget must be positive")
+        if not 0 <= execution_budget <= cpcv_budget <= schema_budget:
+            raise ValueError("campaign budgets must satisfy execution <= cpcv <= schema")
+        self.initialize()
+        campaign_id = f"campaign_{uuid.uuid4().hex[:16]}"
+        with self.connect() as conn:
+            if conn.execute(
+                "SELECT 1 FROM experiments WHERE experiment_id = ?", (experiment_id,)
+            ).fetchone() is None:
+                raise ValueError(f"unknown experiment: {experiment_id}")
+            conn.execute(
+                """
+                INSERT INTO research_campaigns
+                (campaign_id, created_at, experiment_id, name, schema_budget, cpcv_budget,
+                 execution_budget, specification_json, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                """,
+                (
+                    campaign_id,
+                    utc_now_iso(),
+                    experiment_id,
+                    name.strip(),
+                    schema_budget,
+                    cpcv_budget,
+                    execution_budget,
+                    specification_json,
+                ),
+            )
+        return campaign_id
+
+    def record_campaign_proposal(
+        self,
+        *,
+        campaign_id: str,
+        fingerprint: str,
+        schema_json: str,
+        decision: str,
+        reason: str | None = None,
+        trial_id: str | None = None,
+    ) -> tuple[str, int]:
+        """Record every proposal, including duplicates and static rejections."""
+
+        allowed_decisions = {
+            "generated",
+            "duplicate",
+            "rejected",
+            "screened_out",
+            "shortlisted",
+            "evaluated",
+        }
+        if decision not in allowed_decisions:
+            raise ValueError(f"unsupported campaign decision: {decision}")
+        if not fingerprint or not schema_json:
+            raise ValueError("campaign proposal fingerprint and schema cannot be empty")
+        self.initialize()
+        proposal_id = f"proposal_{uuid.uuid4().hex[:16]}"
+        with self.connect() as conn:
+            campaign = conn.execute(
+                "SELECT schema_budget FROM research_campaigns WHERE campaign_id = ?",
+                (campaign_id,),
+            ).fetchone()
+            if campaign is None:
+                raise ValueError(f"unknown campaign: {campaign_id}")
+            proposal_number = int(
+                conn.execute(
+                    "SELECT COALESCE(MAX(proposal_number), 0) FROM campaign_proposals "
+                    "WHERE campaign_id = ?",
+                    (campaign_id,),
+                ).fetchone()[0]
+            ) + 1
+            if proposal_number > int(campaign[0]):
+                raise ValueError(f"campaign schema budget exhausted: {campaign_id}")
+            conn.execute(
+                """
+                INSERT INTO campaign_proposals
+                (proposal_id, created_at, campaign_id, proposal_number, fingerprint,
+                 schema_json, decision, reason, trial_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    proposal_id,
+                    utc_now_iso(),
+                    campaign_id,
+                    proposal_number,
+                    fingerprint,
+                    schema_json,
+                    decision,
+                    reason,
+                    trial_id,
+                ),
+            )
+        return proposal_id, proposal_number
+
+    def transition_campaign_proposal(
+        self,
+        proposal_id: str,
+        *,
+        decision: str,
+        trial_id: str | None,
+        reason: str | None = None,
+    ) -> None:
+        """Attach an immutable measurement Trial and advance a generated proposal once."""
+
+        if decision not in {"rejected", "screened_out", "shortlisted", "evaluated"}:
+            raise ValueError(f"unsupported campaign transition: {decision}")
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT decision FROM campaign_proposals WHERE proposal_id = ?",
+                (proposal_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"unknown campaign proposal: {proposal_id}")
+            if str(row[0]) != "generated":
+                raise ValueError(f"campaign proposal is already decided: {proposal_id}")
+            if trial_id is not None and conn.execute(
+                "SELECT 1 FROM trials WHERE trial_id = ?", (trial_id,)
+            ).fetchone() is None:
+                raise ValueError(f"unknown trial: {trial_id}")
+            conn.execute(
+                """
+                UPDATE campaign_proposals SET decision = ?, reason = ?, trial_id = ?
+                WHERE proposal_id = ?
+                """,
+                (decision, reason, trial_id, proposal_id),
+            )
+
+    def campaign_summary(self, campaign_id: str) -> dict[str, object]:
+        self.initialize()
+        with self.connect() as conn:
+            campaign = conn.execute(
+                """
+                SELECT experiment_id, name, schema_budget, cpcv_budget, execution_budget, status
+                FROM research_campaigns WHERE campaign_id = ?
+                """,
+                (campaign_id,),
+            ).fetchone()
+            if campaign is None:
+                raise ValueError(f"unknown campaign: {campaign_id}")
+            rows = conn.execute(
+                """
+                SELECT decision, COUNT(*) AS count FROM campaign_proposals
+                WHERE campaign_id = ? GROUP BY decision
+                """,
+                (campaign_id,),
+            ).fetchall()
+            decisions = {str(row[0]): int(row[1]) for row in rows}
+            return {
+                "campaign_id": campaign_id,
+                "experiment_id": str(campaign[0]),
+                "name": str(campaign[1]),
+                "schema_budget": int(campaign[2]),
+                "cpcv_budget": int(campaign[3]),
+                "execution_budget": int(campaign[4]),
+                "status": str(campaign[5]),
+                "proposal_count": sum(decisions.values()),
+                "decisions": decisions,
+            }
+
+    def campaign_fingerprints(self, campaign_id: str) -> dict[str, str]:
+        """Return the first persisted proposal for each fingerprint."""
+
+        self.initialize()
+        with self.connect() as conn:
+            if conn.execute(
+                "SELECT 1 FROM research_campaigns WHERE campaign_id = ?", (campaign_id,)
+            ).fetchone() is None:
+                raise ValueError(f"unknown campaign: {campaign_id}")
+            rows = conn.execute(
+                """
+                SELECT fingerprint, proposal_id FROM campaign_proposals
+                WHERE campaign_id = ? ORDER BY proposal_number
+                """,
+                (campaign_id,),
+            ).fetchall()
+            result: dict[str, str] = {}
+            for row in rows:
+                result.setdefault(str(row[0]), str(row[1]))
+            return result
 
     def register_artifact(
         self,

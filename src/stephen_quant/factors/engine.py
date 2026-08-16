@@ -260,11 +260,32 @@ def compute_factor(
             raise MissingDataError(f"{field} contains missing or non-finite data")
         window[field] = [float(value) for value in raw_values if value is not None]
 
-    try:
-        formula = FORMULAS[definition.formula]
-    except KeyError as exc:
-        raise FactorError(f"unknown formula: {definition.formula}") from exc
-    value = formula(window)
+    formula = FORMULAS.get(definition.formula)
+    if formula is not None:
+        value = formula(window)
+    else:
+        # V1.8.16 schemas compile to the existing FactorDefinition contract while
+        # retaining the safe, audited research-agent DSL.
+        from stephen_quant.research_agent.dsl import FormulaInput, evaluate_formula
+
+        try:
+            value = evaluate_formula(
+                definition.formula,
+                {
+                    field: FormulaInput(
+                        values=tuple(data[field][start : as_of_index + 1]),
+                        available_at=tuple(
+                            available_at[field][start : as_of_index + 1]
+                        ),
+                    )
+                    for field in definition.required_fields
+                },
+                decision_at=decision_at,
+            )
+        except FactorError:
+            raise
+        except Exception as exc:
+            raise FactorError(f"invalid safe DSL formula: {definition.formula}") from exc
     if not math.isfinite(value):
         raise MissingDataError(f"{definition.key} produced a non-finite value")
 
