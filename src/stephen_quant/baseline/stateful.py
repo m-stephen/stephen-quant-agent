@@ -31,6 +31,8 @@ class TargetAllocation:
     trade_date: str
     decided_at: str
     weights: dict[str, float]
+    rebalance: bool = True
+    forced_exits: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -259,7 +261,17 @@ def run_stateful_execution(
             position.shares * open_marks[instrument]
             for instrument, position in positions.items()
         )
-        desired_weights = dict(target.weights)
+        desired_weights = (
+            dict(target.weights)
+            if target.rebalance
+            else {
+                instrument: position.shares * open_marks[instrument] / open_nav
+                for instrument, position in positions.items()
+                if open_nav > 0
+            }
+        )
+        for instrument in target.forced_exits:
+            desired_weights.pop(instrument, None)
         for instrument, bar in by_instrument.items():
             if bar.forced_exit:
                 desired_weights.pop(instrument, None)

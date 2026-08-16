@@ -178,3 +178,29 @@ def test_stateful_report_artifacts_are_hashed(tmp_path: Path) -> None:
     assert artifacts.markdown_path.exists()
     assert artifacts.json_sha256
     assert artifacts.markdown_sha256
+
+
+def test_non_rebalance_session_holds_drifted_weights_without_trading() -> None:
+    sessions = (
+        (
+            _bar("2025-01-02", "A", 10, 12),
+            _bar("2025-01-02", "B", 10, 8),
+        ),
+        (
+            _bar("2025-01-03", "A", 12, 12),
+            _bar("2025-01-03", "B", 8, 8),
+        ),
+    )
+    targets = (
+        _target("2025-01-02", {"A": 0.5, "B": 0.5}),
+        TargetAllocation(
+            "2025-01-03",
+            "2025-01-02T15:01:00+08:00",
+            {},
+            rebalance=False,
+        ),
+    )
+
+    report = run_stateful_execution(sessions, targets, _zero_cost())
+
+    assert all(order.executed_notional == pytest.approx(0) for order in report.periods[1].orders)

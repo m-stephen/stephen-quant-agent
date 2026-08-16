@@ -29,10 +29,12 @@ from .qmt import (
 )
 from .workflows import (
     CompositeCpcvConfig,
+    DynamicBacktestConfig,
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
     run_composite_cpcv_research,
+    run_dynamic_stateful_backtest,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     write_factor_family_validation_report,
@@ -171,6 +173,33 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_universe.add_argument("--liquidity-lookback", type=int, default=20)
     dynamic_universe.add_argument("--minimum-mean-amount", type=float, default=20_000_000)
     dynamic_universe.add_argument("--output", default="artifacts/qd-dynamic-universe")
+
+    dynamic_backtest = sub.add_parser("qd-dynamic-backtest")
+    dynamic_backtest.add_argument("--daily-dir", required=True)
+    dynamic_backtest.add_argument("--membership-jsonl", required=True)
+    dynamic_backtest.add_argument("--benchmark-csv", required=True)
+    dynamic_backtest.add_argument("--data-start", required=True)
+    dynamic_backtest.add_argument("--research-start", required=True)
+    dynamic_backtest.add_argument("--research-end", required=True)
+    dynamic_backtest.add_argument("--validation-start", required=True)
+    dynamic_backtest.add_argument("--validation-end", required=True)
+    dynamic_backtest.add_argument("--test-start", required=True)
+    dynamic_backtest.add_argument("--test-end", required=True)
+    dynamic_backtest.add_argument("--factor", default="mom_120_skip_20")
+    dynamic_backtest.add_argument("--factor-version", default="1.0.0")
+    dynamic_backtest.add_argument("--top-k", type=int, default=20)
+    dynamic_backtest.add_argument("--rebalance-every", type=int, default=5)
+    dynamic_backtest.add_argument("--cash-reserve", type=float, default=0.02)
+    dynamic_backtest.add_argument("--max-position-weight", type=float, default=0.05)
+    dynamic_backtest.add_argument("--adv-lookback", type=int, default=20)
+    dynamic_backtest.add_argument("--max-participation-rate", type=float, default=0.05)
+    dynamic_backtest.add_argument("--commission-bps", type=float, default=3.0)
+    dynamic_backtest.add_argument("--sell-tax-bps", type=float, default=5.0)
+    dynamic_backtest.add_argument("--slippage-bps", type=float, default=5.0)
+    dynamic_backtest.add_argument("--stale-writeoff-sessions", type=int, default=20)
+    dynamic_backtest.add_argument("--initial-nav", type=float, default=1_000_000.0)
+    dynamic_backtest.add_argument("--seed", type=int, default=42)
+    dynamic_backtest.add_argument("--output", default="reports/qd-dynamic-backtest")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -463,6 +492,41 @@ def main() -> None:
                 sort_keys=True,
             )
         )
+        return
+
+    if args.command == "qd-dynamic-backtest":
+        run = run_dynamic_stateful_backtest(
+            args.daily_dir,
+            args.membership_jsonl,
+            args.benchmark_csv,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            config=DynamicBacktestConfig(
+                data_start=args.data_start,
+                research_start=args.research_start,
+                research_end=args.research_end,
+                validation_start=args.validation_start,
+                validation_end=args.validation_end,
+                test_start=args.test_start,
+                test_end=args.test_end,
+                factor_id=args.factor,
+                factor_version=args.factor_version,
+                top_k=args.top_k,
+                rebalance_every=args.rebalance_every,
+                cash_reserve=args.cash_reserve,
+                maximum_position_weight=args.max_position_weight,
+                adv_lookback=args.adv_lookback,
+                max_participation_rate=args.max_participation_rate,
+                commission_bps=args.commission_bps,
+                sell_tax_bps=args.sell_tax_bps,
+                slippage_bps=args.slippage_bps,
+                stale_writeoff_sessions=args.stale_writeoff_sessions,
+                initial_nav=args.initial_nav,
+                seed=args.seed,
+            ),
+        )
+        print(run.report.to_json())
         return
 
     if args.command == "qmt-backtest":

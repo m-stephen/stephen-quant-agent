@@ -121,7 +121,7 @@ quote/Python service running and export through the official local-only `xtquant
 
 ```powershell
 stephen-quant qmt-export `
-  --qmt-home "E:\path\to\QMT\datadir" `
+  --qmt-home "<QMT_DATADIR>" `
   --output-csv "data\raw\qmt-daily.csv" `
   --start 2018-01-01 --end 2025-12-31 `
   --adjustment front_ratio `
@@ -137,7 +137,7 @@ version-locked, read-only fallback for explicit A-share instruments in `SH/SZ/BJ
 
 ```powershell
 stephen-quant qmt-dat-export `
-  --datadir "E:\path\to\QMT\datadir" `
+  --datadir "<QMT_DATADIR>" `
   --output-csv "data\raw\qmt-daily-none.csv" `
   --start 2018-01-01 --end 2025-12-31 `
   --stocks "000001.SZ,000002.SZ,600000.SH"
@@ -149,7 +149,7 @@ to add point-in-time-safe QMT `back_ratio` adjustment from `DividData`:
 ```powershell
 pip install -e ".[qmt-dat]"
 stephen-quant qmt-dat-export `
-  --datadir "E:\path\to\QMT\datadir" `
+  --datadir "<QMT_DATADIR>" `
   --output-csv "data\raw\qmt-daily-back-ratio.csv" `
   --start 2018-01-01 --end 2025-12-31 `
   --adjustment back_ratio `
@@ -164,7 +164,7 @@ On the `data-test` branch, run the complete engineering validation in one comman
 
 ```powershell
 stephen-quant --db artifacts\qmt-dat-validation.sqlite3 qmt-dat-validate `
-  --datadir "E:\path\to\QMT\datadir" `
+  --datadir "<QMT_DATADIR>" `
   --output "reports\qmt-dat-validation" `
   --data-start 2020-01-01 --data-end 2025-12-31 `
   --adjustment back_ratio `
@@ -191,7 +191,7 @@ and can apply the file's cumulative adjustment factor as point-in-time `back_rat
 
 ```powershell
 stephen-quant --db artifacts\qd-v1.8.5.sqlite3 qmt-backtest `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "private\qd-validation-universe.txt" `
   --output "reports\qd-v1.8.5" `
   --adjustment back_ratio `
@@ -212,8 +212,8 @@ training by their training-period mean daily amount, then freezes the selected f
 
 ```powershell
 stephen-quant qd-select-universe `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
-  --fundamental-dir "E:\QD\基本数据\基本面指标" `
+  --daily-dir "<QD_DAILY_DIR>" `
+  --fundamental-dir "<QD_FUNDAMENTAL_DIR>" `
   --train-start 2022-01-01 --train-end 2023-12-31 `
   --top-n 20 --output "artifacts\qd-v1.8.6-universe"
 ```
@@ -223,9 +223,9 @@ placebo tests:
 
 ```powershell
 stephen-quant --db artifacts\qd-v1.8.6.sqlite3 qmt-backtest `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
-  --benchmark-csv "E:\QD\基本数据\10大指数\沪深300.csv" `
+  --benchmark-csv "<CSI300_CSV>" `
   --benchmark-name "沪深300" --placebo-repetitions 199 `
   --output "reports\qd-v1.8.6" --adjustment back_ratio --factor ret_60 `
   --train-start 2022-01-01 --train-end 2023-12-31 `
@@ -244,10 +244,10 @@ blocks buys at the inferred upper limit and sells at the inferred lower limit:
 
 ```powershell
 stephen-quant --db artifacts\qd-v1.8.7.sqlite3 qmt-backtest `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
   --evaluation-window validation `
-  --benchmark-csv "E:\QD\基本数据\10大指数\沪深300.csv" `
+  --benchmark-csv "<CSI300_CSV>" `
   --benchmark-name "沪深300" --placebo-repetitions 199 `
   --output "reports\qd-v1.8.7" --adjustment back_ratio --factor ret_60 `
   --train-start 2022-01-01 --train-end 2023-12-31 `
@@ -280,7 +280,7 @@ Use training data only to identify redundant definitions before any return-based
 
 ```powershell
 stephen-quant qd-factor-screen `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
   --data-start 2022-01-01 `
   --screen-start 2023-01-03 --screen-end 2023-12-29 `
@@ -312,7 +312,7 @@ history and the single next-open boundary bar; 2025 validation begins on the fol
 
 ```powershell
 stephen-quant --db "artifacts\qd-v1.8.10.sqlite3" qd-composite-cpcv `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "artifacts\qd-v1.8.6-universe\qd-universe.txt" `
   --data-start 2021-07-01 `
   --research-start 2022-01-04 --research-end 2024-12-31 `
@@ -331,8 +331,8 @@ training-end list backward through history:
 
 ```powershell
 stephen-quant qd-dynamic-universe `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
-  --fundamental-dir "E:\QD\基本数据\基本面指标" `
+  --daily-dir "<QD_DAILY_DIR>" `
+  --fundamental-dir "<QD_FUNDAMENTAL_DIR>" `
   --research-start 2022-01-04 --research-end 2024-12-31 `
   --top-n 300 --minimum-history-sessions 120 `
   --liquidity-lookback 20 --minimum-mean-amount 20000000 `
@@ -350,6 +350,29 @@ After 20 consecutive missing sessions it is conservatively written to zero; a la
 a recovery before any pending exit executes. Limit-down exits remain blocked, and order capacity
 must carry a timestamp earlier than the execution open. See `docs/V1_8_12_SPEC.md` and the frozen
 engineering decision in `docs/V1_8_12_RESULT.md`.
+
+V1.8.13 connects the frozen dynamic membership, sparse QD bars, factor registry, stateful
+accounting, prior-session capacity, costs, and CSI 300 benchmark in one registered engineering
+backtest:
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.13.sqlite3" qd-dynamic-backtest `
+  --daily-dir "<QD_DAILY_DIR>" `
+  --membership-jsonl "artifacts\qd-v1.8.11-universe\dynamic-universe-membership.jsonl" `
+  --benchmark-csv "<CSI300_CSV>" `
+  --data-start 2021-07-01 `
+  --research-start 2022-01-04 --research-end 2024-12-31 `
+  --validation-start 2025-01-03 --validation-end 2025-12-31 `
+  --test-start 2026-01-05 --test-end 2026-08-14 `
+  --factor mom_120_skip_20 --top-k 20 --rebalance-every 5 `
+  --cash-reserve 0.02 --max-position-weight 0.05 `
+  --commission-bps 3 --sell-tax-bps 5 --slippage-bps 5 `
+  --output "reports\qd-v1.8.13"
+```
+
+The fixture factor was already rejected; this command validates execution plumbing and makes no
+new alpha claim. See `docs/V1_8_13_SPEC.md` and the frozen engineering result in
+`docs/V1_8_13_RESULT.md`.
 
 ## Quick start
 

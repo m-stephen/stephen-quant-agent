@@ -164,6 +164,43 @@ def test_qd_adapter_marks_main_board_and_chinext_open_limits(tmp_path: Path) -> 
     assert dataset.audit.tradability_unavailable_bars == 0
 
 
+def test_qd_adapter_retains_blank_name_bar_but_blocks_execution(tmp_path: Path) -> None:
+    day = date(2025, 1, 2)
+    with (tmp_path / f"{day:%Y%m%d}.csv").open(
+        "w", encoding="utf-8-sig", newline=""
+    ) as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "日期",
+                "代码",
+                "名称",
+                "开盘价",
+                "最高价",
+                "最低价",
+                "收盘价",
+                "昨日收盘价",
+                "成交量(手)",
+                "成交额(千元)",
+                "复权因子",
+            ]
+        )
+        writer.writerow(["20250102", "000001.SZ", "", 10, 10, 10, 10, 9.9, 100, 100, 1])
+
+    dataset = load_qd_daily_directory(
+        tmp_path,
+        start_date=day.isoformat(),
+        end_date=day.isoformat(),
+        instruments=("000001.SZ",),
+    )
+
+    bar = dataset.bars[0]
+    assert not bar.can_buy_open
+    assert not bar.can_sell_open
+    assert bar.tradability_reason == "missing_point_in_time_metadata"
+    assert dataset.audit.tradability_unavailable_bars == 1
+
+
 def test_qd_price_limit_rules_cover_boards_new_shares_and_historical_st() -> None:
     assert _open_tradability(
         "601001.SH", "晋控煤业", "2025-01-02", 8.0, 7.27

@@ -45,6 +45,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.10 post-validation composite exploration + fold-local CPCV weights
 - V1.8.11 point-in-time dynamic universe + survivorship-bias audit
 - V1.8.12 stateful sparse-panel execution + suspension/delisting accounting
+- V1.8.13 dynamic-universe QD bridge + 2022-2024 stateful engineering backtest
 
 ## Engineering style
 - Python >= 3.10.

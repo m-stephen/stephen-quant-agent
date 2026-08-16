@@ -35,7 +35,7 @@ after later corporate actions. Volume and amount remain unadjusted.
 
 ```powershell
 stephen-quant --db artifacts\qd-v1.8.5.sqlite3 qmt-backtest `
-  --daily-dir "E:\QD\基本数据\股票日K_按日期" `
+  --daily-dir "<QD_DAILY_DIR>" `
   --stock-file "private\qd-validation-universe.txt" `
   --output "reports\qd-v1.8.5" `
   --adjustment back_ratio `

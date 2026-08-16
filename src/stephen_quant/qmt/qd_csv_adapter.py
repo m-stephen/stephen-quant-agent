@@ -12,7 +12,7 @@ from stephen_quant.integrity.snapshot import build_selected_files_snapshot_manif
 from .csv_adapter import _decode, _normalize_header, _parse_date, _parse_number, _validate_bar
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 
-QD_ADAPTER_VERSION = "qd-daily-directory-1.3.0"
+QD_ADAPTER_VERSION = "qd-daily-directory-1.3.1"
 QD_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "trade_date": ("日期", "交易日期", "trade_date", "date"),
     "instrument": ("代码", "股票代码", "证券代码", "ts_code", "instrument"),
@@ -246,24 +246,20 @@ def load_qd_daily_directory(
                 "open",
                 row_number=row_number,
             )
-            can_buy_open, can_sell_open, tradability_reason = True, True, "unavailable"
+            can_buy_open, can_sell_open = False, False
+            tradability_reason = "missing_point_in_time_metadata"
             if "name" in mapping and "previous_close" in mapping:
-                name = _required_cell(
-                    row, mapping["name"], "name", row_number=row_number
-                )
-                previous_close = _parse_number(
-                    _required_cell(
-                        row,
-                        mapping["previous_close"],
+                name = (row.get(mapping["name"]) or "").strip()
+                raw_previous_close = (row.get(mapping["previous_close"]) or "").strip()
+                if name and raw_previous_close:
+                    previous_close = _parse_number(
+                        raw_previous_close,
                         "previous_close",
                         row_number=row_number,
-                    ),
-                    "previous_close",
-                    row_number=row_number,
-                )
-                can_buy_open, can_sell_open, tradability_reason = _open_tradability(
-                    instrument, name, trade_date, raw_open, previous_close
-                )
+                    )
+                    can_buy_open, can_sell_open, tradability_reason = _open_tradability(
+                        instrument, name, trade_date, raw_open, previous_close
+                    )
             bar = QmtDailyBar(
                 instrument=instrument,
                 trade_date=trade_date,
@@ -327,6 +323,13 @@ def load_qd_daily_directory(
         )
     if zero_volume:
         warnings += ("Zero-volume or zero-amount bars are retained.",)
+    unavailable_bars = sum(
+        bar.tradability_reason == "missing_point_in_time_metadata" for bar in bars
+    )
+    if unavailable_bars:
+        warnings += (
+            "Bars with blank point-in-time metadata are retained for history but blocked.",
+        )
     return QmtDataset(
         bars=tuple(bars),
         audit=QmtDataAudit(
@@ -353,9 +356,7 @@ def load_qd_daily_directory(
             open_lower_limit_bars=sum(
                 bar.tradability_reason == "open_at_lower_limit" for bar in bars
             ),
-            tradability_unavailable_bars=sum(
-                bar.tradability_reason == "unavailable" for bar in bars
-            ),
+            tradability_unavailable_bars=unavailable_bars,
             no_price_limit_bars=sum(
                 bar.tradability_reason.startswith("no_price_limit") for bar in bars
             ),
