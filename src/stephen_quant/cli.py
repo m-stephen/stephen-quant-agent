@@ -34,6 +34,8 @@ from .workflows import (
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
+    load_automated_discovery_config,
+    run_automated_discovery,
     run_composite_cpcv_research,
     run_dynamic_cpcv_research,
     run_dynamic_stateful_backtest,
@@ -219,6 +221,12 @@ def build_parser() -> argparse.ArgumentParser:
     fundamental_cpcv.add_argument("--membership-jsonl")
     fundamental_cpcv.add_argument("--candidate-manifest", default="configs/v1.8.15-candidates.json")
     fundamental_cpcv.add_argument("--output", default="reports/qd-v1.8.15-cpcv")
+
+    auto_discovery = sub.add_parser("qd-auto-discover")
+    auto_discovery.add_argument("--paths-config", required=True)
+    auto_discovery.add_argument("--manifest", default="configs/v1.8.16-search.json")
+    auto_discovery.add_argument("--ingested-at", required=True)
+    auto_discovery.add_argument("--output", default="reports/qd-v1.8.16-auto")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -598,6 +606,40 @@ def main() -> None:
             )
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"qd-fundamental-cpcv failed: {exc}") from exc
+        print(run.report.to_json())
+        return
+
+    if args.command == "qd-auto-discover":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            stock_file = local_paths.choose(
+                "discovery_stock_file", None, "--stock-file"
+            )
+            config = load_automated_discovery_config(args.manifest)
+            alternative_paths = {
+                key: str(path)
+                for key, path in local_paths.paths.items()
+                if key
+                in {
+                    "qd_fund_flow_dir",
+                    "qd_auction_dir",
+                    "qd_margin_dir",
+                    "qd_industry_dir",
+                }
+            }
+            run = run_automated_discovery(
+                daily_dir,
+                read_stock_file(stock_file),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=config,
+                alternative_paths=alternative_paths,
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"qd-auto-discover failed: {exc}") from exc
         print(run.report.to_json())
         return
 

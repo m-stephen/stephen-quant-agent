@@ -4,6 +4,12 @@
     "qd_daily_dir": "<QD_DAILY_DIR>",
     "qd_fundamental_dir": "<QD_FUNDAMENTAL_DIR>",
     "csi300_csv": "<CSI300_CSV>",
-    "dynamic_membership_jsonl": "../artifacts/qd-v1.8.11-universe/dynamic-universe-membership.jsonl"
+    "dynamic_membership_jsonl": "../artifacts/qd-v1.8.11-universe/dynamic-universe-membership.jsonl",
+    "discovery_stock_file": "../artifacts/qd-universe/stocks.txt",
+    "qd_fund_flow_dir": "<QD_FUND_FLOW_DIR>",
+    "qd_auction_dir": "<QD_AUCTION_DIR>",
+    "qd_margin_dir": "<QD_MARGIN_DIR>",
+    "qd_industry_dir": "<QD_INDUSTRY_DIR>",
+    "alphapai_cache_dir": "../artifacts/alphapai-cache"
   }
 }
