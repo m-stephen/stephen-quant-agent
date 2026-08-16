@@ -258,7 +258,8 @@ stephen-quant --db artifacts\qd-v1.8.7.sqlite3 qmt-backtest `
 ```
 
 The 2026 dates are ledger reservations only in this command. Their files are neither loaded nor
-hashed. See `docs/V1_8_7_SPEC.md`.
+hashed. See `docs/V1_8_7_SPEC.md` and the frozen reference decision in
+`docs/V1_8_7_RESULT.md`.
 
 ## Quick start
 
