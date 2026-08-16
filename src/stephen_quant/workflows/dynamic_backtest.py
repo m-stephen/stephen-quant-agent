@@ -92,29 +92,118 @@ class DynamicBacktestReport:
         metrics = self.execution.metrics
         return "\n".join(
             (
-                "# V1.8.13 dynamic-universe engineering backtest",
+                "# V1.8.13 Dynamic-Universe Stateful Backtest Result",
                 "",
                 f"**Decision: {self.decision}**",
+                "",
+                "## Scope and lineage",
                 "",
                 f"- Experiment: `{self.experiment_id}`",
                 f"- Trial: `{self.trial_id}`",
                 f"- Snapshot: `{self.snapshot_id}`",
                 f"- Membership SHA-256: `{self.membership_sha256}`",
                 f"- Factor fixture: `{self.factor_key}`",
+                f"- Research window: {self.research_start} through {self.research_end}",
+                f"- Membership sessions: {self.membership_sessions}",
                 f"- Execution sessions: {self.execution_sessions}",
                 f"- Unique dynamic members: {self.unique_members}",
                 f"- Signal failures: {self.signal_failures}",
-                f"- Strategy net return: {metrics.net_total_return:.6%}",
-                f"- Strategy maximum drawdown: {metrics.max_drawdown:.6%}",
-                f"- Total cost: {metrics.total_cost:.2f}",
-                f"- Blocked orders: {metrics.blocked_orders}",
-                f"- Stale position-days: {metrics.stale_position_days}",
-                f"- Write-off events: {metrics.writeoff_events}",
-                f"- Benchmark: {self.benchmark.name}",
-                f"- Benchmark return: {self.benchmark.total_return:.6%}",
-                f"- Strategy excess return: {self.benchmark.strategy_excess_total_return:.6%}",
                 "",
-                "This is an in-research-window engineering result, not independent alpha evidence.",
+                "## Performance",
+                "",
+                "| Metric | Strategy | Benchmark |",
+                "|---|---:|---:|",
+                (
+                    f"| Total return | {metrics.net_total_return:.6%} | "
+                    f"{self.benchmark.total_return:.6%} |"
+                ),
+                (
+                    f"| Maximum drawdown | {metrics.max_drawdown:.6%} | "
+                    f"{self.benchmark.max_drawdown:.6%} |"
+                ),
+                f"| Final NAV | {metrics.final_nav:.2f} | n/a |",
+                "",
+                f"- Benchmark: {self.benchmark.name}",
+                (
+                    "- Strategy excess total return: "
+                    f"{self.benchmark.strategy_excess_total_return:.6%}"
+                ),
+                f"- Explicit transaction costs: {metrics.total_cost:.2f}",
+                "",
+                "## Execution quality",
+                "",
+                f"- Blocked orders: {metrics.blocked_orders}",
+                f"- Blocked notional: {metrics.blocked_notional:.2f}",
+                f"- Stale position-days: {metrics.stale_position_days}",
+                (
+                    f"- Write-off events / loss: {metrics.writeoff_events} / "
+                    f"{metrics.writeoff_loss:.2f}"
+                ),
+                (
+                    f"- Recovery events / value: {metrics.recovery_events} / "
+                    f"{metrics.recovery_value:.2f}"
+                ),
+                "",
+                "## Interpretation",
+                "",
+                (
+                    "This is an in-research-window engineering result, not independent alpha "
+                    "evidence. Reserved validation and final-test windows remain sealed."
+                ),
+                "",
+            )
+        )
+
+    def to_markdown_zh(self) -> str:
+        metrics = self.execution.metrics
+        return "\n".join(
+            (
+                "# V1.8.13 动态股票池状态化回测结果",
+                "",
+                f"**结论：{self.decision}**",
+                "",
+                "## 范围与血缘",
+                "",
+                f"- Experiment：`{self.experiment_id}`",
+                f"- Trial：`{self.trial_id}`",
+                f"- Snapshot：`{self.snapshot_id}`",
+                f"- 股票池 SHA-256：`{self.membership_sha256}`",
+                f"- 测试因子：`{self.factor_key}`",
+                f"- 研究区间：{self.research_start} 至 {self.research_end}",
+                f"- 股票池决策日：{self.membership_sessions}",
+                f"- 执行交易日：{self.execution_sessions}",
+                f"- 动态股票数量：{self.unique_members}",
+                f"- 信号失败数：{self.signal_failures}",
+                "",
+                "## 业绩",
+                "",
+                "| 指标 | 策略 | 基准 |",
+                "|---|---:|---:|",
+                (
+                    f"| 累计收益 | {metrics.net_total_return:.6%} | "
+                    f"{self.benchmark.total_return:.6%} |"
+                ),
+                (
+                    f"| 最大回撤 | {metrics.max_drawdown:.6%} | "
+                    f"{self.benchmark.max_drawdown:.6%} |"
+                ),
+                f"| 期末净值 | {metrics.final_nav:.2f} | 不适用 |",
+                "",
+                f"- 基准：{self.benchmark.name}",
+                f"- 策略累计超额收益：{self.benchmark.strategy_excess_total_return:.6%}",
+                f"- 显式交易成本：{metrics.total_cost:.2f}",
+                "",
+                "## 执行质量",
+                "",
+                f"- 阻断订单：{metrics.blocked_orders}",
+                f"- 阻断名义金额：{metrics.blocked_notional:.2f}",
+                f"- 陈旧持仓日：{metrics.stale_position_days}",
+                f"- 归零次数 / 损失：{metrics.writeoff_events} / {metrics.writeoff_loss:.2f}",
+                f"- 恢复次数 / 价值：{metrics.recovery_events} / {metrics.recovery_value:.2f}",
+                "",
+                "## 解释",
+                "",
+                "这是研究区间内的工程结果，不是独立 Alpha 证据。保留验证期和最终测试期仍然封存。",
                 "",
             )
         )
@@ -126,6 +215,7 @@ class DynamicBacktestRun:
     output_dir: Path
     report_json_path: Path
     report_markdown_path: Path
+    report_markdown_zh_path: Path
     targets_jsonl_path: Path
 
 
@@ -446,10 +536,12 @@ def run_dynamic_stateful_backtest(
         directory = Path(output_dir).expanduser().resolve()
         directory.mkdir(parents=True, exist_ok=True)
         report_json_path = directory / "dynamic-backtest.json"
-        report_markdown_path = directory / "dynamic-backtest.md"
+        report_markdown_path = directory / "dynamic-backtest.en.md"
+        report_markdown_zh_path = directory / "dynamic-backtest.zh.md"
         targets_jsonl_path = directory / "dynamic-targets.jsonl"
         report_json_sha = _write(report_json_path, report.to_json() + "\n")
         report_markdown_sha = _write(report_markdown_path, report.to_markdown())
+        report_markdown_zh_sha = _write(report_markdown_zh_path, report.to_markdown_zh())
         targets_content = "".join(
             json.dumps(item, sort_keys=True, ensure_ascii=False) + "\n"
             for item in target_audit
@@ -461,6 +553,11 @@ def run_dynamic_stateful_backtest(
         for kind, path, digest in (
             ("dynamic_backtest_json", report_json_path, report_json_sha),
             ("dynamic_backtest_markdown", report_markdown_path, report_markdown_sha),
+            (
+                "dynamic_backtest_markdown_zh",
+                report_markdown_zh_path,
+                report_markdown_zh_sha,
+            ),
             ("dynamic_targets_jsonl", targets_jsonl_path, targets_sha),
             ("stateful_execution_json", execution_artifacts.json_path, execution_artifacts.json_sha256),
             ("stateful_execution_markdown", execution_artifacts.markdown_path, execution_artifacts.markdown_sha256),
@@ -490,6 +587,7 @@ def run_dynamic_stateful_backtest(
             output_dir=directory,
             report_json_path=report_json_path,
             report_markdown_path=report_markdown_path,
+            report_markdown_zh_path=report_markdown_zh_path,
             targets_jsonl_path=targets_jsonl_path,
         )
     except Exception as exc:

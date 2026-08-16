@@ -355,11 +355,16 @@ V1.8.13 connects the frozen dynamic membership, sparse QD bars, factor registry,
 accounting, prior-session capacity, costs, and CSI 300 benchmark in one registered engineering
 backtest:
 
+Copy `configs/qd-paths.example.json` to `configs/qd-paths.local.json` and fill in the
+machine-local paths. Files matching `configs/*.local.json` are ignored by Git. Explicit CLI path
+arguments remain available and take precedence over the local file.
+
+将 `configs/qd-paths.example.json` 复制为 `configs/qd-paths.local.json`，再填写本机路径。
+`configs/*.local.json` 已被 Git 忽略；如同时传入命令行路径，则命令行值优先。
+
 ```powershell
 stephen-quant --db "artifacts\qd-v1.8.13.sqlite3" qd-dynamic-backtest `
-  --daily-dir "<QD_DAILY_DIR>" `
-  --membership-jsonl "artifacts\qd-v1.8.11-universe\dynamic-universe-membership.jsonl" `
-  --benchmark-csv "<CSI300_CSV>" `
+  --paths-config "configs\qd-paths.local.json" `
   --data-start 2021-07-01 `
   --research-start 2022-01-04 --research-end 2024-12-31 `
   --validation-start 2025-01-03 --validation-end 2025-12-31 `
@@ -371,8 +376,13 @@ stephen-quant --db "artifacts\qd-v1.8.13.sqlite3" qd-dynamic-backtest `
 ```
 
 The fixture factor was already rejected; this command validates execution plumbing and makes no
-new alpha claim. See `docs/V1_8_13_SPEC.md` and the frozen engineering result in
-`docs/V1_8_13_RESULT.md`.
+new alpha claim. Review the bilingual design in `docs/V1_8_13_SPEC.md` and the bilingual frozen
+result in `docs/V1_8_13_RESULT.md`.
+
+V1.8.14 starts the next research gate with two newly registered microstructure factors and four
+predeclared candidate configurations. The machine-readable search space is frozen in
+`configs/v1.8.14-candidates.json`; 2025 and 2026 remain sealed. Review the bilingual design in
+`docs/V1_8_14_SPEC.md`.
 
 ## Quick start
 

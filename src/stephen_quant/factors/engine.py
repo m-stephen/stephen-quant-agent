@@ -102,6 +102,30 @@ def _parkinson_volatility20(data: Mapping[str, list[float]]) -> float:
     return math.sqrt(_mean(squared_ranges) / (4 * math.log(2)))
 
 
+def _overnight_gap20(data: Mapping[str, list[float]]) -> float:
+    opening = data["open"]
+    close = data["close"]
+    if any(value <= 0 for value in close[:-1]):
+        raise MissingDataError("previous close must be positive for overnight gap")
+    gaps = [
+        opening[index] / close[index - 1] - 1.0
+        for index in range(1, len(close))
+    ]
+    return _mean(gaps[-20:])
+
+
+def _close_location20(data: Mapping[str, list[float]]) -> float:
+    values: list[float] = []
+    for upper, lower, close in zip(
+        data["high"][-20:], data["low"][-20:], data["close"][-20:], strict=True
+    ):
+        if upper < lower or close < lower or close > upper:
+            raise MissingDataError("close location requires ordered OHLC values")
+        width = upper - lower
+        values.append(0.0 if width == 0 else (2 * close - upper - lower) / width)
+    return _mean(values)
+
+
 def _ma20_60_ratio(data: Mapping[str, list[float]]) -> float:
     close = data["close"]
     return _mean(close[-20:]) / _mean(close[-60:]) - 1.0
@@ -181,6 +205,8 @@ FORMULAS: dict[str, Formula] = {
     "signed_volume_momentum20": _signed_volume_momentum20,
     "dollar_liquidity20": _dollar_liquidity20,
     "parkinson_volatility20": _parkinson_volatility20,
+    "overnight_gap20": _overnight_gap20,
+    "close_location20": _close_location20,
     "ma20_60_ratio": _ma20_60_ratio,
     "price_ma120": _price_ma120,
     "trend_slope20": _trend_slope20,

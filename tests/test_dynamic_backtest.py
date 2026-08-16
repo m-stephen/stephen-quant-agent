@@ -126,3 +126,7 @@ def test_dynamic_membership_factor_and_stateful_execution_connect(tmp_path: Path
     assert run.report.decision == "ENGINEERING_COMPLETE_NO_ALPHA_CLAIM"
     assert registry.trial_count(run.report.experiment_id) == 1
     assert run.report_json_path.exists()
+    assert run.report_markdown_path.exists()
+    assert run.report_markdown_zh_path.exists()
+    assert "Performance" in run.report_markdown_path.read_text(encoding="utf-8")
+    assert "执行质量" in run.report_markdown_zh_path.read_text(encoding="utf-8")

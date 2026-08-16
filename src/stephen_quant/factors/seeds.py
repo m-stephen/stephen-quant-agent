@@ -56,6 +56,8 @@ SEED_FACTORS = (
     _definition("signed_volume_mom_20", "Volume-confirmed 20-period momentum", "volume", "signed_volume_momentum20", ("close", "volume"), 20, 21, 1, "Twenty-period return scaled by recent relative volume."),
     _definition("dollar_liquidity_20", "20-period dollar liquidity", "liquidity", "dollar_liquidity20", ("amount",), 20, 20, 1, "Log mean traded amount over the recent window."),
     _definition("parkinson_vol_20", "20-period Parkinson volatility", "risk", "parkinson_volatility20", ("high", "low"), 20, 20, -1, "High-low range volatility using the Parkinson estimator."),
+    _definition("overnight_gap_reversal_20", "20-period overnight gap reversal", "microstructure", "overnight_gap20", ("open", "close"), 20, 21, -1, "Mean overnight gap, interpreted contrarian to capture opening-price overreaction."),
+    _definition("close_location_20", "20-period close location value", "microstructure", "close_location20", ("high", "low", "close"), 20, 20, 1, "Mean normalized close location inside each daily range as a price-pressure proxy."),
 )
 
 

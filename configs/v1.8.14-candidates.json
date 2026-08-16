@@ -1,0 +1,57 @@
+{
+  "manifest_version": "v1.8.14-candidate-manifest-1.0.0",
+  "research_window": {
+    "data_start": "2021-07-01",
+    "research_start": "2022-01-04",
+    "research_end": "2024-12-31",
+    "validation_start": "2025-01-03",
+    "validation_end": "2025-12-31",
+    "test_start": "2026-01-05",
+    "test_end": "2026-08-14"
+  },
+  "universe": {
+    "membership_sha256": "29dd231b8bc6a56bb9e3fd140f331fa1676a96384416d740c3c8f2d7d65c4061",
+    "top_n": 300
+  },
+  "cpcv": {
+    "groups": 6,
+    "test_groups": 3,
+    "embargo_days": 5,
+    "purge": "closed_next_open_label_intervals"
+  },
+  "candidates": [
+    {
+      "candidate_id": "gap_reversal_single",
+      "components": ["overnight_gap_reversal_20@1.0.0"],
+      "weighting": "single"
+    },
+    {
+      "candidate_id": "close_location_single",
+      "components": ["close_location_20@1.0.0"],
+      "weighting": "single"
+    },
+    {
+      "candidate_id": "gap_close_equal",
+      "components": [
+        "overnight_gap_reversal_20@1.0.0",
+        "close_location_20@1.0.0"
+      ],
+      "weighting": "equal_rank"
+    },
+    {
+      "candidate_id": "gap_close_train_ic",
+      "components": [
+        "overnight_gap_reversal_20@1.0.0",
+        "close_location_20@1.0.0"
+      ],
+      "weighting": "fold_local_positive_rank_ic"
+    }
+  ],
+  "research_gates": {
+    "minimum_mean_path_rank_ic": 0.02,
+    "minimum_positive_paths": 8,
+    "maximum_pbo": 0.2,
+    "minimum_dsr_probability": 0.95,
+    "maximum_placebo_p_value": 0.05
+  }
+}

@@ -10,6 +10,7 @@ from .integrity.audit import audit_registry
 from .integrity.models import ExperimentSpec, TrialSpec
 from .integrity.registry import ExperimentRegistry
 from .integrity.snapshot import build_snapshot_manifest
+from .path_config import PathConfigError, load_local_path_config
 from .qmt import (
     DatExportConfig,
     DynamicUniverseConfig,
@@ -175,9 +176,10 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_universe.add_argument("--output", default="artifacts/qd-dynamic-universe")
 
     dynamic_backtest = sub.add_parser("qd-dynamic-backtest")
-    dynamic_backtest.add_argument("--daily-dir", required=True)
-    dynamic_backtest.add_argument("--membership-jsonl", required=True)
-    dynamic_backtest.add_argument("--benchmark-csv", required=True)
+    dynamic_backtest.add_argument("--paths-config")
+    dynamic_backtest.add_argument("--daily-dir")
+    dynamic_backtest.add_argument("--membership-jsonl")
+    dynamic_backtest.add_argument("--benchmark-csv")
     dynamic_backtest.add_argument("--data-start", required=True)
     dynamic_backtest.add_argument("--research-start", required=True)
     dynamic_backtest.add_argument("--research-end", required=True)
@@ -495,10 +497,21 @@ def main() -> None:
         return
 
     if args.command == "qd-dynamic-backtest":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", args.daily_dir, "--daily-dir")
+            membership_jsonl = local_paths.choose(
+                "dynamic_membership_jsonl", args.membership_jsonl, "--membership-jsonl"
+            )
+            benchmark_csv = local_paths.choose(
+                "csi300_csv", args.benchmark_csv, "--benchmark-csv"
+            )
+        except PathConfigError as exc:
+            raise SystemExit(f"qd-dynamic-backtest failed: {exc}") from exc
         run = run_dynamic_stateful_backtest(
-            args.daily_dir,
-            args.membership_jsonl,
-            args.benchmark_csv,
+            daily_dir,
+            membership_jsonl,
+            benchmark_csv,
             registry=registry,
             output_dir=args.output,
             code_version=_git_head(),

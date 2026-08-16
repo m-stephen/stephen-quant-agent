@@ -29,8 +29,8 @@ def _availability(fields: tuple[str, ...], timestamps: list[str]) -> dict[str, l
 def test_seed_registry_contains_versioned_factor_contracts() -> None:
     registry = build_seed_registry()
 
-    assert len(registry.list()) == 23
-    assert len({definition.key for definition in registry.list()}) == 23
+    assert len(registry.list()) == 25
+    assert len({definition.key for definition in registry.list()}) == 25
     assert registry.get("ret_60").minimum_observations == 61
     assert all(definition.availability_lag_days == 0 for definition in registry.list())
 
@@ -46,10 +46,12 @@ def test_factor_catalog_marks_compatibility_and_frozen_status(tmp_path) -> None:
     entries = {entry.definition.factor_id: entry for entry in catalog.entries}
     artifacts = write_factor_catalog(catalog, tmp_path)
 
-    assert len(catalog.entries) == 23
+    assert len(catalog.entries) == 25
     assert entries["ret_60"].research_status == "rejected_validation"
     assert entries["mom_120_skip_20"].research_status == "predeclared_unvalidated"
     assert entries["mom_120_skip_20"].qd_compatible
+    assert entries["overnight_gap_reversal_20"].research_status == "predeclared_v1_8_14"
+    assert entries["close_location_20"].research_status == "predeclared_v1_8_14"
     assert not entries["rs_index_60"].qd_compatible
     assert artifacts.json_sha256
     assert artifacts.markdown_sha256
@@ -147,6 +149,42 @@ def test_new_factor_family_has_predeclared_deterministic_formulas() -> None:
     assert results["parkinson_vol_20"] > 0
 
 
+def test_v1_8_14_microstructure_factors_are_predeclared_and_deterministic() -> None:
+    count = 21
+    timestamps = _dates(count)
+    close = [100.0 + index for index in range(count)]
+    opening = [close[0]] + [close[index - 1] * 1.01 for index in range(1, count)]
+    fields = {
+        "open": opening,
+        "high": [value + 2.0 for value in close],
+        "low": [value - 1.0 for value in close],
+        "close": close,
+    }
+    registry = build_seed_registry()
+
+    gap = compute_factor(
+        registry.get("overnight_gap_reversal_20"),
+        fields,
+        _availability(tuple(fields), timestamps),
+        as_of_index=count - 1,
+        observation_times=timestamps,
+        decision_at=timestamps[-1],
+    )
+    location = compute_factor(
+        registry.get("close_location_20"),
+        fields,
+        _availability(tuple(fields), timestamps),
+        as_of_index=count - 1,
+        observation_times=timestamps,
+        decision_at=timestamps[-1],
+    )
+
+    assert gap.value == pytest.approx(0.01)
+    assert location.value == pytest.approx(-1 / 3)
+    assert registry.get("overnight_gap_reversal_20").direction == -1
+    assert registry.get("close_location_20").direction == 1
+
+
 def test_future_available_input_is_rejected() -> None:
     timestamps = _dates(21)
     definition = build_seed_registry().get("ret_20")
@@ -219,5 +257,5 @@ def test_all_seed_formulas_compute_on_valid_inputs() -> None:
         for definition in SEED_FACTORS
     ]
 
-    assert len(results) == 23
+    assert len(results) == 25
     assert all(result.as_of == timestamps[-1] for result in results)

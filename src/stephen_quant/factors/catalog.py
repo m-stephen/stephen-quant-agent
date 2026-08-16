@@ -22,6 +22,7 @@ V1_8_8_FACTOR_IDS = frozenset(
         "parkinson_vol_20",
     }
 )
+V1_8_14_FACTOR_IDS = frozenset({"overnight_gap_reversal_20", "close_location_20"})
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,9 @@ def build_factor_catalog(
         elif definition.factor_id in V1_8_8_FACTOR_IDS:
             status = "predeclared_unvalidated"
             reason = "Predeclared in V1.8.8; no return-based selection has been performed."
+        elif definition.factor_id in V1_8_14_FACTOR_IDS:
+            status = "predeclared_v1_8_14"
+            reason = "Predeclared in V1.8.14 before CPCV or return evaluation."
         else:
             status = "available_untested"
             reason = "Registered seed definition; requires its own Trial before interpretation."
