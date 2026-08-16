@@ -33,6 +33,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.6 PPO allocation layer
 - V1.7 LLM factor research agent
 - V1.8 QMT data adapter + end-to-end out-of-sample backtest
+- V1.8.1 official xtquant local-cache exporter (no binary reverse engineering)
 
 ## Engineering style
 - Python >= 3.10.

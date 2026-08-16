@@ -116,6 +116,22 @@ The raw CSV, registry database, and generated reports are ignored by Git. Keep t
 public repository. Reuse the printed `experiment_id` with `--experiment-id` for every related retry
 so rejected and successful attempts accumulate in one multiplicity ledger.
 
+If QMT data is stored in its native `datadir` binary cache, keep the QMT client logged in with its
+quote/Python service running and export through the official local-only `xtquant` API first:
+
+```powershell
+stephen-quant qmt-export `
+  --qmt-home "E:\path\to\QMT\datadir" `
+  --output-csv "data\raw\qmt-daily.csv" `
+  --start 2018-01-01 --end 2025-12-31 `
+  --adjustment front_ratio `
+  --stocks "000001.SZ,000002.SZ,600000.SH"
+```
+
+`--qmt-home` accepts either the installation root or its `datadir`. For a larger universe, replace
+`--stocks` with `--stock-file path/to/stocks.txt` or `--sector "沪深A股"`. The exporter calls only
+`xtdata.get_local_data`; it does not download history, start QMT, or connect to a trading account.
+
 ## Quick start
 
 ```bash
