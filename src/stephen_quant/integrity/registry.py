@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS artifacts (
     sha256 TEXT,
     FOREIGN KEY(trial_id) REFERENCES trials(trial_id)
 );
+
+CREATE TABLE IF NOT EXISTS factor_candidates (
+    candidate_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    trial_id TEXT NOT NULL UNIQUE,
+    factor_id TEXT NOT NULL,
+    version TEXT NOT NULL,
+    formula TEXT NOT NULL,
+    fingerprint TEXT NOT NULL UNIQUE,
+    proposal_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY(trial_id) REFERENCES trials(trial_id)
+);
 """
 
 
@@ -197,3 +210,72 @@ class ExperimentRegistry:
                     "SELECT COUNT(*) FROM trials WHERE experiment_id = ?", (experiment_id,)
                 ).fetchone()[0]
             )
+
+    def experiment_snapshot_id(self, experiment_id: str) -> str:
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT dataset_snapshot_id FROM experiments WHERE experiment_id = ?",
+                (experiment_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"unknown experiment: {experiment_id}")
+            return str(row[0])
+
+    def record_trial_result(self, trial_id: str, result_json: str) -> None:
+        """Write a trial outcome once; rejected attempts remain immutable evidence."""
+
+        self.initialize()
+        with self.connect() as conn:
+            updated = conn.execute(
+                "UPDATE trials SET result_json = ? WHERE trial_id = ? AND result_json IS NULL",
+                (result_json, trial_id),
+            ).rowcount
+            if updated != 1:
+                raise ValueError(f"unknown or already completed trial: {trial_id}")
+
+    def register_factor_candidate(
+        self,
+        *,
+        trial_id: str,
+        factor_id: str,
+        version: str,
+        formula: str,
+        fingerprint: str,
+        proposal_json: str,
+    ) -> tuple[str, bool]:
+        """Persist a proposed candidate or return the existing duplicate."""
+
+        self.initialize()
+        with self.connect() as conn:
+            existing = conn.execute(
+                "SELECT candidate_id FROM factor_candidates WHERE fingerprint = ?",
+                (fingerprint,),
+            ).fetchone()
+            if existing is not None:
+                return str(existing[0]), False
+            candidate_id = f"candidate_{uuid.uuid4().hex[:16]}"
+            conn.execute(
+                """
+                INSERT INTO factor_candidates
+                (candidate_id, created_at, trial_id, factor_id, version, formula,
+                 fingerprint, proposal_json, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed')
+                """,
+                (
+                    candidate_id,
+                    utc_now_iso(),
+                    trial_id,
+                    factor_id,
+                    version,
+                    formula,
+                    fingerprint,
+                    proposal_json,
+                ),
+            )
+            return candidate_id, True
+
+    def candidate_count(self) -> int:
+        self.initialize()
+        with self.connect() as conn:
+            return int(conn.execute("SELECT COUNT(*) FROM factor_candidates").fetchone()[0])
