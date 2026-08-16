@@ -323,7 +323,8 @@ stephen-quant --db "artifacts\qd-v1.8.10.sqlite3" qd-composite-cpcv `
 ```
 
 The frozen research gate requires mean path RankIC at least 0.02, at least 8/10 positive paths,
-clean CPCV hygiene, and PBO no greater than 0.20. See `docs/V1_8_10_SPEC.md`.
+clean CPCV hygiene, and PBO no greater than 0.20. See `docs/V1_8_10_SPEC.md` and the frozen
+research decision in `docs/V1_8_10_RESULT.md`.
 
 ## Quick start
 
