@@ -292,6 +292,20 @@ The screen compares direction-adjusted cross-sectional factor ranks. It does not
 returns and does not authorize testing every surviving factor. See `docs/V1_8_8_SPEC.md` and the
 frozen training-screen decision in `docs/V1_8_8_RESULT.md`.
 
+V1.8.9 validates the five predeclared V1.8.8 survivors as five independent Trials under one
+shared Experiment. After all Trials finish, produce one multiplicity-aware family decision:
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.9.sqlite3" factor-family-report `
+  --experiment-id "exp_xxxxxxxxxxxxxxxx" `
+  --output "reports\qd-v1.8.9-family"
+```
+
+The family report selects the strongest accepted validation Trial, then requires positive net
+Sharpe, positive excess return versus CSI 300, a passed placebo audit, and DSR of at least 0.95.
+The sealed 2026 test window remains unopened unless the family passes. See
+`docs/V1_8_9_SPEC.md`.
+
 ## Quick start
 
 ```bash

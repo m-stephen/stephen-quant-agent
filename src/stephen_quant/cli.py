@@ -27,8 +27,10 @@ from .qmt import (
 from .workflows import (
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
+    build_factor_family_validation_report,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
+    write_factor_family_validation_report,
 )
 
 
@@ -77,6 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
     factor_catalog = sub.add_parser("factor-catalog")
     factor_catalog.add_argument("--output", default="artifacts/factor-catalog")
 
+    family_report = sub.add_parser("factor-family-report")
+    family_report.add_argument("--experiment-id", required=True)
+    family_report.add_argument("--output", default="reports/factor-family")
+
     qmt = sub.add_parser("qmt-backtest")
     qmt_source = qmt.add_mutually_exclusive_group(required=True)
     qmt_source.add_argument("--csv")
@@ -111,6 +117,9 @@ def build_parser() -> argparse.ArgumentParser:
     qmt.add_argument("--benchmark-name", default="benchmark")
     qmt.add_argument("--placebo-repetitions", type=int, default=0)
     qmt.add_argument("--evaluation-window", choices=("validation", "test"), default="test")
+    qmt.add_argument("--experiment-name")
+    qmt.add_argument("--experiment-hypothesis")
+    qmt.add_argument("--experiment-search-space", default="{}")
 
     qd_universe = sub.add_parser("qd-select-universe")
     qd_universe.add_argument("--daily-dir", required=True)
@@ -260,6 +269,42 @@ def main() -> None:
         )
         return
 
+    if args.command == "factor-family-report":
+        report = build_factor_family_validation_report(registry, args.experiment_id)
+        artifacts = write_factor_family_validation_report(report, args.output)
+        if report.selected_trial_id is not None:
+            registry.register_artifact(
+                trial_id=report.selected_trial_id,
+                kind="factor_family_validation_json",
+                path=str(artifacts.json_path),
+                sha256=artifacts.json_sha256,
+            )
+            registry.register_artifact(
+                trial_id=report.selected_trial_id,
+                kind="factor_family_validation_markdown",
+                path=str(artifacts.markdown_path),
+                sha256=artifacts.markdown_sha256,
+            )
+        print(
+            json.dumps(
+                {
+                    "decision": report.decision,
+                    "recorded_trial_count": report.recorded_trial_count,
+                    "selected_factor_set": report.selected_factor_set,
+                    "dsr_probability": (
+                        report.deflated_sharpe.probability
+                        if report.deflated_sharpe is not None
+                        else None
+                    ),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_path": str(artifacts.markdown_path),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
     if args.command == "qd-select-universe":
         selection = select_qd_training_universe(
             args.daily_dir,
@@ -360,6 +405,9 @@ def main() -> None:
                 benchmark_name=args.benchmark_name,
                 placebo_repetitions=args.placebo_repetitions,
                 evaluation_window=args.evaluation_window,
+                experiment_name=args.experiment_name,
+                experiment_hypothesis=args.experiment_hypothesis,
+                experiment_search_space=args.experiment_search_space,
                 portfolio=BaselineConfig(
                     top_k=args.top_k,
                     rebalance_every=args.rebalance_every,

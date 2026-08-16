@@ -41,6 +41,7 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.8.6 training-only QD universe + benchmark comparison + placebo audit
 - V1.8.7 validation-only diagnostics + conservative open-limit execution constraints
 - V1.8.8 predeclared factor catalog + training-only redundancy screen
+- V1.8.9 shared-experiment five-factor validation + family-level DSR decision
 
 ## Engineering style
 - Python >= 3.10.

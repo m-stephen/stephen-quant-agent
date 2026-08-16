@@ -55,6 +55,9 @@ class QmtBacktestRunConfig:
     benchmark_name: str = "benchmark"
     placebo_repetitions: int = 0
     evaluation_window: str = "test"
+    experiment_name: str | None = None
+    experiment_hypothesis: str | None = None
+    experiment_search_space: str = "{}"
 
     def hyperparams_json(self) -> str:
         payload = {
@@ -149,6 +152,12 @@ def _validate_split_dates(config: QmtBacktestRunConfig) -> None:
         raise ValueError("evaluation_window must be validation or test")
     if config.benchmark_csv and not config.benchmark_name.strip():
         raise ValueError("benchmark_name cannot be empty")
+    try:
+        search_space = json.loads(config.experiment_search_space)
+    except json.JSONDecodeError as exc:
+        raise ValueError("experiment_search_space must be valid JSON") from exc
+    if not isinstance(search_space, dict):
+        raise TypeError("experiment_search_space must be a JSON object")
 
 
 def _write_audit(path: Path, content: str) -> str:
@@ -218,14 +227,15 @@ def run_qmt_backtest_workflow(
     if experiment_id is None:
         experiment_id = registry.create_experiment(
             ExperimentSpec(
-                name=f"qmt_{config.factor_id}_topk",
-                hypothesis=(
+                name=config.experiment_name or f"qmt_{config.factor_id}_topk",
+                hypothesis=config.experiment_hypothesis
+                or (
                     f"{config.factor_id} has positive {config.evaluation_window}-window net "
                     "performance under declared QMT execution costs."
                 ),
                 dataset_snapshot_id=snapshot_id,
                 code_version=code_version,
-                search_space="{}",
+                search_space=config.experiment_search_space,
             )
         )
     trial_id, trial_number = registry.create_trial(

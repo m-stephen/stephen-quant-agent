@@ -257,6 +257,9 @@ def test_qd_validation_window_does_not_snapshot_reserved_test_data(tmp_path: Pat
         adv_lookback=3,
         instruments=INSTRUMENTS,
         evaluation_window="validation",
+        experiment_name="fixture_factor_family",
+        experiment_hypothesis="One predeclared factor survives validation.",
+        experiment_search_space='{"factors":["ret_5"]}',
         portfolio=BaselineConfig(top_k=2, max_position_weight=0.5),
     )
 
@@ -273,6 +276,16 @@ def test_qd_validation_window_does_not_snapshot_reserved_test_data(tmp_path: Pat
     assert run.report.metrics.periods == 3
     assert audit["end_date"] == dates[9].isoformat()
     assert audit["source_files"] == 10
+    with registry.connect() as connection:
+        experiment = connection.execute(
+            "SELECT name, hypothesis, search_space FROM experiments WHERE experiment_id = ?",
+            (run.experiment_id,),
+        ).fetchone()
+    assert tuple(experiment) == (
+        "fixture_factor_family",
+        "One predeclared factor survives validation.",
+        '{"factors":["ret_5"]}',
+    )
 
 
 def test_qd_universe_uses_training_only_metadata_and_liquidity(tmp_path: Path) -> None:
