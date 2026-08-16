@@ -242,7 +242,11 @@ def build_dynamic_universe(
         entries = tuple(sorted(current - previous))
         exits = tuple(sorted(previous - current))
         denominator = max(len(previous), len(current), 1)
-        turnover = (len(entries) + len(exits)) / (2 * denominator)
+        turnover = (
+            (len(entries) + len(exits)) / (2 * denominator)
+            if memberships
+            else 0.0
+        )
         memberships.append(
             DailyUniverseMembership(
                 decision_date=day.isoformat(),

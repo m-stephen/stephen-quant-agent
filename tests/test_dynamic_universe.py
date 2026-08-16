@@ -62,3 +62,11 @@ def test_dynamic_universe_uses_daily_point_in_time_membership(tmp_path: Path) ->
     assert report.memberships[-1].exclusions["unknown_or_future_listing_date"] == 1
     assert artifacts.membership_jsonl_path.exists()
     assert report.source_snapshot_sha256
+
+    _write_day(daily, fundamental, days[-1] + timedelta(days=1), 5)
+    replay = build_dynamic_universe(
+        daily,
+        fundamental,
+        report.configuration,
+    )
+    assert replay.to_json() == report.to_json()
