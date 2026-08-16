@@ -304,7 +304,7 @@ stephen-quant --db "artifacts\qd-v1.8.9.sqlite3" factor-family-report `
 The family report selects the strongest accepted validation Trial, then requires positive net
 Sharpe, positive excess return versus CSI 300, a passed placebo audit, and DSR of at least 0.95.
 The sealed 2026 test window remains unopened unless the family passes. See
-`docs/V1_8_9_SPEC.md`.
+`docs/V1_8_9_SPEC.md` and the frozen validation decision in `docs/V1_8_9_RESULT.md`.
 
 ## Quick start
 
