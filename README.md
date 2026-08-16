@@ -417,6 +417,8 @@ stephen-quant --db "artifacts\qd-v1.8.16.sqlite3" qd-auto-discover-suite `
 
 Machine-specific paths and all generated data remain ignored. See the
 [English design](docs/V1_8_16_SPEC_EN.md) and [中文设计](docs/V1_8_16_SPEC_ZH.md).
+The frozen three-horizon outcome is available in [English](docs/V1_8_16_RESULT_EN.md)
+and [中文](docs/V1_8_16_RESULT_ZH.md).
 
 ## Quick start
 
