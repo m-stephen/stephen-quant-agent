@@ -100,6 +100,14 @@ class DataMaintenanceAuthorization:
     approval_payload_sha256: str
 
 
+@dataclass(frozen=True)
+class MaintenanceManifestFile:
+    relative_path: str
+    partition: str
+    sha256: str
+    size_bytes: int
+
+
 def _timestamp(value: str, field: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -147,15 +155,14 @@ def _operation_id(value: object) -> str:
     return normalized
 
 
-def _validate_source_manifest(
+def _parse_source_manifest(
     raw: bytes,
     *,
     state: str,
     year: int,
     source_type: str,
     source_files: tuple[str, ...],
-    source_root: Path,
-) -> str:
+) -> tuple[str, tuple[MaintenanceManifestFile, ...]]:
     try:
         manifest = json.loads(raw.decode("utf-8"), object_pairs_hook=_strict_pairs)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -173,9 +180,7 @@ def _validate_source_manifest(
     if not isinstance(entries, list) or not entries:
         raise QmtDataError("maintenance source manifest requires files")
     manifest_files: list[str] = []
-    root = source_root.expanduser().resolve()
-    if not root.is_dir():
-        raise QmtDataError("maintenance source root does not exist")
+    verified_entries: list[MaintenanceManifestFile] = []
     for entry in entries:
         if not isinstance(entry, dict):
             raise QmtDataError("maintenance source manifest file entry must be an object")
@@ -188,30 +193,47 @@ def _validate_source_manifest(
         expected_size = entry.get("size_bytes")
         if not isinstance(expected_size, int) or expected_size < 0:
             raise QmtDataError("manifest file size_bytes must be a non-negative integer")
-        source = (root / paths[0]).resolve()
+        manifest_files.extend(paths)
+        verified_entries.append(MaintenanceManifestFile(
+            relative_path=paths[0],
+            partition=partition,
+            sha256=expected_hash,
+            size_bytes=expected_size,
+        ))
+    if tuple(sorted(manifest_files)) != source_files:
+        raise QmtDataError("maintenance manifest files do not match authorized source files")
+    return hashlib.sha256(raw).hexdigest(), tuple(verified_entries)
+
+
+def _verify_source_files(
+    source_root: Path, entries: tuple[MaintenanceManifestFile, ...],
+) -> None:
+    root = source_root.expanduser().resolve()
+    if not root.is_dir():
+        raise QmtDataError("maintenance source root does not exist")
+    for entry in entries:
+        source = (root / entry.relative_path).resolve()
         try:
             source.relative_to(root)
         except ValueError as exc:
             raise QmtDataError("maintenance manifest file escapes source root") from exc
-        if not source.is_file() or source.stat().st_size != expected_size:
+        if not source.is_file() or source.stat().st_size != entry.size_bytes:
             raise QmtDataError("maintenance source file size does not match manifest")
         digest = hashlib.sha256()
         with source.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
-        if digest.hexdigest() != expected_hash:
+        if digest.hexdigest() != entry.sha256:
             raise QmtDataError("maintenance source file SHA-256 does not match manifest")
-        manifest_files.extend(paths)
-    if tuple(sorted(manifest_files)) != source_files:
-        raise QmtDataError("maintenance manifest files do not match authorized source files")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _fixed_operation_ledger_dir() -> Path:
     return Path.home() / ".stephen-quant-agent" / "maintenance-control" / "operation-ledger"
 
 
-def _consume_operation(authorization: DataMaintenanceAuthorization) -> None:
+def _reserve_operation(
+    authorization: DataMaintenanceAuthorization,
+) -> tuple[Path, dict[str, object]]:
     directory = _fixed_operation_ledger_dir().resolve()
     directory.mkdir(parents=True, exist_ok=True)
     try:
@@ -228,7 +250,8 @@ def _consume_operation(authorization: DataMaintenanceAuthorization) -> None:
         "approval_comment_id": authorization.approval_comment_id,
         "approval_comment_updated_at": authorization.approval_comment_updated_at,
         "approval_payload_sha256": authorization.approval_payload_sha256,
-        "consumed_at": datetime.now(timezone.utc).isoformat(),
+        "reserved_at": datetime.now(timezone.utc).isoformat(),
+        "status": "reserved",
     }
     target = directory / f"authorization-consumption-{authorization.operation_id}.json"
     try:
@@ -237,6 +260,27 @@ def _consume_operation(authorization: DataMaintenanceAuthorization) -> None:
             handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
     except FileExistsError as exc:
         raise QmtDataError("maintenance operation_id has already been consumed") from exc
+    return target, record
+
+
+def _finalize_operation(
+    target: Path, record: dict[str, object], *, status: str,
+) -> None:
+    if status not in {"success", "failed"}:
+        raise QmtDataError("invalid operation completion status")
+    completed = {
+        **record,
+        "status": status,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(completed, ensure_ascii=False, sort_keys=True) + "\n")
+        os.replace(temporary, target)
+    except OSError as exc:
+        raise QmtDataError("cannot finalize operation ledger record") from exc
 
 
 def validate_research_manifest_control(payload: dict[str, object]) -> None:
@@ -450,13 +494,12 @@ def validate_data_maintenance_authorization(
     if source_files != actual_files:
         raise QmtDataError("actual source files do not match authorized source scope")
     manifest_sha = _sha256(values["source_manifest_sha256"], "source_manifest_sha256")
-    actual_manifest_sha = _validate_source_manifest(
+    actual_manifest_sha, manifest_entries = _parse_source_manifest(
         context.source_manifest_bytes,
         state=state,
         year=year,
         source_type=values["source_type"],
         source_files=source_files,
-        source_root=context.source_root,
     )
     if actual_manifest_sha != manifest_sha:
         raise QmtDataError("actual maintenance manifest hash does not match authorization")
@@ -511,7 +554,13 @@ def validate_data_maintenance_authorization(
         approval_comment_updated_at=verified.comment_updated_at,
         approval_payload_sha256=verified.comment_payload_sha256,
     )
-    _consume_operation(authorization)
+    operation_path, operation_record = _reserve_operation(authorization)
+    try:
+        _verify_source_files(context.source_root, manifest_entries)
+    except QmtDataError:
+        _finalize_operation(operation_path, operation_record, status="failed")
+        raise
+    _finalize_operation(operation_path, operation_record, status="success")
     return authorization
 
 

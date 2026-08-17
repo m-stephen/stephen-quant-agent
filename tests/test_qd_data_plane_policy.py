@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
@@ -228,23 +230,79 @@ def test_manifest_partition_year_is_semantically_bound_to_authorization() -> Non
         )
 
 
-def test_manifest_verifies_actual_file_sha256_and_size() -> None:
+@pytest.mark.parametrize("tamper", ["hash", "size"])
+def test_manifest_verifies_actual_file_sha256_and_size(tamper: str) -> None:
     payload = _authorization(2025)
     context = _context(2025)
     _set_approved(payload)
     source = _SOURCE_ROOT / "year=2025/announcements.jsonl"
     original = source.read_bytes()
-    source.write_bytes(b"x" * len(original))
-    with pytest.raises(QmtDataError, match="SHA-256"):
+    source.write_bytes(b"x" * len(original) if tamper == "hash" else original + b"extra")
+    expected = "SHA-256" if tamper == "hash" else "size does not match"
+    with pytest.raises(QmtDataError, match=expected):
         validate_data_maintenance_authorization(payload, context=context)
-    source.write_bytes(original + b"extra")
-    with pytest.raises(QmtDataError, match="size does not match"):
+    record = json.loads(next(_LEDGER_DIR.glob("*.json")).read_text(encoding="utf-8"))
+    assert record["status"] == "failed"
+    assert record["completed_at"]
+    with pytest.raises(QmtDataError, match="already been consumed"):
         validate_data_maintenance_authorization(payload, context=context)
 
 
 def test_public_authorization_api_has_no_ledger_directory_override() -> None:
     parameters = inspect.signature(validate_data_maintenance_authorization).parameters
     assert "operations_ledger_dir" not in parameters
+
+
+def test_invalid_github_approval_never_enters_source_file_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    global _AUTHOR_ASSOCIATION
+    calls = 0
+
+    def observed_verify(*args: object, **kwargs: object) -> None:
+        nonlocal calls
+        calls += 1
+
+    monkeypatch.setattr(data_plane_policy, "_verify_source_files", observed_verify)
+    payload = _authorization(2025)
+    _set_approved(payload)
+    _AUTHOR_ASSOCIATION = "NONE"
+    try:
+        with pytest.raises(QmtDataError, match="identity or repository role"):
+            validate_data_maintenance_authorization(payload, context=_context(2025))
+    finally:
+        _AUTHOR_ASSOCIATION = "OWNER"
+    assert calls == 0
+
+
+def test_concurrent_operation_allows_only_one_source_file_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _authorization(2025)
+    _set_approved(payload)
+    original_verify = data_plane_policy._verify_source_files
+    lock = threading.Lock()
+    calls = 0
+
+    def observed_verify(*args: object, **kwargs: object) -> None:
+        nonlocal calls
+        with lock:
+            calls += 1
+        original_verify(*args, **kwargs)
+
+    monkeypatch.setattr(data_plane_policy, "_verify_source_files", observed_verify)
+
+    def execute() -> str:
+        try:
+            validate_data_maintenance_authorization(payload, context=_context(2025))
+            return "success"
+        except QmtDataError:
+            return "rejected"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: execute(), range(2)))
+    assert sorted(results) == ["rejected", "success"]
+    assert calls == 1
 
 
 def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
@@ -261,7 +319,9 @@ def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
     assert record["approval_comment_id"] == 100
     assert record["approval_comment_updated_at"]
     assert len(record["approval_payload_sha256"]) == 64
-    assert record["consumed_at"] != record["approval_comment_updated_at"]
+    assert record["status"] == "success"
+    assert record["reserved_at"] != record["approval_comment_updated_at"]
+    assert record["completed_at"]
 
 
 @pytest.mark.parametrize(

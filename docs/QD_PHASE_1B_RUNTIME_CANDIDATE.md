@@ -31,6 +31,14 @@ consumed through exclusive file creation, so an existing operation record causes
 fail closed. The record freezes the approval comment ID, comment update time, normalized approval
 payload SHA-256, manifest SHA-256, state, year, and the actual UTC consumption time.
 
+The current replay guarantee covers one operating-system user and this one control directory. It
+does not claim cross-user or cross-host replay protection.
+
+The runtime parses manifest structure before authorization but does not open source files until the
+Issue #85 approval is verified and the operation ID is atomically reserved. The reserving process
+then verifies source bytes and atomically finalizes the ledger record as `success` or `failed`.
+Failed file verification permanently consumes the operation ID.
+
 ## Authorization boundary
 
 - A 2025 dry-run requires a new, explicit, single-operation approval comment in Issue #85.
