@@ -18,19 +18,40 @@ def main() -> None:
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    output_dir = Path(config["output_dir"]).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_root = Path(config["output_dir"]).resolve()
+    operation_id = str(config["operation_id"]).strip()
+    if not operation_id or operation_id in {".", ".."} or Path(operation_id).name != operation_id:
+        raise ValueError("operation_id must be one safe path component")
     partitions = []
     source_files = []
+    source_paths = [
+        Path(raw_path).resolve()
+        for partition in config["partitions"]
+        for raw_path in partition["pages"]
+    ]
+    if any(output_root == path.parent or output_root.is_relative_to(path.parent)
+           for path in source_paths):
+        raise ValueError("output_dir must be physically disjoint from every source-page directory")
     for partition in config["partitions"]:
         responses = []
-        for page_number, raw_path in enumerate(partition["pages"], start=1):
+        for raw_path in partition["pages"]:
             path = Path(raw_path).resolve()
             raw = path.read_bytes()
-            responses.append(json.loads(raw.decode("utf-8-sig")))
+            response = json.loads(raw.decode("utf-8-sig"))
+            envelope = response.get("data")
+            if not isinstance(envelope, dict):
+                raise TypeError("source page has no pagination envelope")
+            page_number = int(envelope.get("pageNum", 0))
+            total_pages = int(envelope.get("totalPageNum", 0))
+            total_size = int(envelope.get("totalSize", -1))
+            if page_number <= 0 or total_pages <= 0 or total_size < 0:
+                raise ValueError("source page has invalid pagination metadata")
+            responses.append(response)
             source_files.append({
                 "partition": partition["name"],
                 "page": page_number,
+                "total_pages": total_pages,
+                "total_size": total_size,
                 "size": len(raw),
                 "sha256": hashlib.sha256(raw).hexdigest(),
             })
@@ -39,26 +60,34 @@ def main() -> None:
         tuple(partitions), query_start=config["query_start"], query_end=config["query_end"],
         ingested_at=config["ingested_at"],
     )
+    operation_dir = output_root / operation_id
+    operation_dir.mkdir(parents=True, exist_ok=False)
     bundle_hash = write_pit_bundle(
-        financial=rows, industry=(), corporate_actions=(), output=output_dir / "pit-bundle.json"
+        financial=rows, industry=(), corporate_actions=(),
+        output=operation_dir / "pit-bundle.json",
     )
-    (output_dir / "remote-retrieval-ledger.json").write_text(
-        ledger.to_json() + "\n", encoding="utf-8"
-    )
+    with (operation_dir / "remote-retrieval-ledger.json").open(
+        "x", encoding="utf-8", newline="\n"
+    ) as handle:
+        handle.write(ledger.to_json() + "\n")
     manifest = {
         "schema_version": PIT_STAGING_VERSION,
+        "operation_id": operation_id,
         "query_start": config["query_start"],
         "query_end": config["query_end"],
         "ingested_at": config["ingested_at"],
         "bundle_sha256": bundle_hash,
         "inferential_trial_delta": 0,
         "formal_research_eligible": False,
-        "files": source_files,
+        "files": sorted(source_files, key=lambda row: (row["partition"], row["page"])),
     }
-    (output_dir / "source-page-manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-    )
+    with (operation_dir / "source-page-manifest.json").open(
+        "x", encoding="utf-8", newline="\n"
+    ) as handle:
+        handle.write(
+            json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        )
     print(json.dumps({
         "status": "success", "rows": len(rows), "bundle_sha256": bundle_hash,
         "inferential_trial_delta": 0, "formal_research_eligible": False,

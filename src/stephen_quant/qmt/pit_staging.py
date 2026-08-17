@@ -77,13 +77,13 @@ class IndustryMembershipPIT:
     effective_from: str
     effective_to: str | None
     source: str
+    revision_id: str
+    source_document_id: str
+    source_hash: str
+    classification_version: str
     announcement_at: str | None = None
     available_at: str | None = None
-    revision_id: str = "unversioned"
     supersedes_revision_id: str | None = None
-    source_document_id: str = "unprovenanced"
-    source_hash: str = "0" * 64
-    classification_version: str = "unspecified"
 
 
 @dataclass(frozen=True)
@@ -157,6 +157,8 @@ class PitLeakageAudit:
     gate_pass: bool
     corporate_action_rows: int = 0
     corporate_action_violations: int = 0
+    financial_validation_failures: int = 0
+    industry_validation_failures: int = 0
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, indent=2, sort_keys=True)
@@ -290,12 +292,17 @@ def validate_industry_memberships(
         if end is not None and end <= start:
             raise QmtDataError("industry effective_to must be after effective_from")
         _sha256(row.source_hash, "industry source_hash")
+        if row.source_hash == "0" * 64:
+            raise QmtDataError("industry source_hash cannot be a placeholder")
         if row.available_at:
             available = _time(row.available_at, "industry available_at")
             if row.announcement_at and available < _time(row.announcement_at, "announcement_at"):
                 raise QmtDataError("industry availability precedes announcement")
         if not all((row.revision_id, row.source_document_id, row.classification_version)):
             raise QmtDataError("industry provenance fields cannot be empty")
+        if row.revision_id == "unversioned" or row.source_document_id == "unprovenanced" \
+                or row.classification_version == "unspecified":
+            raise QmtDataError("industry provenance placeholders are forbidden")
         key = (row.code.upper(), row.industry_system, row.industry_level)
         grouped.setdefault(key, []).append((start, end, row))
     for intervals in grouped.values():
@@ -404,22 +411,26 @@ def audit_pit_staging(
     contract: StagingContract,
 ) -> PitLeakageAudit:
     financial_violations = industry_overlaps = provenance = duplicates = 0
+    financial_failures = industry_failures = 0
     try:
         validate_financial_visibility(financial)
     except QmtDataError as exc:
+        financial_failures = 1
         financial_violations = int("time" in str(exc) or "period" in str(exc))
         duplicates = int("duplicate" in str(exc) or "reused" in str(exc))
         provenance = int("hash" in str(exc) or "identifier" in str(exc))
     try:
         validate_industry_memberships(industry)
     except QmtDataError as exc:
+        industry_failures = 1
         industry_overlaps = int("overlapping" in str(exc))
         provenance += int("empty" in str(exc))
     forbidden = sum(
         admission.classification == "C" and admission.formal_alpha_allowed
         for admission in contract.admissions
     )
-    failures = duplicates + financial_violations + industry_overlaps + provenance + forbidden
+    failures = (duplicates + financial_violations + industry_overlaps + provenance + forbidden
+                + financial_failures + industry_failures)
     return PitLeakageAudit(
         financial_rows=len(financial),
         industry_rows=len(industry),
@@ -429,6 +440,8 @@ def audit_pit_staging(
         provenance_breaks=provenance,
         c_fields_formally_admitted=forbidden,
         gate_pass=failures == 0,
+        financial_validation_failures=financial_failures,
+        industry_validation_failures=industry_failures,
     )
 
 
@@ -642,10 +655,10 @@ def ingest_alphapai_announcement_partitions(
     )
 
 
-def write_pit_bundle(
+def pit_bundle_content(
     *, financial: tuple[FinancialVisibility, ...],
     industry: tuple[IndustryMembershipPIT, ...],
-    corporate_actions: tuple[CorporateActionPIT, ...], output: str | Path,
+    corporate_actions: tuple[CorporateActionPIT, ...],
 ) -> str:
     payload = {
         "version": PIT_STAGING_VERSION,
@@ -656,10 +669,21 @@ def write_pit_bundle(
             corporate_actions
         )],
     }
-    content = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def write_pit_bundle(
+    *, financial: tuple[FinancialVisibility, ...],
+    industry: tuple[IndustryMembershipPIT, ...],
+    corporate_actions: tuple[CorporateActionPIT, ...], output: str | Path,
+) -> str:
+    content = pit_bundle_content(
+        financial=financial, industry=industry, corporate_actions=corporate_actions
+    )
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8", newline="\n")
+    with path.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 

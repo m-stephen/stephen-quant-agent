@@ -68,6 +68,10 @@ gitignored local configuration containing explicit source pages and output locat
 credentials still produce an explicit `not_run_missing_credentials` ledger state rather than
 fabricated data.
 
+Each build configuration must provide a unique `operation_id`. The builder creates that operation
+directory exclusively, never overwrites an existing snapshot, binds manifest page numbers to the
+API envelope rather than config ordering, and rejects output beneath any source-page directory.
+
 ## Remaining promotion gates
 
 - download and hash source documents for records whose metadata alone is insufficient to prove a

@@ -40,7 +40,9 @@ def _industry(start: str, end: str | None, code: str = "801780") -> IndustryMemb
     return IndustryMembershipPIT(
         code="000001.SZ", industry_system="SW2021", industry_level="L1",
         industry_code=code, industry_name="Bank", effective_from=start,
-        effective_to=end, source="constituent-change-document",
+        effective_to=end, source="constituent-change-document", revision_id=f"revision-{code}",
+        source_document_id=f"document-{code}", source_hash="f" * 64,
+        classification_version="SW2021-2025",
     )
 
 
@@ -169,6 +171,26 @@ def test_leakage_audit_fails_closed_for_c_admission_and_interval_overlap() -> No
     assert audit.gate_pass is False
     assert audit.industry_interval_overlaps == 1
     assert audit.c_fields_formally_admitted == 2
+
+
+def test_leakage_audit_fails_closed_for_invalid_industry_values() -> None:
+    contract = default_staging_contract()
+    invalid_hash = replace(_industry("2025-01-01", None), source_hash="bad")
+    audit = audit_pit_staging((_financial(),), (invalid_hash,), contract)
+    assert audit.gate_pass is False
+    assert audit.industry_validation_failures == 1
+    invalid_date = replace(_industry("2025-01-01", None), effective_from="not-a-date")
+    assert audit_pit_staging((_financial(),), (invalid_date,), contract).gate_pass is False
+    placeholder = replace(
+        _industry("2025-01-01", None), revision_id="unversioned",
+        source_document_id="unprovenanced", source_hash="0" * 64,
+        classification_version="unspecified",
+    )
+    with pytest.raises(QmtDataError, match="placeholder"):
+        write_pit_bundle(
+            financial=(_financial(),), industry=(placeholder,), corporate_actions=(),
+            output=Path("unused.json"),
+        )
 
 
 def test_missing_alphapai_credentials_are_recorded_without_fabrication() -> None:
