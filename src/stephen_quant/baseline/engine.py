@@ -55,6 +55,18 @@ def _validate_config(config: BaselineConfig) -> None:
         raise BaselineError("cost_model_version cannot be empty")
     if config.missing_holding_policy not in {"error", "stale_zero_return"}:
         raise BaselineError("unsupported missing_holding_policy")
+    if config.ranking_policy not in {
+        "top_k",
+        "all_eligible",
+        "top_fraction",
+        "exclude_bottom_fraction",
+        "bottom_fraction_underweight",
+    }:
+        raise BaselineError("unsupported ranking_policy")
+    if config.ranking_policy not in {"top_k", "all_eligible"} and not 0 < config.selection_fraction < 1:
+        raise BaselineError("fractional ranking policies require selection_fraction in (0, 1)")
+    if not 0 <= config.bottom_underweight <= 1:
+        raise BaselineError("bottom_underweight must be in [0, 1]")
 
 
 def _validate_lineage(lineage: BaselineLineage) -> None:
@@ -118,17 +130,46 @@ def _target_weights(
     rows: Sequence[BaselineObservation], config: BaselineConfig
 ) -> tuple[tuple[str, ...], dict[str, float]]:
     eligible = [row for row in rows if row.eligible]
-    if len(eligible) < config.top_k:
+    if config.ranking_policy == "top_k" and len(eligible) < config.top_k:
         raise BaselineError(
             f"cross-section has {len(eligible)} eligible assets but top_k requires {config.top_k}"
         )
+    if not eligible:
+        raise BaselineError("cross-section has no eligible assets")
     ranked = sorted(
         eligible, key=lambda row: (-config.direction * row.signal, row.instrument)
     )
-    selected = tuple(row.instrument for row in ranked[: config.top_k])
-    equal_weight = (1 - config.cash_reserve) / config.top_k
-    weight = min(equal_weight, config.max_position_weight)
-    return selected, {instrument: weight for instrument in selected}
+    if config.ranking_policy == "top_k":
+        selected_rows = ranked[: config.top_k]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "all_eligible":
+        selected_rows = ranked
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "top_fraction":
+        count = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        selected_rows = ranked[:count]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "exclude_bottom_fraction":
+        excluded = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        selected_rows = ranked[: max(1, len(ranked) - excluded)]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    else:
+        bottom_count = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        bottom = {row.instrument for row in ranked[-bottom_count:]}
+        selected_rows = ranked
+        raw_weights = {
+            row.instrument: config.bottom_underweight if row.instrument in bottom else 1.0
+            for row in selected_rows
+        }
+    selected = tuple(row.instrument for row in selected_rows)
+    total_raw = sum(raw_weights.values())
+    if total_raw <= 0:
+        raise BaselineError("ranking policy produced zero portfolio weight")
+    investable = 1 - config.cash_reserve
+    return selected, {
+        instrument: min(investable * raw / total_raw, config.max_position_weight)
+        for instrument, raw in raw_weights.items()
+    }
 
 
 def _costs(

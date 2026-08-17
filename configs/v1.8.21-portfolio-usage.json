@@ -1,0 +1,28 @@
+{
+  "manifest_version": "1.0.0",
+  "research_start": "2022-01-04",
+  "research_end": "2024-12-31",
+  "validation_start": "2025-01-03",
+  "validation_end": "2025-12-31",
+  "test_start": "2026-01-05",
+  "test_end": "2026-08-14",
+  "research_only": true,
+  "horizon_sessions": 20,
+  "initial_navs": [1000000, 3000000, 5000000, 10000000, 20000000],
+  "reference_nav": 3000000,
+  "reference_mapping": "exclude_bottom_decile",
+  "benchmark_mapping": "all_eligible_benchmark",
+  "commission_bps": 3.0,
+  "sell_tax_bps": 5.0,
+  "slippage_bps": 5.0,
+  "impact_coefficient_bps": 10.0,
+  "max_participation_rate": 0.05,
+  "mappings": [
+    {"name": "all_eligible_benchmark", "ranking_policy": "all_eligible", "fraction": 0.0},
+    {"name": "top_decile", "ranking_policy": "top_fraction", "fraction": 0.10},
+    {"name": "top_30_percent", "ranking_policy": "top_fraction", "fraction": 0.30},
+    {"name": "exclude_bottom_decile", "ranking_policy": "exclude_bottom_fraction", "fraction": 0.10},
+    {"name": "bottom_decile_underweight", "ranking_policy": "bottom_fraction_underweight", "fraction": 0.10, "bottom_underweight": 0.25},
+    {"name": "risk_controlled_exclude_bottom_decile", "ranking_policy": "exclude_bottom_fraction", "fraction": 0.10, "residualize_controls": true}
+  ]
+}
