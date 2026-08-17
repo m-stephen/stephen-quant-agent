@@ -17,13 +17,15 @@ placeholders for:
 - `qd_single_user_ledger_dir`.
 
 No command emits these absolute paths in its machine-readable result.
+Manifest and Ledger locations must remain outside the configured Data Root so Inventory cannot
+scan its own control artifacts.
 
 ## Workflow
 
 ```powershell
-stephen-quant data-inventory --paths-config local-paths.json --year 2025
-stephen-quant data-unlock --paths-config local-paths.json --manifest <manifest> --year 2025 --purpose pit-maintenance --expires-seconds 7200
-stephen-quant data-maintain --paths-config local-paths.json --manifest <manifest> --operation-id <operation-id>
+stephen-quant data-inventory --paths-config configs/qd-paths.local.json --year 2025
+stephen-quant data-unlock --paths-config configs/qd-paths.local.json --manifest <manifest> --year 2025 --purpose pit-maintenance --expires-seconds 7200
+stephen-quant data-maintain --paths-config configs/qd-paths.local.json --manifest <manifest> --operation-id <operation-id>
 ```
 
 Inventory walks only the configured root, rejects symbolic links and path escapes, and opens

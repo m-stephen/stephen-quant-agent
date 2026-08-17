@@ -95,6 +95,19 @@ def _protect_directory(path: Path) -> Path:
     return resolved
 
 
+def _require_control_paths_outside_data_root(
+    data_root: str | Path, *control_paths: str | Path,
+) -> None:
+    root = Path(data_root).expanduser().resolve()
+    for value in control_paths:
+        candidate = Path(value).expanduser().resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            continue
+        raise QmtDataError("manifest and ledger paths must remain outside the data root")
+
+
 def _write_json_exclusive(path: Path, payload: dict[str, object]) -> None:
     try:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -404,6 +417,7 @@ def inventory_local_data(
     source_type: str = "local",
     code_commit: str,
 ) -> tuple[LocalDataResult, Path]:
+    _require_control_paths_outside_data_root(data_root, manifest_dir, ledger_dir)
     try:
         return _inventory_local_data_impl(
             data_root, manifest_dir, ledger_dir, year=year,
@@ -472,6 +486,7 @@ def maintain_local_data(
     operation_id: str,
     code_commit: str,
 ) -> LocalDataResult:
+    _require_control_paths_outside_data_root(data_root, manifest_path, ledger_dir)
     try:
         return _maintain_local_data_impl(
             data_root, manifest_path, ledger_dir,

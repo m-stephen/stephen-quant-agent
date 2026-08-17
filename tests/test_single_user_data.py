@@ -198,6 +198,30 @@ def test_inventory_rejects_symlink_escape_when_supported(tmp_path: Path) -> None
         )
 
 
+@pytest.mark.parametrize("control", ["manifest", "ledger"])
+def test_control_paths_cannot_be_inside_data_root(tmp_path: Path, control: str) -> None:
+    root = tmp_path / "source"
+    _source(root, 2025)
+    manifest_dir = root / "manifests" if control == "manifest" else tmp_path / "manifests"
+    ledger_dir = root / "ledger" if control == "ledger" else tmp_path / "ledger"
+    with pytest.raises(QmtDataError, match="outside the data root"):
+        inventory_local_data(
+            root, manifest_dir, ledger_dir, year=2025, code_commit=COMMIT,
+        )
+
+
+def test_maintain_rejects_manifest_inside_data_root(tmp_path: Path) -> None:
+    root, _, manifest = _inventory(tmp_path)
+    inside = root / "control" / manifest.name
+    inside.parent.mkdir()
+    inside.write_bytes(manifest.read_bytes())
+    with pytest.raises(QmtDataError, match="outside the data root"):
+        maintain_local_data(
+            root, inside, tmp_path / "ledger",
+            operation_id="unused", code_commit=COMMIT,
+        )
+
+
 def test_inventory_failure_and_sealed_unlock_are_ledgered(tmp_path: Path) -> None:
     with pytest.raises(QmtDataError):
         inventory_local_data(
