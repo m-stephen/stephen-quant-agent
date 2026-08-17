@@ -504,6 +504,13 @@ stephen-quant --db artifacts/registry.sqlite3 audit
 - **V1.7** LLM Factor Research Agent
 - **V1.8** QMT data adapter and end-to-end out-of-sample backtest
 
+### V1.8.18 flow stability and capacity stress
+
+V1.8.18 adds a frozen 20-day flow-divergence candidate family, prior-information market-regime and ADV diagnostics, fail-closed point-in-time industry grouping, and preregistered 1%/5%/10% participation stress tests. The real 2022–2024 run passed engineering acceptance but was rejected by the Alpha Court; the 2025/2026 sealed windows remain unopened.
+
+- [中文规格](docs/V1_8_18_SPEC_ZH.md) / [English specification](docs/V1_8_18_SPEC_EN.md)
+- [中文结果](docs/V1_8_18_RESULT_ZH.md) / [English results](docs/V1_8_18_RESULT_EN.md)
+
 ## Principle
 
 > LLM discovers → statistics verifies → RL allocates → evaluation attacks.
