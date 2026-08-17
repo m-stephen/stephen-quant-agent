@@ -46,6 +46,7 @@ from .workflows import (
     QmtDatValidationConfig,
     build_factor_family_validation_report,
     load_automated_discovery_config,
+    load_v22_portfolio_breadth_config,
     run_automated_discovery,
     run_automated_discovery_suite,
     run_composite_cpcv_research,
@@ -55,7 +56,9 @@ from .workflows import (
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v21_real_research,
+    run_v22_portfolio_breadth,
     verify_v21_replay,
+    verify_v22_portfolio_breadth_replay,
     write_factor_family_validation_report,
 )
 
@@ -265,6 +268,16 @@ def build_parser() -> argparse.ArgumentParser:
     v21_real.add_argument("--output", default="reports/v2.1-real-research")
     v21_real.add_argument("--replay-manifest")
 
+    v22_breadth = sub.add_parser("v2-portfolio-breadth")
+    v22_breadth.add_argument("--paths-config")
+    v22_breadth.add_argument("--config", default="configs/v2.2-portfolio-breadth.json")
+    v22_breadth.add_argument(
+        "--mode", choices=("dry-run", "research", "replay", "kill"), default="research"
+    )
+    v22_breadth.add_argument("--ingested-at")
+    v22_breadth.add_argument("--output", default="reports/v2.2-portfolio-breadth")
+    v22_breadth.add_argument("--replay-manifest")
+
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
     export.add_argument("--output-csv", required=True)
@@ -470,6 +483,69 @@ def main() -> None:
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"v2-real-research failed: {exc}") from exc
         print(run.manifest.to_json())
+        return
+
+    if args.command == "v2-portfolio-breadth":
+        if args.mode == "kill":
+            raise SystemExit(
+                "v2-portfolio-breadth stopped by kill switch before data or registry access"
+            )
+        try:
+            if args.mode == "replay":
+                if not args.replay_manifest:
+                    raise ValueError("--replay-manifest is required in replay mode")
+                print(
+                    json.dumps(
+                        asdict(verify_v22_portfolio_breadth_replay(args.replay_manifest)),
+                        indent=2,
+                    )
+                )
+                return
+            if not args.paths_config:
+                raise ValueError("--paths-config is required outside replay and kill modes")
+            local_paths = load_local_path_config(args.paths_config)
+            config = load_v22_portfolio_breadth_config(args.config)
+            required = {"qd_daily_dir", "qd_fundamental_dir", "qd_fund_flow_dir"}
+            missing = sorted(required - set(local_paths.paths))
+            if missing:
+                raise ValueError(f"missing required local data sources: {missing}")
+            if args.mode == "dry-run":
+                print(
+                    json.dumps(
+                        {
+                            "decision": "DRY_RUN_PASS",
+                            "registry_mutated": False,
+                            "prior_evidence_sha256": config.prior_evidence_sha256,
+                        }
+                    )
+                )
+                return
+            if not args.ingested_at:
+                raise ValueError("--ingested-at with timezone is required")
+            report, artifacts = run_v22_portfolio_breadth(
+                local_paths,
+                args.config,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v2-portfolio-breadth failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_manifest_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
         return
 
     if args.command == "factor-catalog":

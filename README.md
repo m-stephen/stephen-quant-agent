@@ -25,6 +25,25 @@ Machine-local paths, raw data, generated reports, and registries remain ignored.
 [English V2.1 specification](docs/V2_1_SPEC_EN.md), [中文 V2.1 规格](docs/V2_1_SPEC_ZH.md),
 [English validation](docs/V2_1_RESULT_EN.md), and [中文验证结果](docs/V2_1_RESULT_ZH.md).
 
+**V2.2** is a deliberately narrow research epoch: it freezes the V2.1 signal and varies only
+portfolio breadth across Top-5/10/15/20. The real-data result is
+`REJECT_NO_IMPROVEMENT`: broader portfolios reduced drawdown but did not improve Sharpe, so
+V2.1 remains the reference and the sealed 2025/2026 windows stay unopened.
+
+```powershell
+stephen-quant --db "artifacts\v2.2-breadth.sqlite3" v2-portfolio-breadth `
+  --paths-config "configs\qd-paths.local.json" `
+  --config "configs\v2.2-portfolio-breadth.json" `
+  --mode research `
+  --ingested-at "2026-08-17T00:00:00+08:00" `
+  --output "reports\v2.2-portfolio-breadth"
+```
+
+See the [English V2.2 specification](docs/V2_2_SPEC_EN.md),
+[中文 V2.2 规格](docs/V2_2_SPEC_ZH.md),
+[English result](docs/V2_2_RESULT_EN.md), and
+[中文结果](docs/V2_2_RESULT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
