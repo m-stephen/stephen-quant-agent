@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 import uuid
 from collections.abc import Iterator
@@ -104,6 +105,48 @@ CREATE TABLE IF NOT EXISTS campaign_proposals (
     FOREIGN KEY(trial_id) REFERENCES trials(trial_id),
     UNIQUE(campaign_id, proposal_number)
 );
+
+CREATE TABLE IF NOT EXISTS search_ledger_entries (
+    entry_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    experiment_id TEXT NOT NULL,
+    campaign_id TEXT,
+    entry_number INTEGER NOT NULL,
+    entry_type TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    parent_entry_id TEXT,
+    empirical_exposure INTEGER NOT NULL CHECK(empirical_exposure IN (0, 1)),
+    inferential_trial_id TEXT,
+    payload_json TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL,
+    FOREIGN KEY(experiment_id) REFERENCES experiments(experiment_id),
+    FOREIGN KEY(campaign_id) REFERENCES research_campaigns(campaign_id),
+    FOREIGN KEY(parent_entry_id) REFERENCES search_ledger_entries(entry_id),
+    FOREIGN KEY(inferential_trial_id) REFERENCES trials(trial_id),
+    UNIQUE(experiment_id, entry_number),
+    CHECK(
+        (empirical_exposure = 0 AND inferential_trial_id IS NULL) OR
+        (empirical_exposure = 1 AND inferential_trial_id IS NOT NULL)
+    )
+);
+
+CREATE TRIGGER IF NOT EXISTS search_ledger_no_update
+BEFORE UPDATE ON search_ledger_entries
+BEGIN
+    SELECT RAISE(ABORT, 'search ledger is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS search_ledger_no_delete
+BEFORE DELETE ON search_ledger_entries
+BEGIN
+    SELECT RAISE(ABORT, 'search ledger is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trials_no_delete
+BEFORE DELETE ON trials
+BEGIN
+    SELECT RAISE(ABORT, 'inferential trial ledger is append-only');
+END;
 """
 
 
@@ -250,12 +293,140 @@ class ExperimentRegistry:
                 raise ValueError(f"unknown experiment: {experiment_id}")
             return str(row[0])
 
+    def snapshot_sha256(self, snapshot_id: str) -> str:
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT snapshot_sha256 FROM data_snapshots WHERE snapshot_id = ?",
+                (snapshot_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"unknown snapshot: {snapshot_id}")
+            return str(row[0])
+
     def global_trial_count(self) -> int:
         """Count all attempts in the registry across experiments and agents."""
 
         self.initialize()
         with self.connect() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0])
+
+    def record_search_ledger_entry(
+        self,
+        *,
+        experiment_id: str,
+        entry_type: str,
+        subject_id: str,
+        payload_json: str,
+        payload_sha256: str,
+        empirical_exposure: bool,
+        inferential_trial_id: str | None = None,
+        campaign_id: str | None = None,
+        parent_entry_id: str | None = None,
+    ) -> tuple[str, int]:
+        """Append one search action; empirical actions must link to an inferential Trial."""
+
+        if not entry_type.strip() or not subject_id.strip():
+            raise ValueError("search ledger type and subject cannot be empty")
+        if (
+            not payload_json
+            or len(payload_sha256) != 64
+            or hashlib.sha256(payload_json.encode()).hexdigest() != payload_sha256
+        ):
+            raise ValueError("search ledger payload and SHA-256 are required")
+        if empirical_exposure != (inferential_trial_id is not None):
+            raise ValueError("empirical search entries must link exactly one inferential Trial")
+        self.initialize()
+        entry_id = f"search_{uuid.uuid4().hex[:16]}"
+        with self.connect() as conn:
+            if conn.execute(
+                "SELECT 1 FROM experiments WHERE experiment_id = ?", (experiment_id,)
+            ).fetchone() is None:
+                raise ValueError(f"unknown experiment: {experiment_id}")
+            if campaign_id is not None and conn.execute(
+                "SELECT 1 FROM research_campaigns WHERE campaign_id = ? AND experiment_id = ?",
+                (campaign_id, experiment_id),
+            ).fetchone() is None:
+                raise ValueError("search ledger campaign does not belong to experiment")
+            if inferential_trial_id is not None and conn.execute(
+                "SELECT 1 FROM trials WHERE trial_id = ? AND experiment_id = ?",
+                (inferential_trial_id, experiment_id),
+            ).fetchone() is None:
+                raise ValueError("inferential Trial does not belong to experiment")
+            if parent_entry_id is not None and conn.execute(
+                "SELECT 1 FROM search_ledger_entries WHERE entry_id = ? AND experiment_id = ?",
+                (parent_entry_id, experiment_id),
+            ).fetchone() is None:
+                raise ValueError("search ledger parent does not belong to experiment")
+            number = int(
+                conn.execute(
+                    "SELECT COALESCE(MAX(entry_number), 0) FROM search_ledger_entries "
+                    "WHERE experiment_id = ?",
+                    (experiment_id,),
+                ).fetchone()[0]
+            ) + 1
+            conn.execute(
+                """
+                INSERT INTO search_ledger_entries
+                (entry_id, created_at, experiment_id, campaign_id, entry_number, entry_type,
+                 subject_id, parent_entry_id, empirical_exposure, inferential_trial_id,
+                 payload_json, payload_sha256)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry_id,
+                    utc_now_iso(),
+                    experiment_id,
+                    campaign_id,
+                    number,
+                    entry_type.strip(),
+                    subject_id.strip(),
+                    parent_entry_id,
+                    int(empirical_exposure),
+                    inferential_trial_id,
+                    payload_json,
+                    payload_sha256,
+                ),
+            )
+        return entry_id, number
+
+    def search_ledger_count(self, experiment_id: str | None = None) -> int:
+        self.initialize()
+        with self.connect() as conn:
+            if experiment_id is None:
+                return int(conn.execute("SELECT COUNT(*) FROM search_ledger_entries").fetchone()[0])
+            return int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM search_ledger_entries WHERE experiment_id = ?",
+                    (experiment_id,),
+                ).fetchone()[0]
+            )
+
+    def search_ledger_entries(self, experiment_id: str) -> tuple[dict[str, object], ...]:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT entry_id, entry_number, entry_type, subject_id, parent_entry_id,
+                       empirical_exposure, inferential_trial_id, payload_json, payload_sha256
+                FROM search_ledger_entries WHERE experiment_id = ? ORDER BY entry_number
+                """,
+                (experiment_id,),
+            ).fetchall()
+            return tuple(
+                {
+                    "entry_id": str(row[0]),
+                    "entry_number": int(row[1]),
+                    "entry_type": str(row[2]),
+                    "subject_id": str(row[3]),
+                    "parent_entry_id": None if row[4] is None else str(row[4]),
+                    "empirical_exposure": bool(row[5]),
+                    "inferential_trial_id": None if row[6] is None else str(row[6]),
+                    "payload_json": str(row[7]),
+                    "payload_sha256": str(row[8]),
+                }
+                for row in rows
+            )
 
     def record_trial_result(self, trial_id: str, result_json: str) -> None:
         """Write a trial outcome once; rejected attempts remain immutable evidence."""
