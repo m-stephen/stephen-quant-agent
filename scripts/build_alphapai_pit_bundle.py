@@ -18,7 +18,19 @@ def main() -> None:
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    document_hashes = config.get("document_hashes", {})
+    if "document_hashes" in config:
+        raise ValueError("document_hashes is forbidden; provide document_files for byte verification")
+    document_files = config.get("document_files", {})
+    document_hashes = {}
+    document_evidence = []
+    for transient_hash, document_path in document_files.items():
+        path = Path(document_path).resolve()
+        raw = path.read_bytes()
+        document_hashes[transient_hash] = hashlib.sha256(raw).hexdigest()
+        document_evidence.append({
+            "transient_id_hash": transient_hash, "size": len(raw),
+            "sha256": document_hashes[transient_hash],
+        })
     quarantined_ids = set(config.get("quarantined_transient_id_hashes", []))
     output_root = Path(config["output_dir"]).resolve()
     operation_id = str(config["operation_id"]).strip()
@@ -30,7 +42,7 @@ def main() -> None:
         Path(raw_path).resolve()
         for partition in config["partitions"]
         for raw_path in partition["pages"]
-    ]
+    ] + [Path(path).resolve() for path in document_files.values()]
     if any(output_root == path.parent or output_root.is_relative_to(path.parent)
            for path in source_paths):
         raise ValueError("output_dir must be physically disjoint from every source-page directory")
@@ -94,6 +106,13 @@ def main() -> None:
         "inferential_trial_delta": 0,
         "formal_research_eligible": False,
         "quarantined_source_records": ledger.quarantined_source_records,
+        "quarantined_transient_id_hashes": sorted(quarantined_ids),
+        "quarantine_set_sha256": hashlib.sha256(
+            json.dumps(sorted(quarantined_ids), separators=(",", ":")).encode()
+        ).hexdigest(),
+        "document_evidence": sorted(
+            document_evidence, key=lambda row: row["transient_id_hash"]
+        ),
         "files": sorted(source_files, key=lambda row: (row["partition"], row["page"])),
     }
     with (operation_dir / "source-page-manifest.json").open(

@@ -265,8 +265,15 @@ def test_alphapai_missing_actual_publish_time_uses_explicit_conservative_delay()
         response, query_start="2023-01-01", query_end="2023-12-31"
     )
     assert rows[0].publish_time_quality == "nominal_plus_delay"
+    assert rows[0].actual_publish_time is None
     assert rows[0].available_at == "2023-05-01T18:00:00+08:00"
     assert ledger.records_with_conservative_delay == 1
+    with pytest.raises(QmtDataError, match="publish_time_quality"):
+        validate_financial_visibility((replace(rows[0], publish_time_quality="unknown"),))
+    with pytest.raises(QmtDataError, match="cannot claim"):
+        validate_financial_visibility((replace(
+            rows[0], actual_publish_time="2023-04-30T18:00:00+08:00"
+        ),))
 
 
 def test_alphapai_exact_transient_duplicates_are_counted_and_removed() -> None:
@@ -303,6 +310,26 @@ def test_alphapai_quarantine_is_explicit_and_excluded() -> None:
     )
     assert rows == ()
     assert ledger.quarantined_source_records == 1
+
+
+def test_different_ids_with_same_unhashed_metadata_are_automatically_quarantined() -> None:
+    item = {
+        "announcementId": "first-id", "title": "Example annual report",
+        "publishTime": "2023-04-30 18:00:00", "actualPublishTime": "2023-04-30 18:00:00",
+        "endDate": "2022-12-31 00:00:00", "announcementType": "年度报告",
+        "announcementTypeCode": "annual", "market": "A",
+        "stockTag": [{"code": "000001.SZ", "name": "Example"}], "industryTag": [],
+        "hasPdf": False,
+    }
+    second = dict(item)
+    second["announcementId"] = "second-id"
+    response = {"code": 200000, "data": {"pageNum": 1, "pageSize": 2,
+                "totalPageNum": 1, "totalSize": 2, "data": [item, second]}}
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2023-01-01", query_end="2023-12-31"
+    )
+    assert rows == ()
+    assert ledger.quarantined_source_records == 2
 
 
 def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> None:

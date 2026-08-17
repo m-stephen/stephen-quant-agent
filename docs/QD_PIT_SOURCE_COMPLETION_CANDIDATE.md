@@ -8,9 +8,9 @@ bundles remain outside Git.
 
 | Year | Accepted rows | Source pages | Conservative delays | Duplicates removed | Quarantined | Bundle SHA-256 |
 |---|---:|---:|---:|---:|---:|---|
-| 2022 | 6,708 | 78 | 266 | 280 | 0 | `2212b15a3999b9cd5d46e50ea13eee71bbdb5315cb69e997057dad4632fdf5c0` |
-| 2023 | 6,208 | 75 | 3,194 | 484 | 4 | `1f37341d99953e3339efaae70e31248a92473fbc3d3cfe5a9edd393e4c775b92` |
-| 2024 | 5,856 | 75 | 4,695 | 840 | 4 | `5542899630478956341463751365258d0d8b40dc74ed89cc785fa4f3291a2cc4` |
+| 2022 | 6,708 | 78 | 266 | 280 | 0 | `b970640432865c5a117ef49a51c5b50b08e0cf6524ce60fada3a0e067b4c0a88` |
+| 2023 | 6,208 | 75 | 3,194 | 484 | 4 | `ba901025a7e7e6d5577a3eaaa958383266d11cd36602939f05d9f54ff927e23c` |
+| 2024 | 5,856 | 75 | 4,695 | 840 | 4 | `381611cfacdcd1801f43920390a2134a7a33895bb21500b92208e5f1bf3d0cc8` |
 
 Each year was rebuilt under a second unique operation ID from the same frozen source pages,
 configuration, parser, and ingestion time. The replay hashes matched exactly. Every operation has
@@ -20,14 +20,17 @@ configuration, parser, and ingestion time. The replay hashes matched exactly. Ev
 
 - The exact AlphaPai empty-partition envelope (`pageNum=1`, `totalPageNum=0`, `totalSize=0`, empty
   data) is accepted. Any inconsistent zero-page response fails closed.
-- Missing `actualPublishTime` is never silently replaced with a claimed actual time. The record is
-  marked `nominal_plus_delay` and receives a deterministic 24-hour conservative availability delay.
+- Missing `actualPublishTime` remains null. The record is marked `nominal_plus_delay` and receives
+  a deterministic 24-hour conservative availability delay; invalid quality values and inconsistent
+  quality/time combinations fail closed.
 - Repeated records with the same transient retrieval ID or the same source-document hash are
   removed and counted in the Remote Retrieval Ledger.
-- A transient ID is never persisted. Local source-document overrides use only a transient-ID hash
-  mapped to the downloaded document SHA-256.
+- A transient ID is never persisted. Local source-document configuration maps its hash to a file;
+  the builder reads the real document bytes and records size and SHA-256. Declared hashes are
+  rejected.
 - Metadata-identical records with different IDs require document evidence. If neither parsed text
-  nor PDF is available, every ambiguous record is quarantined and excluded from the PIT bundle.
+  nor PDF is available, every ambiguous record is automatically quarantined and excluded from the
+  PIT bundle. The complete quarantine hash set and its set hash are bound into operation evidence.
 
 ## Remaining source limitations
 

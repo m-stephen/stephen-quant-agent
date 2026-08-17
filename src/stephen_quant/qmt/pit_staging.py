@@ -45,7 +45,7 @@ class FinancialVisibility:
     report_period: str
     report_type: str
     announcement_time: str
-    actual_publish_time: str
+    actual_publish_time: str | None
     revision_id: str
     source_document_id: str
     source_hash: str
@@ -63,9 +63,14 @@ class FinancialVisibility:
     def visible_at(self) -> str:
         if self.available_at:
             return _time(self.available_at, "available_at").isoformat()
-        return max(_time(self.announcement_time, "announcement_time"), _time(
-            self.actual_publish_time, "actual_publish_time"
-        )).isoformat()
+        announced = _time(self.announcement_time, "announcement_time")
+        if self.actual_publish_time:
+            return max(announced, _time(
+                self.actual_publish_time, "actual_publish_time"
+            )).isoformat()
+        if self.publish_time_quality == "nominal_plus_delay":
+            return (announced + timedelta(days=1)).isoformat()
+        raise QmtDataError("actual publish time is required for actual quality")
 
 
 @dataclass(frozen=True)
@@ -229,7 +234,14 @@ def validate_financial_visibility(
             raise QmtDataError("financial visibility identifiers cannot be empty")
         report_period = _day(row.report_period, "report_period")
         announced = _time(row.announcement_time, "announcement_time")
-        published = _time(row.actual_publish_time, "actual_publish_time")
+        if row.publish_time_quality not in {"actual", "nominal_plus_delay"}:
+            raise QmtDataError("invalid publish_time_quality")
+        if row.publish_time_quality == "actual" and not row.actual_publish_time:
+            raise QmtDataError("actual publish time is required for actual quality")
+        if row.publish_time_quality == "nominal_plus_delay" and row.actual_publish_time is not None:
+            raise QmtDataError("nominal delay quality cannot claim actual publish time")
+        published = (_time(row.actual_publish_time, "actual_publish_time")
+                     if row.actual_publish_time else announced)
         available = _time(row.visible_at, "available_at")
         if row.effective_at:
             effective = _time(row.effective_at, "effective_at")
@@ -267,7 +279,7 @@ def validate_financial_visibility(
                 raise QmtDataError("financial revision chain is broken")
     return tuple(sorted(rows, key=lambda row: (
         row.code.upper(), row.report_period, row.report_type,
-        _time(row.actual_publish_time, "actual_publish_time"), row.revision_id,
+        _time(row.visible_at, "visible_at"), row.revision_id,
     )))
 
 
@@ -500,6 +512,9 @@ def ingest_alphapai_announcement_response(
     rows: list[FinancialVisibility] = []
     seen_transient_ids: set[str] = set()
     seen_source_hashes: set[str] = set()
+    documented_metadata: set[str] = set()
+    unhashed_metadata_sources: dict[str, str] = {}
+    auto_quarantined_metadata: set[str] = set()
     duplicate_source_records_removed = 0
     quarantined_source_records = 0
     for item in envelope["data"]:
@@ -529,11 +544,12 @@ def ingest_alphapai_announcement_response(
                 raw_actual_publish_time, "actualPublishTime", timezone_offset
             )
         else:
-            actual_publish_time = announcement_time
+            actual_publish_time = None
             publish_time_quality = "nominal_plus_delay"
         available_at = max(
             _time(announcement_time, "announcement_time"),
-            _time(actual_publish_time, "actual_publish_time"),
+            (_time(actual_publish_time, "actual_publish_time")
+             if actual_publish_time else _time(announcement_time, "announcement_time")),
         ).isoformat()
         if publish_time_quality == "nominal_plus_delay":
             available_at = (_time(available_at, "available_at") + timedelta(days=1)).isoformat()
@@ -551,10 +567,29 @@ def ingest_alphapai_announcement_response(
             )
         }
         document_hash = item.get("sourceDocumentHash")
+        metadata_hash = hashlib.sha256(json.dumps(
+            stable_metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        if document_hash is None:
+            if metadata_hash in documented_metadata or metadata_hash in auto_quarantined_metadata:
+                quarantined_source_records += 1
+                continue
+            previous_source_hash = unhashed_metadata_sources.get(metadata_hash)
+            if previous_source_hash is not None:
+                rows = [row for row in rows if row.source_hash != previous_source_hash]
+                del unhashed_metadata_sources[metadata_hash]
+                auto_quarantined_metadata.add(metadata_hash)
+                quarantined_source_records += 2
+                continue
         if document_hash is not None:
             stable_metadata["sourceDocumentHash"] = _sha256(
                 str(document_hash), "AlphaPai sourceDocumentHash"
             )
+            documented_metadata.add(metadata_hash)
+            previous_source_hash = unhashed_metadata_sources.pop(metadata_hash, None)
+            if previous_source_hash is not None:
+                rows = [row for row in rows if row.source_hash != previous_source_hash]
+                quarantined_source_records += 1
         source_hash = hashlib.sha256(json.dumps(
             stable_metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")).hexdigest()
@@ -562,6 +597,8 @@ def ingest_alphapai_announcement_response(
             duplicate_source_records_removed += 1
             continue
         seen_source_hashes.add(source_hash)
+        if document_hash is None:
+            unhashed_metadata_sources[metadata_hash] = source_hash
         source_document_id = hashlib.sha256(
             f"alphapai-announcement|{source_hash}".encode()
         ).hexdigest()
