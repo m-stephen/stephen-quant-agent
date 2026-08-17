@@ -31,3 +31,11 @@ python scripts/build_authoritative_pit_sources.py --config configs/authoritative
 
 Original documents, normalized local records, output bundles, machine paths, and credentials stay
 outside Git. A successful candidate bundle is still subject to core review and Issue #84 Gate 5.
+
+## Completion gate
+
+`scripts/build_source_completion_report.py` combines the immutable AlphaPai manifests for
+2022-2026 with authoritative-source manifests. It exits with code 2 while any quarantine remains,
+industry or corporate-action evidence is absent, provenance is broken, or restricted-year state is
+incorrect. A passing report proves source completeness only; it deliberately does not set formal
+Research eligibility, which remains an explicit Issue #84 Gate 5 decision.
