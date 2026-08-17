@@ -68,6 +68,14 @@ from .qmt_dat_validation import (
     QmtDatValidationRun,
     run_qmt_dat_backtest_validation,
 )
+from .v2_real_research import (
+    V21_RESEARCH_VERSION,
+    V21ReplayVerification,
+    V21ResearchManifest,
+    V21ResearchRun,
+    run_v21_real_research,
+    verify_v21_replay,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -79,6 +87,7 @@ __all__ = [
     "FUNDAMENTAL_CPCV_VERSION",
     "MINIMUM_RESEARCH_UNIVERSE",
     "PREDECLARED_CONFIGURATIONS",
+    "V21_RESEARCH_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AutomatedDiscoveryConfig",
@@ -111,6 +120,9 @@ __all__ = [
     "QmtBacktestRunConfig",
     "QmtDatValidationConfig",
     "QmtDatValidationRun",
+    "V21ReplayVerification",
+    "V21ResearchManifest",
+    "V21ResearchRun",
     "build_factor_family_validation_report",
     "load_automated_discovery_config",
     "run_automated_discovery",
@@ -121,5 +133,7 @@ __all__ = [
     "run_fundamental_cpcv_research",
     "run_qmt_backtest_workflow",
     "run_qmt_dat_backtest_validation",
+    "run_v21_real_research",
+    "verify_v21_replay",
     "write_factor_family_validation_report",
 ]

@@ -33,7 +33,10 @@ from .v2 import (
     ShadowBudgetError,
     ShadowLoopStopped,
     load_shadow_loop_config,
+    load_v21_real_research_config,
+    resolve_discovery_config,
     run_shadow_validation,
+    run_v21_readiness,
     verify_shadow_replay,
 )
 from .workflows import (
@@ -51,6 +54,8 @@ from .workflows import (
     run_fundamental_cpcv_research,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
+    run_v21_real_research,
+    verify_v21_replay,
     write_factor_family_validation_report,
 )
 
@@ -250,6 +255,16 @@ def build_parser() -> argparse.ArgumentParser:
     v2_shadow.add_argument("--kill-switch", action="store_true")
     v2_shadow.add_argument("--replay-manifest")
 
+    v21_real = sub.add_parser("v2-real-research")
+    v21_real.add_argument("--paths-config")
+    v21_real.add_argument("--config", default="configs/v2.1-real-research.json")
+    v21_real.add_argument(
+        "--mode", choices=("dry-run", "readiness", "research", "replay", "kill"), default="research"
+    )
+    v21_real.add_argument("--ingested-at")
+    v21_real.add_argument("--output", default="reports/v2.1-real-research")
+    v21_real.add_argument("--replay-manifest")
+
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
     export.add_argument("--output-csv", required=True)
@@ -396,6 +411,65 @@ def main() -> None:
                 ensure_ascii=False,
             )
         )
+        return
+
+    if args.command == "v2-real-research":
+        if args.mode == "kill":
+            raise SystemExit(
+                "v2-real-research stopped by kill switch before data or registry access"
+            )
+        try:
+            if args.mode == "replay":
+                if not args.replay_manifest:
+                    raise ValueError("--replay-manifest is required in replay mode")
+                print(json.dumps(asdict(verify_v21_replay(args.replay_manifest)), indent=2))
+                return
+            if not args.paths_config:
+                raise ValueError("--paths-config is required outside replay and kill modes")
+            local_paths = load_local_path_config(args.paths_config)
+            config = load_v21_real_research_config(args.config)
+            resolve_discovery_config(config, args.config)
+            if args.mode == "dry-run":
+                required = {"qd_daily_dir", "qd_fundamental_dir", *config.required_sources}
+                missing = sorted(required - set(local_paths.paths))
+                if missing:
+                    raise ValueError(f"missing required local data sources: {missing}")
+                print(json.dumps({"decision": "DRY_RUN_PASS", "registry_mutated": False}))
+                return
+            if not args.ingested_at:
+                raise ValueError("--ingested-at with timezone is required")
+            if args.mode == "readiness":
+                report, artifacts = run_v21_readiness(
+                    local_paths, config, args.output, ingested_at=args.ingested_at
+                )
+                if report.decision != "READY":
+                    raise ValueError("V2.1 readiness gate is blocked")
+                print(
+                    json.dumps(
+                        {
+                            "decision": report.decision,
+                            "snapshot_sha256": report.source_snapshot_sha256,
+                            "json_path": str(artifacts.json_path),
+                            "en_markdown_path": str(artifacts.markdown_en_path),
+                            "zh_markdown_path": str(artifacts.markdown_zh_path),
+                            "membership_jsonl_path": str(artifacts.membership_jsonl_path),
+                        },
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                )
+                return
+            run = run_v21_real_research(
+                local_paths,
+                args.config,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v2-real-research failed: {exc}") from exc
+        print(run.manifest.to_json())
         return
 
     if args.command == "factor-catalog":

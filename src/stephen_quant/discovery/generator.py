@@ -130,8 +130,7 @@ def seed_generation_plan() -> GenerationPlan:
                 quality="positive_prices",
                 output="cross_sectional_score",
                 formula_template=(
-                    "period_return(close, {window}) / "
-                    "(volatility(close, {window}) + 0.000001)"
+                    "period_return(close, {window}) / (volatility(close, {window}) + 0.000001)"
                 ),
                 required_fields=("close",),
                 data_sources=("qd_daily",),
@@ -200,8 +199,7 @@ def normalized_generation_plan() -> GenerationPlan:
                 quality="point_in_time_fund_flow_and_daily_bars",
                 output="cross_sectional_score",
                 formula_template=(
-                    "mean(net_inflow_amount, {window}) / "
-                    "(mean(amount, {window}) + 1.0)"
+                    "mean(net_inflow_amount, {window}) / (mean(amount, {window}) + 1.0)"
                 ),
                 required_fields=("amount", "net_inflow_amount"),
                 data_sources=("qd_daily", "qd_fund_flow"),
@@ -270,8 +268,7 @@ def normalized_generation_plan() -> GenerationPlan:
                 quality="point_in_time_margin_and_daily_bars",
                 output="cross_sectional_score",
                 formula_template=(
-                    "mean(margin_financing_buy, {window}) / "
-                    "(mean(amount, {window}) + 1.0)"
+                    "mean(margin_financing_buy, {window}) / (mean(amount, {window}) + 1.0)"
                 ),
                 required_fields=("amount", "margin_financing_buy"),
                 data_sources=("qd_daily", "qd_margin"),
@@ -307,8 +304,7 @@ def normalized_generation_plan() -> GenerationPlan:
                 quality="same_day_point_in_time_auction",
                 output="cross_sectional_score",
                 formula_template=(
-                    "mean(auction_return, {window}) * "
-                    "mean(auction_volume_ratio_1, {window})"
+                    "mean(auction_return, {window}) * mean(auction_volume_ratio_1, {window})"
                 ),
                 required_fields=("auction_return", "auction_volume_ratio_1"),
                 data_sources=("qd_auction",),
@@ -333,6 +329,60 @@ def normalized_generation_plan() -> GenerationPlan:
         ),
         windows=(5, 20, 60),
         horizons=("next_open", "5d", "20d"),
+    )
+
+
+def v21_mechanism_generation_plan() -> GenerationPlan:
+    """V2.1 bounded mechanism search over complementary QD sources.
+
+    Each template is a distinct economic hypothesis. Window changes are the only
+    permitted mutation inside a family, which keeps multiplicity explicit.
+    """
+
+    daily = seed_generation_plan().templates[:3]
+    normalized = normalized_generation_plan().templates[3:]
+    return GenerationPlan(
+        templates=(
+            *daily,
+            *normalized,
+            FactorTemplate(
+                template_id="flow_confirmation",
+                name="Flow-confirmed momentum",
+                event="flow_price_confirmation",
+                context="market_neutral_cross_section",
+                quality="point_in_time_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(net_inflow_amount, {window}) / "
+                    "(mean(amount, {window}) + 1.0) * "
+                    "period_return(close, {window})"
+                ),
+                required_fields=("amount", "close", "net_inflow_amount"),
+                data_sources=("qd_daily", "qd_fund_flow"),
+                direction=1,
+                economic_rationale="Demand backed by price continuation may be more persistent.",
+            ),
+            FactorTemplate(
+                template_id="margin_flow_confirmation",
+                name="Financing and cash-flow confirmation",
+                event="leveraged_cash_demand",
+                context="market_neutral_cross_section",
+                quality="point_in_time_margin_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(margin_financing_buy, {window}) / "
+                    "(mean(amount, {window}) + 1.0) + "
+                    "mean(net_inflow_amount, {window}) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=("amount", "margin_financing_buy", "net_inflow_amount"),
+                data_sources=("qd_daily", "qd_fund_flow", "qd_margin"),
+                direction=1,
+                economic_rationale="Independent leveraged and cash demand may jointly signal informed buying.",
+            ),
+        ),
+        windows=(5, 20),
+        horizons=("20d",),
     )
 
 

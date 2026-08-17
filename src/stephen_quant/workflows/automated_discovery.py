@@ -43,6 +43,7 @@ from stephen_quant.discovery import (
     run_stability_diagnostics,
     run_training_screen,
     seed_generation_plan,
+    v21_mechanism_generation_plan,
 )
 from stephen_quant.falsification import write_alpha_court_report
 from stephen_quant.integrity.models import ExperimentSpec
@@ -135,9 +136,7 @@ class AutomatedDiscoveryConfig:
             raise ValueError(f"unsupported automated-discovery horizon: {self.horizon}")
         if not self.windows or any(window < 2 for window in self.windows):
             raise ValueError("automated-discovery windows must contain values >= 2")
-        CampaignBudget(
-            self.schema_budget, self.cpcv_budget, self.execution_budget
-        ).validate()
+        CampaignBudget(self.schema_budget, self.cpcv_budget, self.execution_budget).validate()
         if self.execution_budget and self.execution_budget < 2:
             raise ValueError("execution_budget must be zero or at least two for DSR")
         if self.dynamic_universe_top_n < 3:
@@ -149,10 +148,9 @@ class AutomatedDiscoveryConfig:
             "v1.8.19",
             "v1.8.20",
             "v1.8.21",
+            "v2.1",
         }:
-            raise ValueError(
-                "search_profile must be v1.8.16 through v1.8.21"
-            )
+            raise ValueError("search_profile must be v1.8.16 through v1.8.21 or v2.1")
         if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
             not 0 < rate <= 1 for rate in self.capacity_stress_rates
         ):
@@ -383,12 +381,8 @@ def load_automated_discovery_config(source: str | Path) -> AutomatedDiscoveryCon
     if "windows" in payload and isinstance(payload["windows"], list):
         payload["windows"] = tuple(payload["windows"])
     if "family_budgets" in payload and isinstance(payload["family_budgets"], list):
-        payload["family_budgets"] = tuple(
-            tuple(item) for item in payload["family_budgets"]
-        )
-    if "capacity_stress_rates" in payload and isinstance(
-        payload["capacity_stress_rates"], list
-    ):
+        payload["family_budgets"] = tuple(tuple(item) for item in payload["family_budgets"])
+    if "capacity_stress_rates" in payload and isinstance(payload["capacity_stress_rates"], list):
         payload["capacity_stress_rates"] = tuple(payload["capacity_stress_rates"])
     if "capacity_stress_navs" in payload and isinstance(payload["capacity_stress_navs"], list):
         payload["capacity_stress_navs"] = tuple(payload["capacity_stress_navs"])
@@ -513,14 +507,14 @@ def run_automated_discovery(
             dynamic_membership_path, config.dynamic_universe_top_n
         )
         instruments = tuple(
-            sorted({instrument for members in dynamic_memberships.values() for instrument in members})
+            sorted(
+                {instrument for members in dynamic_memberships.values() for instrument in members}
+            )
         )
     if len(instruments) < 3:
         raise ValueError("automated discovery requires at least three instruments")
     root = Path(daily_dir).expanduser().resolve()
-    files = select_qd_daily_files(
-        root, start_date=config.data_start, end_date=config.research_end
-    )
+    files = select_qd_daily_files(root, start_date=config.data_start, end_date=config.research_end)
     daily_manifest = build_selected_files_snapshot_manifest(root, files)
     alternative_paths = alternative_paths or {}
     alternative_datasets = _alternative_datasets(
@@ -531,10 +525,7 @@ def run_automated_discovery(
     )
     snapshot_components = {"qd_daily": daily_manifest.snapshot_sha256}
     snapshot_components.update(
-        {
-            source: dataset.audit.source_sha256
-            for source, dataset in alternative_datasets.items()
-        }
+        {source: dataset.audit.source_sha256 for source, dataset in alternative_datasets.items()}
     )
     if dynamic_sha256 is not None:
         snapshot_components["dynamic_universe"] = dynamic_sha256
@@ -554,7 +545,9 @@ def run_automated_discovery(
         source for key, source in source_keys.items() if key in alternative_paths
     }
     plan_seed = (
-        flow_stress_generation_plan()
+        v21_mechanism_generation_plan()
+        if config.search_profile == "v2.1"
+        else flow_stress_generation_plan()
         if config.search_profile in {"v1.8.18", "v1.8.19", "v1.8.20", "v1.8.21"}
         else normalized_generation_plan()
         if config.search_profile == "v1.8.17"
@@ -575,7 +568,9 @@ def run_automated_discovery(
     search_space = json.dumps(
         {
             "method_version": (
-                "v1.8.21-preregistered-portfolio-usage-1.0.0"
+                "v2.1-real-qd-alpha-discovery-1.0.0"
+                if config.search_profile == "v2.1"
+                else "v1.8.21-preregistered-portfolio-usage-1.0.0"
                 if config.search_profile == "v1.8.21"
                 else "v1.8.20-factor-attribution-1.0.0"
                 if config.search_profile == "v1.8.20"
@@ -643,13 +638,13 @@ def run_automated_discovery(
     for item in candidates:
         if item.unique and item.schema.data_sources == ("qd_daily",):
             observations[item.schema.fingerprint] = build_qmt_factor_observations(
-            dataset.bars,
-            item.schema.compile(),
-            test_start=config.research_start,
-            test_end=config.research_end,
-            horizon_sessions=HORIZON_SESSIONS[config.horizon],
-            eligible_by_execution_date=eligibility,
-        )
+                dataset.bars,
+                item.schema.compile(),
+                test_start=config.research_start,
+                test_end=config.research_end,
+                horizon_sessions=HORIZON_SESSIONS[config.horizon],
+                eligible_by_execution_date=eligibility,
+            )
     anchor = next(iter(observations.values()))
     for item in candidates:
         if not item.unique or item.schema.data_sources == ("qd_daily",):
@@ -675,9 +670,7 @@ def run_automated_discovery(
             )
     if config.search_profile in {"v1.8.17", "v1.8.18"}:
         observations = {
-            fingerprint: _trim_leading_warmup(
-                normalize_cross_sectional_observations(rows)
-            )
+            fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
             for fingerprint, rows in observations.items()
         }
     window = ScreeningWindow(
@@ -714,11 +707,7 @@ def run_automated_discovery(
         }
         common_keys = set.intersection(
             *(
-                {
-                    (row.execution_at, row.instrument)
-                    for row in rows
-                    if row.eligible
-                }
+                {(row.execution_at, row.instrument) for row in rows if row.eligible}
                 for rows in shortlisted_panels.values()
             )
         )
@@ -872,8 +861,7 @@ def run_automated_discovery(
                     target_rows=observations[attribution_target.schema.fingerprint],
                     control_schemas=tuple(item.schema for item in attribution_controls),
                     control_rows=tuple(
-                        observations[item.schema.fingerprint]
-                        for item in attribution_controls
+                        observations[item.schema.fingerprint] for item in attribution_controls
                     ),
                     snapshot_id=snapshot_id,
                     experiment_id=experiment_id,
@@ -909,9 +897,7 @@ def run_automated_discovery(
                 execution_config=execution_config,
                 capacity_reference_nav=config.capacity_reference_nav,
             )
-    alternative_audits = tuple(
-        dataset.audit for _, dataset in sorted(alternative_datasets.items())
-    )
+    alternative_audits = tuple(dataset.audit for _, dataset in sorted(alternative_datasets.items()))
     decision = (
         execution.decision
         if execution is not None
@@ -1095,9 +1081,7 @@ def run_automated_discovery(
             sha256=artifacts.markdown_sha256,
         )
     if execution is not None:
-        court_artifacts = write_alpha_court_report(
-            execution.alpha_court, output / "falsification"
-        )
+        court_artifacts = write_alpha_court_report(execution.alpha_court, output / "falsification")
         winning_trial = next(
             score.trial_id
             for score in execution.configurations
@@ -1140,15 +1124,18 @@ def run_automated_discovery(
             portfolio_payload = authorize_portfolio_signal(alpha_card).to_json() + "\n"
             portfolio_kind = "portfolio_signal_json"
         except ValueError as exc:
-            portfolio_payload = json.dumps(
-                {
-                    "authorized": False,
-                    "fingerprint": alpha_card.fingerprint,
-                    "reason": str(exc),
-                },
-                indent=2,
-                sort_keys=True,
-            ) + "\n"
+            portfolio_payload = (
+                json.dumps(
+                    {
+                        "authorized": False,
+                        "fingerprint": alpha_card.fingerprint,
+                        "reason": str(exc),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
             portfolio_kind = "portfolio_gate_rejection_json"
         portfolio_sha = _write(portfolio_gate_path, portfolio_payload)
         registry.register_artifact(

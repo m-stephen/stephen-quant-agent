@@ -30,6 +30,7 @@ from .generator import (
     generate_candidates,
     normalized_generation_plan,
     seed_generation_plan,
+    v21_mechanism_generation_plan,
 )
 from .memory import (
     RESEARCH_MEMORY_VERSION,
@@ -144,4 +145,5 @@ __all__ = [
     "run_stability_diagnostics",
     "run_training_screen",
     "seed_generation_plan",
+    "v21_mechanism_generation_plan",
 ]
