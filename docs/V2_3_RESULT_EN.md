@@ -21,15 +21,17 @@ Residualization improved net return by 28.97 percentage points, annualized net S
 - Mean absolute residual correlation was `7.27e-16` to price momentum and `1.30e-13` to
   `log(ADV20)`; forward returns were not used in fitting.
 - Reversed residual ranking produced -0.2575 annualized Sharpe and -52.56% net return.
-- Signal-shuffle and return-permutation placebo p-values were both 0.005; inherited PBO was 0.
+- Signal-shuffle and return-permutation placebo p-values were both 0.005. Inherited PBO was 0
+  and is explicitly scoped to signal selection only.
 - The two new trials brought the cumulative ledger to 44.
 - Offline replay verified all three artifacts and registry audit confirmed exactly two trials.
 - 2025 and 2026 remained sealed.
 
 ## Decision
 
-All execution and falsification gates passed except DSR. Trial-aware DSR rose to 0.581752 but
-remained below the frozen 0.95 threshold. The residualized signal is therefore the preferred
+All execution and falsification gates passed except DSR. V2.3.1 replaced implicit zero moments
+with the 35 observed net-return periods: skewness 2.7530 and excess kurtosis 10.6182. The
+corrected trial-aware DSR is 0.604432, still below the frozen 0.95 threshold. The residualized signal is therefore the preferred
 research candidate, but it does not replace the production/reference claim as a proven Alpha.
 
 The next independent epoch should test temporal stability of this exact frozen residualized

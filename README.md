@@ -8,6 +8,10 @@ An **integrity-first** quantitative research system inspired by three research d
 
 The project deliberately started with **V1.0: Evaluation Integrity Foundation** before building alpha models. **V2.0** now adds a budgeted, auditable autonomous research loop in shadow mode; it does not promise profitable alpha or permit live autonomous trading.
 
+> **Release status: research preview.** V2.x is disabled for autonomous live trading, has not
+> passed Alpha Court, and must not be represented as a proven profitable strategy. The 2025
+> validation and 2026 final-test windows remain sealed.
+
 **V2.1** connects that loop to the real QD point-in-time dataset. It adds a fail-closed
 readiness gate, 13 mechanism-distinct factor families, a bounded 26-candidate search, reliability
 controls, offline replay, and bilingual reports while keeping 2025/2026 sealed.
@@ -47,7 +51,7 @@ See the [English V2.2 specification](docs/V2_2_SPEC_EN.md),
 **V2.3** freezes the same signal and Top-5 portfolio, then removes same-day exposure to
 five-day price momentum and `log(ADV20)`. It improves research-period net Sharpe from 0.4266
 to 0.6028 and maximum drawdown from -28.42% to -21.12%, but remains research-only because
-trial-aware DSR is 0.5818 rather than the required 0.95. Industry neutralization remains
+moment-corrected trial-aware DSR is 0.6044 rather than the required 0.95. Industry neutralization remains
 blocked until point-in-time stock-industry membership is available.
 
 ```powershell
@@ -63,6 +67,26 @@ See the [English V2.3 specification](docs/V2_3_SPEC_EN.md),
 [中文 V2.3 规格](docs/V2_3_SPEC_ZH.md),
 [English result](docs/V2_3_RESULT_EN.md), and
 [中文结果](docs/V2_3_RESULT_ZH.md).
+
+**V2.4** freezes the V2.3 formula and audits calendar-year and rolling 12-period stability.
+Engineering and replay gates pass, so the platform is ready for a disabled-by-default
+`research-preview` release. Alpha gates do not pass: 2023 Sharpe is -0.4145, the weakest
+rolling Sharpe is -0.5095, and DSR is 0.6029.
+
+```powershell
+stephen-quant --db "artifacts\v2.4-temporal.sqlite3" v2-temporal-stability `
+  --paths-config "configs\qd-paths.local.json" `
+  --config "configs\v2.4-temporal-stability.json" `
+  --mode research `
+  --ingested-at "2026-08-17T00:00:00+08:00" `
+  --output "reports\v2.4-temporal-stability"
+```
+
+See the [English V2.4 specification](docs/V2_4_SPEC_EN.md),
+[中文 V2.4 规格](docs/V2_4_SPEC_ZH.md),
+[English result](docs/V2_4_RESULT_EN.md),
+[中文结果](docs/V2_4_RESULT_ZH.md), and the
+[release audit](docs/V2_4_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_4_RELEASE_AUDIT_ZH.md).
 
 ## V2.0 shadow-mode validation
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 from collections import defaultdict
@@ -14,9 +13,8 @@ from stephen_quant.baseline import (
     BaselineReport,
     run_momentum_topk,
 )
-from stephen_quant.discovery import v21_mechanism_generation_plan
-from stephen_quant.discovery.attribution import _residuals
-from stephen_quant.evaluation import EvaluationError, pearson_correlation
+from stephen_quant.discovery import FactorSchema, v21_mechanism_generation_plan
+from stephen_quant.evaluation import EvaluationError, ols_residuals, pearson_correlation
 from stephen_quant.falsification import (
     DeflatedSharpeResult,
     PlaceboResult,
@@ -41,22 +39,21 @@ from stephen_quant.v2.real_qd import (
     run_v21_readiness,
 )
 
-from .v22_portfolio_breadth import (
-    _canonical,
-    _evaluation_rows,
-    _execution_memberships,
-    _raw_sharpe,
-    _sha_file,
-    _shared_non_overlapping,
+from .research_epoch import (
+    ReturnMoments,
+    canonical_json,
+    evaluation_rows,
+    execution_memberships,
+    raw_sharpe,
+    sample_return_moments,
+    sha256_bytes,
+    sha256_file,
+    shared_non_overlapping,
 )
 
 V23_CONFIG_VERSION = "2.3.0"
-V23_METHOD_VERSION = "v2.3-same-day-style-residualization-1.0.0"
+V23_METHOD_VERSION = "v2.3-same-day-style-residualization-1.1.0"
 V23_REPLAY_VERSION = "v2.3-style-residualization-replay-1.0.0"
-
-
-def _sha_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -116,7 +113,7 @@ class V23StyleResidualizationConfig:
 
     @property
     def calculated_evidence_sha256(self) -> str:
-        return _sha_bytes(_canonical(self.evidence_payload()).encode())
+        return sha256_bytes(canonical_json(self.evidence_payload()).encode())
 
     def validate(self) -> None:
         if self.prior_trial_count != 42 or len(self.prior_execution_raw_sharpes) != 8:
@@ -191,6 +188,24 @@ class V23ResidualizationAudit:
 
 
 @dataclass(frozen=True)
+class V23FrozenPanel:
+    source_snapshot_sha256: str
+    daily_source_sha256: str
+    flow_source_sha256: str
+    research_start: str
+    research_end: str
+    validation_start: str
+    validation_end: str
+    test_start: str
+    test_end: str
+    target_schema: FactorSchema
+    control_schema: FactorSchema
+    target_rows: tuple[BaselineObservation, ...]
+    residual_rows: tuple[BaselineObservation, ...]
+    residualization_audit: V23ResidualizationAudit
+
+
+@dataclass(frozen=True)
 class V23NegativeControl:
     trial_id: str
     local_trial_number: int
@@ -218,8 +233,10 @@ class V23StyleResidualizationReport:
     negative_control: V23NegativeControl
     placebo_signal: PlaceboResult
     placebo_return: PlaceboResult
+    return_moments: ReturnMoments
     deflated_sharpe: DeflatedSharpeResult
     inherited_pbo: float
+    inherited_pbo_scope: str
     prior_trial_count: int
     new_trial_count: int
     cumulative_trial_count: int
@@ -363,7 +380,7 @@ def residualize_v23_style(
             design.append(
                 [control_direction * peer.signal, math.log(row.average_daily_value)]
             )
-        residuals = _residuals(oriented_target, design)
+        residuals = ols_residuals(oriented_target, design)
         price = [row[0] for row in design]
         adv = [row[1] for row in design]
         try:
@@ -402,6 +419,103 @@ def residualize_v23_style(
     return output, audit
 
 
+def build_v23_frozen_panel(
+    paths: LocalPathConfig,
+    config_path: str | Path,
+    *,
+    output_dir: str | Path,
+    ingested_at: str,
+) -> tuple[V23StyleResidualizationConfig, V23FrozenPanel]:
+    """Build the frozen V2.3 panel without mutating an experiment registry."""
+
+    config_path = Path(config_path).expanduser().resolve()
+    config = load_v23_style_residualization_config(config_path)
+    v21_path = Path(config.v21_config)
+    v21_path = v21_path if v21_path.is_absolute() else (config_path.parent / v21_path).resolve()
+    v21 = load_v21_real_research_config(v21_path)
+    discovery = resolve_discovery_config(v21, v21_path)
+    readiness, readiness_artifacts = run_v21_readiness(
+        paths, v21, output_dir, ingested_at=ingested_at
+    )
+    if readiness.decision != "READY":
+        raise ValueError("V2.3 is blocked by V2.1 readiness")
+    if readiness.source_snapshot_sha256 != config.expected_source_snapshot_sha256:
+        raise ValueError("V2.3 source snapshot differs from frozen evidence")
+    memberships = read_dynamic_memberships(readiness_artifacts.membership_jsonl_path)
+    instruments = tuple(sorted({item for members in memberships.values() for item in members}))
+    daily = load_qd_daily_directory(
+        paths.choose("qd_daily_dir", None, "qd_daily_dir"),
+        start_date=discovery.data_start,
+        end_date=discovery.research_end,
+        instruments=instruments,
+        adjustment="back_ratio",
+    )
+    flow = load_qd_alternative_directory(
+        paths.choose("qd_fund_flow_dir", None, "qd_fund_flow_dir"),
+        QdAlternativeConfig(
+            source_kind="fund_flow",
+            start_date=discovery.research_start,
+            end_date=discovery.research_end,
+            ingested_at=ingested_at,
+            instruments=instruments,
+        ),
+    )
+    templates = {item.template_id: item for item in v21_mechanism_generation_plan().templates}
+    target = templates["flow_confirmation"].render(window=20, horizon="20d")
+    control_schema = templates["price_momentum"].render(window=5, horizon="20d")
+    if target.schema_id != config.target_schema_id or target.fingerprint != config.target_fingerprint:
+        raise ValueError("V2.3 target factor differs from the frozen contract")
+    if (
+        control_schema.schema_id != config.control_schema_id
+        or control_schema.fingerprint != config.control_fingerprint
+    ):
+        raise ValueError("V2.3 style control differs from the frozen contract")
+    execution_dates = sorted(
+        {
+            bar.trade_date
+            for bar in daily.bars
+            if discovery.research_start <= bar.trade_date <= discovery.research_end
+        }
+    )
+    eligibility = execution_memberships(memberships, execution_dates)
+    controls = build_qmt_factor_observations(
+        daily.bars,
+        control_schema.compile(),
+        test_start=discovery.research_start,
+        test_end=discovery.research_end,
+        horizon_sessions=config.horizon_sessions,
+        eligible_by_execution_date=eligibility,
+    )
+    target_rows = build_multisource_factor_observations(
+        daily.bars,
+        {"qd_fund_flow": flow.observations},
+        target.compile(),
+        controls,
+    )
+    residual_rows, audit = residualize_v23_style(
+        target_rows,
+        controls,
+        target_direction=target.direction,
+        control_direction=control_schema.direction,
+    )
+    return config, V23FrozenPanel(
+        readiness.source_snapshot_sha256,
+        daily.audit.source_sha256,
+        flow.audit.source_sha256,
+        discovery.research_start,
+        discovery.research_end,
+        discovery.validation_start,
+        discovery.validation_end,
+        discovery.test_start,
+        discovery.test_end,
+        target,
+        control_schema,
+        target_rows,
+        residual_rows,
+        audit,
+    )
+
+
 def cumulative_v23_trial_count(
     config: V23StyleResidualizationConfig, new_trial_count: int
 ) -> int:
@@ -424,7 +538,7 @@ def _score(
         local_trial_number,
         None if local_trial_number is None else prior_trial_count + local_trial_number,
         report.metrics.periods,
-        _raw_sharpe(report),
+        raw_sharpe(report),
         report.metrics.net_sharpe,
         report.metrics.net_total_return,
         report.metrics.max_drawdown,
@@ -444,44 +558,18 @@ def run_v23_style_residualization(
     ingested_at: str,
 ) -> tuple[V23StyleResidualizationReport, V23StyleResidualizationArtifacts]:
     config_path = Path(config_path).expanduser().resolve()
-    config = load_v23_style_residualization_config(config_path)
-    v21_path = Path(config.v21_config)
-    v21_path = v21_path if v21_path.is_absolute() else (config_path.parent / v21_path).resolve()
-    v21 = load_v21_real_research_config(v21_path)
-    discovery = resolve_discovery_config(v21, v21_path)
     output = Path(output_dir).expanduser().resolve()
-    readiness, readiness_artifacts = run_v21_readiness(
-        paths, v21, output / "readiness", ingested_at=ingested_at
-    )
-    if readiness.decision != "READY":
-        raise ValueError("V2.3 is blocked by V2.1 readiness")
-    if readiness.source_snapshot_sha256 != config.expected_source_snapshot_sha256:
-        raise ValueError("V2.3 source snapshot differs from frozen evidence")
-
-    memberships = read_dynamic_memberships(readiness_artifacts.membership_jsonl_path)
-    instruments = tuple(sorted({item for members in memberships.values() for item in members}))
-    daily = load_qd_daily_directory(
-        paths.choose("qd_daily_dir", None, "qd_daily_dir"),
-        start_date=discovery.data_start,
-        end_date=discovery.research_end,
-        instruments=instruments,
-        adjustment="back_ratio",
-    )
-    flow = load_qd_alternative_directory(
-        paths.choose("qd_fund_flow_dir", None, "qd_fund_flow_dir"),
-        QdAlternativeConfig(
-            source_kind="fund_flow",
-            start_date=discovery.research_start,
-            end_date=discovery.research_end,
-            ingested_at=ingested_at,
-            instruments=instruments,
-        ),
+    config, panel = build_v23_frozen_panel(
+        paths,
+        config_path,
+        output_dir=output / "readiness",
+        ingested_at=ingested_at,
     )
     source_manifest = build_composite_snapshot_manifest(
         {
-            "v21_readiness": readiness.source_snapshot_sha256,
-            "qd_daily": daily.audit.source_sha256,
-            "qd_fund_flow": flow.audit.source_sha256,
+            "v21_readiness": panel.source_snapshot_sha256,
+            "qd_daily": panel.daily_source_sha256,
+            "qd_fund_flow": panel.flow_source_sha256,
             "prior_evidence": config.prior_evidence_sha256,
         }
     )
@@ -496,52 +584,18 @@ def run_v23_style_residualization(
             hypothesis="Same-day style residualization improves frozen Top-5 execution.",
             dataset_snapshot_id=snapshot_id,
             code_version=code_version,
-            search_space=_canonical(asdict(config)),
+            search_space=canonical_json(asdict(config)),
         )
     )
-
-    templates = {item.template_id: item for item in v21_mechanism_generation_plan().templates}
-    target = templates["flow_confirmation"].render(window=20, horizon="20d")
-    control_schema = templates["price_momentum"].render(window=5, horizon="20d")
-    if target.schema_id != config.target_schema_id or target.fingerprint != config.target_fingerprint:
-        raise ValueError("V2.3 target factor differs from the frozen contract")
-    if (
-        control_schema.schema_id != config.control_schema_id
-        or control_schema.fingerprint != config.control_fingerprint
-    ):
-        raise ValueError("V2.3 style control differs from the frozen contract")
-    execution_dates = sorted(
-        {
-            bar.trade_date
-            for bar in daily.bars
-            if discovery.research_start <= bar.trade_date <= discovery.research_end
-        }
-    )
-    eligibility = _execution_memberships(memberships, execution_dates)
-    controls = build_qmt_factor_observations(
-        daily.bars,
-        control_schema.compile(),
-        test_start=discovery.research_start,
-        test_end=discovery.research_end,
-        horizon_sessions=config.horizon_sessions,
-        eligible_by_execution_date=eligibility,
-    )
-    target_rows = build_multisource_factor_observations(
-        daily.bars,
-        {"qd_fund_flow": flow.observations},
-        target.compile(),
-        controls,
-    )
-    residual_rows, residual_audit = residualize_v23_style(
-        target_rows,
-        controls,
-        target_direction=target.direction,
-        control_direction=control_schema.direction,
-    )
-    raw_execution = _shared_non_overlapping(
+    target = panel.target_schema
+    control_schema = panel.control_schema
+    target_rows = panel.target_rows
+    residual_rows = panel.residual_rows
+    residual_audit = panel.residualization_audit
+    raw_execution = shared_non_overlapping(
         target_rows, config.horizon_sessions, config.top_k
     )
-    residual_execution = _shared_non_overlapping(
+    residual_execution = shared_non_overlapping(
         residual_rows, config.horizon_sessions, config.top_k
     )
     if tuple((row.execution_at, row.instrument) for row in raw_execution) != tuple(
@@ -590,7 +644,7 @@ def run_v23_style_residualization(
             experiment_id=experiment_id,
             model_name="v2.3_same_day_style_residualization",
             factor_set=target.schema_id,
-            hyperparams=_canonical(
+            hyperparams=canonical_json(
                 {
                     "top_k": config.top_k,
                     "controls": [control_schema.schema_id, "log_adv20"],
@@ -598,12 +652,12 @@ def run_v23_style_residualization(
                 }
             ),
             seed=config.seed,
-            train_start=discovery.research_start,
-            train_end=discovery.research_end,
-            validation_start=discovery.validation_start,
-            validation_end=discovery.validation_end,
-            test_start=discovery.test_start,
-            test_end=discovery.test_end,
+            train_start=panel.research_start,
+            train_end=panel.research_end,
+            validation_start=panel.validation_start,
+            validation_end=panel.validation_end,
+            test_start=panel.test_start,
+            test_end=panel.test_end,
         )
     )
     candidate_report = run_momentum_topk(
@@ -626,23 +680,23 @@ def run_v23_style_residualization(
         local_trial_number=candidate_trial_number,
         prior_trial_count=config.prior_trial_count,
     )
-    registry.record_trial_result(candidate_trial_id, _canonical(asdict(candidate)))
+    registry.record_trial_result(candidate_trial_id, canonical_json(asdict(candidate)))
 
     negative_trial_id, negative_trial_number = registry.create_trial(
         TrialSpec(
             experiment_id=experiment_id,
             model_name="v2.3_reversed_residualized_ranking_negative_control",
             factor_set=target.schema_id,
-            hyperparams=_canonical(
+            hyperparams=canonical_json(
                 {"top_k": config.top_k, "direction": -target.direction}
             ),
             seed=config.seed,
-            train_start=discovery.research_start,
-            train_end=discovery.research_end,
-            validation_start=discovery.validation_start,
-            validation_end=discovery.validation_end,
-            test_start=discovery.test_start,
-            test_end=discovery.test_end,
+            train_start=panel.research_start,
+            train_end=panel.research_end,
+            validation_start=panel.validation_start,
+            validation_end=panel.validation_end,
+            test_start=panel.test_start,
+            test_end=panel.test_end,
         )
     )
     negative_report = run_momentum_topk(
@@ -667,15 +721,20 @@ def run_v23_style_residualization(
         negative_report.metrics.net_sharpe is not None
         and negative_report.metrics.net_sharpe <= 0,
     )
-    registry.record_trial_result(negative_trial_id, _canonical(asdict(negative)))
+    registry.record_trial_result(negative_trial_id, canonical_json(asdict(negative)))
     cumulative = cumulative_v23_trial_count(config, registry.global_trial_count())
+    moments = sample_return_moments(
+        tuple(period.net_return for period in candidate_report.periods)
+    )
     dsr = deflated_sharpe_ratio(
         observed_sharpe=candidate.raw_net_sharpe,
         trial_sharpes=(*config.prior_execution_raw_sharpes, candidate.raw_net_sharpe),
         recorded_trial_count=cumulative,
         observations=candidate.periods,
+        skewness=moments.skewness,
+        excess_kurtosis=moments.excess_kurtosis,
     )
-    evaluation = _evaluation_rows(residual_rows)
+    evaluation = evaluation_rows(residual_rows, horizon="20d")
     signal_placebo = run_placebo(
         evaluation,
         horizon="20d",
@@ -759,21 +818,23 @@ def run_v23_style_residualization(
         V23_METHOD_VERSION,
         experiment_id,
         snapshot_id,
-        readiness.source_snapshot_sha256,
+        panel.source_snapshot_sha256,
         config.prior_evidence_sha256,
         target.schema_id,
         target.fingerprint,
         control_schema.schema_id,
         control_schema.fingerprint,
-        (discovery.research_start, discovery.research_end),
+        (panel.research_start, panel.research_end),
         raw_score,
         candidate,
         residual_audit,
         negative,
         signal_placebo,
         return_placebo,
+        moments,
         dsr,
         config.prior_pbo,
+        "SIGNAL_SELECTION_ONLY",
         config.prior_trial_count,
         registry.global_trial_count(),
         cumulative,
@@ -798,7 +859,7 @@ def run_v23_style_residualization(
         "cumulative_trial_count": report.cumulative_trial_count,
         "validation_window_opened": False,
         "test_window_opened": False,
-        "artifacts": {name: _sha_file(path) for name, path in sorted(artifacts.items())},
+        "artifacts": {name: sha256_file(path) for name, path in sorted(artifacts.items())},
     }
     replay_path = output / "v2.3-replay-manifest.json"
     replay_path.write_text(
@@ -829,6 +890,6 @@ def verify_v23_style_residualization_replay(source: str | Path) -> V23ReplayVeri
     mismatches = tuple(
         name
         for name, artifact in mapping.items()
-        if not artifact.is_file() or expected.get(name) != _sha_file(artifact)
+        if not artifact.is_file() or expected.get(name) != sha256_file(artifact)
     )
     return V23ReplayVerification(not mismatches, len(mapping), mismatches)
