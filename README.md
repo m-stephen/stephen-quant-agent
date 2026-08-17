@@ -6,7 +6,23 @@ An **integrity-first** quantitative research system inspired by three research d
 2. reinforcement learning for portfolio allocation;
 3. strict financial-ML evaluation integrity to detect leakage and backtest overfitting.
 
-The project deliberately starts with **V1.0: Evaluation Integrity Foundation** before building alpha models.
+The project deliberately started with **V1.0: Evaluation Integrity Foundation** before building alpha models. **V2.0** now adds a budgeted, auditable autonomous research loop in shadow mode; it does not promise profitable alpha or permit live autonomous trading.
+
+## V2.0 shadow-mode validation
+
+V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
+
+Run the frozen engineering validation in one command:
+
+```bash
+stephen-quant --db artifacts/v2-shadow.sqlite3 v2-shadow-validate \
+  --config configs/v2.0-m5-shadow.json \
+  --output reports/v2.0-shadow
+```
+
+The command uses only a synthetic research fixture. It keeps the 2025 validation and 2026 final-test windows sealed, makes no model request, connects to no execution service, and writes JSON plus Chinese/English reports under git-ignored paths. Use `--dry-run`, `--kill-switch`, or `--replay-manifest <path>` for the corresponding fail-closed modes.
+
+See the [Chinese specification](docs/V2_M5_SPEC_ZH.md), [English specification](docs/V2_M5_SPEC_EN.md), and Issue #36 for the implementation contract.
 
 ## V1.0 includes
 

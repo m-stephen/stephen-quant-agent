@@ -67,6 +67,18 @@ from .replay import (
     ReplayManifest,
     audit_replay_manifest,
 )
+from .shadow import (
+    ShadowArtifacts,
+    ShadowBudgetError,
+    ShadowCandidateDecision,
+    ShadowLoopConfig,
+    ShadowLoopStopped,
+    ShadowReplayVerification,
+    ShadowRunReport,
+    load_shadow_loop_config,
+    run_shadow_validation,
+    verify_shadow_replay,
+)
 
 __all__ = [
     "FAILURE_QUERY_VERSION",
@@ -107,6 +119,13 @@ __all__ = [
     "ReplayAudit",
     "ReplayManifest",
     "SearchAction",
+    "ShadowArtifacts",
+    "ShadowBudgetError",
+    "ShadowCandidateDecision",
+    "ShadowLoopConfig",
+    "ShadowLoopStopped",
+    "ShadowReplayVerification",
+    "ShadowRunReport",
     "StaticAuditFinding",
     "V2FactorContract",
     "V2Hypothesis",
@@ -114,6 +133,7 @@ __all__ = [
     "compile_hypothesis",
     "default_blueprints",
     "evaluate_marginal_candidate",
+    "load_shadow_loop_config",
     "migrate_v1_factor_schema",
     "normalized_ast",
     "novelty_gate",
@@ -122,4 +142,6 @@ __all__ = [
     "replay_frozen_selection",
     "run_cheap_diagnostics",
     "run_novelty_benchmark",
+    "run_shadow_validation",
+    "verify_shadow_replay",
 ]
