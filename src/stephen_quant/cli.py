@@ -52,6 +52,7 @@ from .v2 import (
 from .workflows import (
     CompositeCpcvConfig,
     DynamicBacktestConfig,
+    PriceDiscoveryConfig,
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
@@ -75,6 +76,7 @@ from .workflows import (
     run_fundamental_cpcv_research,
     run_label_free_benchmark,
     run_pit_lite_research,
+    run_price_discovery_lab,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v21_real_research,
@@ -316,6 +318,10 @@ def build_parser() -> argparse.ArgumentParser:
     auto_suite.add_argument("--suite-manifest", default="configs/v1.8.16-suite.json")
     auto_suite.add_argument("--ingested-at", required=True)
     auto_suite.add_argument("--output", default="reports/qd-v1.8.16-suite")
+
+    price_discovery = sub.add_parser("v3-price-discovery")
+    price_discovery.add_argument("--paths-config", required=True)
+    price_discovery.add_argument("--output", default="reports/v3.1-price-discovery")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1536,6 +1542,39 @@ def main() -> None:
         except (PathConfigError, ValueError) as exc:
             raise SystemExit(f"qd-fundamental-cpcv failed: {exc}") from exc
         print(run.report.to_json())
+        return
+
+    if args.command == "v3-price-discovery":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.choose(
+                "dynamic_membership_jsonl", None, "--membership-jsonl"
+            )
+            report = run_price_discovery_lab(
+                daily_dir,
+                membership_path,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=PriceDiscoveryConfig(),
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v3-price-discovery failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "experiment_id": report.experiment_id,
+                    "snapshot_sha256": report.snapshot_sha256,
+                    "generated_candidates": report.generated_candidates,
+                    "selected_candidate": report.court.selected_candidate_id,
+                    "decision": report.court.decision,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
         return
 
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:

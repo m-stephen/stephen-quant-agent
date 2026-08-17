@@ -1,5 +1,22 @@
 # Stephen Quant Agent
 
+V3.1 adds a predeclared 630-candidate OHLCV discovery grammar and a layered Alpha Court. It
+separates factor efficacy from long-only feasibility, freezes a Top 60 on 2022, confirms only that
+shortlist on 2023/2024, supports a single survivor, audits purged/embargoed CPCV, and reports DSR,
+PBO, placebo tests and every holding-period offset. The current honest result is
+`RESEARCH_CANDIDATE`, not a deployable alpha: 120-session price reversal has stable positive
+RankIC, but fails multiplicity-adjusted DSR and cost-aware economic gates.
+
+```powershell
+stephen-quant --db artifacts/v3.1-price-discovery/registry.sqlite3 v3-price-discovery `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v3.1-price-discovery
+```
+
+See the [English V3.1 result](docs/V3_1_PRICE_DISCOVERY_RESULT_EN.md) and
+[V3.1 中文结果](docs/V3_1_PRICE_DISCOVERY_RESULT_ZH.md). Detailed machine-readable and bilingual
+runtime reports remain under the gitignored output directory.
+
 V3.0 adds a preregistered continuous factor-research loop over 2022–2024 daily bars, fund flow,
 auction, margin, chip-distribution and limit-event data. Five mechanism epochs were tested with
 immutable Alpha Court, Sharpe, drawdown, cost and multiplicity gates. The honest current result is
