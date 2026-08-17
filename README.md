@@ -511,6 +511,13 @@ V1.8.18 adds a frozen 20-day flow-divergence candidate family, prior-information
 - [中文规格](docs/V1_8_18_SPEC_ZH.md) / [English specification](docs/V1_8_18_SPEC_EN.md)
 - [中文结果](docs/V1_8_18_RESULT_ZH.md) / [English results](docs/V1_8_18_RESULT_EN.md)
 
+### V1.8.19 NAV capacity frontier
+
+V1.8.19 tests CNY 1m/3m/5m/10m/20m at 1%/5%/10% ADV participation, using CNY 3m as the real-capital reference and CNY 20m as a hard ceiling. The 2022–2024 real run found no ADV-capacity clipping through CNY 20m, but the candidate remains rejected by the Alpha Court.
+
+- [中文规格](docs/V1_8_19_SPEC_ZH.md) / [English specification](docs/V1_8_19_SPEC_EN.md)
+- [中文结果](docs/V1_8_19_RESULT_ZH.md) / [English results](docs/V1_8_19_RESULT_EN.md)
+
 ## Principle
 
 > LLM discovers → statistics verifies → RL allocates → evaluation attacks.

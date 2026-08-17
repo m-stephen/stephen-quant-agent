@@ -164,6 +164,8 @@ def test_stability_diagnostics_registers_capacity_trials_and_uses_prior_regimes(
     )
 
     assert len(report.capacity_stress) == 3
+    assert report.method_version == "v1.8.18-stability-capacity-1.0.0"
+    assert report.capacity_reference_nav == 1_000_000.0
     assert {item.slice_name for item in report.adv_terciles} == {
         "low_adv",
         "mid_adv",

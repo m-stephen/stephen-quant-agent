@@ -25,7 +25,8 @@ from .execution import DiscoveryExecutionConfig
 from .models import FactorSchema
 from .screening import ScreeningWindow
 
-STABILITY_DIAGNOSTICS_VERSION = "v1.8.18-stability-capacity-1.0.0"
+STABILITY_DIAGNOSTICS_VERSION = "v1.8.19-nav-capacity-frontier-1.0.0"
+LEGACY_STABILITY_DIAGNOSTICS_VERSION = "v1.8.18-stability-capacity-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class SliceScore:
 
 @dataclass(frozen=True)
 class CapacityStressRegistration:
+    initial_nav: float
     participation_rate: float
     trial_id: str
     trial_number: int
@@ -45,6 +47,7 @@ class CapacityStressRegistration:
 
 @dataclass(frozen=True)
 class CapacityStressScore:
+    initial_nav: float
     participation_rate: float
     trial_id: str
     trial_number: int
@@ -53,8 +56,15 @@ class CapacityStressScore:
     annualized_net_sharpe: float | None
     max_drawdown: float
     total_cost: float
+    cost_to_initial_nav: float
     capacity_clipped_notional: float
+    capacity_clipped_trade_ratio: float
     clipped_orders: int
+    eligible_observations: int
+    executed_orders: int
+    reference_nav: float
+    net_return_delta_vs_reference: float
+    sharpe_delta_vs_reference: float | None
 
 
 @dataclass(frozen=True)
@@ -66,6 +76,7 @@ class StabilityDiagnosticsReport:
     regimes: tuple[SliceScore, ...]
     adv_terciles: tuple[SliceScore, ...]
     capacity_stress: tuple[CapacityStressScore, ...]
+    capacity_reference_nav: float
     industry_neutralization: str
     validation_window_opened: bool
     test_window_opened: bool
@@ -78,12 +89,23 @@ class StabilityDiagnosticsReport:
             raise ValueError("diagnostic report language must be en or zh")
         zh = language == "zh"
         lines = [
-            "# V1.8.18 稳定性与容量压力诊断" if zh else "# V1.8.18 Stability and Capacity Stress",
+            (
+                "# V1.8.19 资金容量曲线诊断"
+                if zh
+                else "# V1.8.19 NAV Capacity Frontier"
+            )
+            if "1.8.19" in self.method_version
+            else (
+                "# V1.8.18 稳定性与容量压力诊断"
+                if zh
+                else "# V1.8.18 Stability and Capacity Stress"
+            ),
             "",
             f"- Factor: `{self.schema_id}`",
             f"- Fingerprint: `{self.fingerprint}`",
             f"- Prior-information regime lookback: {self.regime_lookback}",
             f"- Industry neutralization: {self.industry_neutralization}",
+            f"- Capacity reference NAV: CNY {self.capacity_reference_nav:,.0f}",
             f"- Validation window opened: {self.validation_window_opened}",
             f"- Final test window opened: {self.test_window_opened}",
             "",
@@ -108,16 +130,19 @@ class StabilityDiagnosticsReport:
                 "",
                 "## Participation stress / 参与率压力",
                 "",
-                "| Trial | Participation | Periods | Net return | Sharpe | MDD | Cost | Capacity clipped |",
-                "|---:|---:|---:|---:|---:|---:|---:|---:|",
+                "| Trial | NAV | Participation | Net return | Sharpe | MDD | Cost/NAV | Capacity clipped ratio | Return delta vs reference |",
+                "|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
             ]
         )
         for item in self.capacity_stress:
             sharpe = "N/A" if item.annualized_net_sharpe is None else f"{item.annualized_net_sharpe:.6f}"
             lines.append(
-                f"| {item.trial_number} | {item.participation_rate:.2%} | {item.periods} | "
+                f"| {item.trial_number} | {item.initial_nav:,.0f} | "
+                f"{item.participation_rate:.2%} | "
                 f"{item.net_total_return:.2%} | {sharpe} | {item.max_drawdown:.2%} | "
-                f"{item.total_cost:.2f} | {item.capacity_clipped_notional:.2f} |"
+                f"{item.cost_to_initial_nav:.2%} | "
+                f"{item.capacity_clipped_trade_ratio:.2%} | "
+                f"{item.net_return_delta_vs_reference:+.2%} |"
             )
         return "\n".join(lines) + "\n"
 
@@ -170,39 +195,62 @@ def register_capacity_stress_trials(
     experiment_id: str,
     window: ScreeningWindow,
     participation_rates: tuple[float, ...],
+    initial_navs: tuple[float, ...] = (1_000_000.0,),
     seed: int,
 ) -> tuple[CapacityStressRegistration, ...]:
+    if not initial_navs or len(set(initial_navs)) != len(initial_navs):
+        raise ValueError("capacity stress NAVs must be non-empty and unique")
+    if any(not math.isfinite(nav) or nav <= 0 for nav in initial_navs):
+        raise ValueError("capacity stress NAVs must be finite and positive")
     if not participation_rates or len(set(participation_rates)) != len(participation_rates):
         raise ValueError("capacity stress rates must be non-empty and unique")
     if any(not 0 < rate <= 1 for rate in participation_rates):
         raise ValueError("capacity stress rates must be in (0, 1]")
     registered = []
-    for rate in participation_rates:
-        trial_id, trial_number = registry.create_trial(
-            TrialSpec(
-                experiment_id=experiment_id,
-                model_name="v1.8.18_capacity_stress",
-                factor_set="preregistered_flow_divergence_or_execution_winner",
-                hyperparams=json.dumps(
-                    {"max_participation_rate": rate}, separators=(",", ":"), sort_keys=True
-                ),
-                seed=seed,
-                train_start=window.research_start,
-                train_end=window.research_end,
-                validation_start=window.validation_start,
-                validation_end=window.validation_end,
-                test_start=window.test_start,
-                test_end=window.test_end,
+    model_name = (
+        "v1.8.19_capacity_frontier"
+        if len(initial_navs) > 1
+        else "v1.8.18_capacity_stress"
+    )
+    for nav in initial_navs:
+        for rate in participation_rates:
+            trial_id, trial_number = registry.create_trial(
+                TrialSpec(
+                    experiment_id=experiment_id,
+                    model_name=model_name,
+                    factor_set="preregistered_flow_divergence_or_execution_winner",
+                    hyperparams=json.dumps(
+                        {"initial_nav": nav, "max_participation_rate": rate},
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    ),
+                    seed=seed,
+                    train_start=window.research_start,
+                    train_end=window.research_end,
+                    validation_start=window.validation_start,
+                    validation_end=window.validation_end,
+                    test_start=window.test_start,
+                    test_end=window.test_end,
+                )
             )
-        )
-        registered.append(CapacityStressRegistration(rate, trial_id, trial_number))
+            registered.append(CapacityStressRegistration(nav, rate, trial_id, trial_number))
     return tuple(registered)
 
 
 def _non_overlapping(
-    rows: tuple[BaselineObservation, ...], horizon_sessions: int
+    rows: tuple[BaselineObservation, ...], horizon_sessions: int, minimum_eligible: int
 ) -> tuple[BaselineObservation, ...]:
-    dates = sorted({row.execution_at for row in rows})
+    eligible_by_date: dict[str, int] = defaultdict(int)
+    for row in rows:
+        if row.eligible:
+            eligible_by_date[row.execution_at] += 1
+    dates = sorted(
+        day for day, eligible in eligible_by_date.items() if eligible >= minimum_eligible
+    )
+    if not dates:
+        raise ValueError(
+            f"no stability cross-section has at least {minimum_eligible} eligible assets"
+        )
     selected = set(dates[::horizon_sessions])
     return tuple(row for row in rows if row.execution_at in selected)
 
@@ -291,6 +339,7 @@ def run_stability_diagnostics(
     horizon_sessions: int,
     regime_lookback: int,
     execution_config: DiscoveryExecutionConfig,
+    capacity_reference_nav: float | None = None,
 ) -> StabilityDiagnosticsReport:
     if regime_lookback < 5:
         raise ValueError("regime lookback must be at least five sessions")
@@ -320,8 +369,9 @@ def run_stability_diagnostics(
         for name in names
     )
 
-    execution_rows = _non_overlapping(rows, horizon_sessions)
-    stress_scores = []
+    execution_rows = _non_overlapping(rows, horizon_sessions, execution_config.top_k)
+    raw_stress = []
+    eligible_observations = sum(row.eligible for row in execution_rows)
     for item in registrations:
         report = run_momentum_topk(
             execution_rows,
@@ -344,10 +394,44 @@ def run_stability_diagnostics(
                 periods_per_year=max(1, 252 // horizon_sessions),
                 missing_holding_policy="stale_zero_return",
             ),
-            initial_nav=execution_config.initial_nav,
+            initial_nav=item.initial_nav,
         )
         metrics = report.metrics
+        executed_orders = sum(
+            abs(order.executed_notional) > 1e-9
+            for period in report.periods
+            for order in period.orders
+        )
+        gross_capacity_demand = (
+            metrics.total_traded_notional + metrics.capacity_clipped_notional
+        )
+        raw_stress.append((item, metrics, executed_orders, gross_capacity_demand))
+
+    reference_nav = (
+        capacity_reference_nav
+        if capacity_reference_nav is not None
+        else execution_config.initial_nav
+    )
+    if reference_nav not in {item.initial_nav for item in registrations}:
+        raise ValueError("capacity reference NAV must be one of the registered NAVs")
+    references = {
+        item.participation_rate: metrics
+        for item, metrics, _, _ in raw_stress
+        if item.initial_nav == reference_nav
+    }
+    if set(references) != {item.participation_rate for item in registrations}:
+        raise ValueError("capacity reference NAV must cover every participation rate")
+
+    stress_scores = []
+    for item, metrics, executed_orders, gross_capacity_demand in raw_stress:
+        reference = references[item.participation_rate]
+        sharpe_delta = (
+            None
+            if metrics.net_sharpe is None or reference.net_sharpe is None
+            else metrics.net_sharpe - reference.net_sharpe
+        )
         score = CapacityStressScore(
+            item.initial_nav,
             item.participation_rate,
             item.trial_id,
             item.trial_number,
@@ -356,8 +440,19 @@ def run_stability_diagnostics(
             metrics.net_sharpe,
             metrics.max_drawdown,
             metrics.total_cost,
+            metrics.total_cost / item.initial_nav,
             metrics.capacity_clipped_notional,
+            (
+                metrics.capacity_clipped_notional / gross_capacity_demand
+                if gross_capacity_demand > 0
+                else 0.0
+            ),
             metrics.clipped_orders,
+            eligible_observations,
+            executed_orders,
+            reference_nav,
+            metrics.net_total_return - reference.net_total_return,
+            sharpe_delta,
         )
         registry.record_trial_result(
             item.trial_id,
@@ -365,13 +460,18 @@ def run_stability_diagnostics(
         )
         stress_scores.append(score)
     return StabilityDiagnosticsReport(
-        method_version=STABILITY_DIAGNOSTICS_VERSION,
+        method_version=(
+            STABILITY_DIAGNOSTICS_VERSION
+            if len({item.initial_nav for item in registrations}) > 1
+            else LEGACY_STABILITY_DIAGNOSTICS_VERSION
+        ),
         schema_id=schema.schema_id,
         fingerprint=schema.fingerprint,
         regime_lookback=regime_lookback,
         regimes=regime_scores,
         adv_terciles=bucket_scores,
         capacity_stress=tuple(stress_scores),
+        capacity_reference_nav=reference_nav,
         industry_neutralization="NOT_RUN_NO_POINT_IN_TIME_STOCK_INDUSTRY_MAPPING",
         validation_window_opened=False,
         test_window_opened=False,
