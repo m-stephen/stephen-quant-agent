@@ -11,6 +11,7 @@ from stephen_quant.qmt import (
     AlternativeObservation,
     QmtDailyBar,
     build_multisource_factor_observations,
+    normalize_cross_sectional_observations,
 )
 
 
@@ -115,3 +116,21 @@ def test_multisource_builder_rejects_stale_or_future_source_without_leakage() ->
 
     assert rows[0].eligible is False
     assert rows[0].signal == 0.0
+
+
+def test_cross_sectional_normalization_is_centered_and_bounded() -> None:
+    rows = tuple(
+        replace(
+            _anchor(),
+            instrument=f"00000{index}.SZ",
+            signal=signal,
+        )
+        for index, signal in enumerate((0.0, 1.0, 100.0), start=1)
+    )
+
+    normalized = normalize_cross_sectional_observations(rows, winsor_fraction=0.25)
+    signals = [row.signal for row in normalized]
+
+    assert sum(signals) == pytest.approx(0.0)
+    assert sum(value**2 for value in signals) / len(signals) == pytest.approx(1.0)
+    assert signals == sorted(signals)

@@ -26,6 +26,14 @@ def _date(value: str, field: str) -> date:
         raise QmtDataError(f"{field} must be an ISO date") from exc
 
 
+def _quantile(values: list[float], probability: float) -> float:
+    position = probability * (len(values) - 1)
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(values) - 1)
+    weight = position - lower_index
+    return values[lower_index] * (1 - weight) + values[upper_index] * weight
+
+
 def build_qmt_factor_observations(
     bars: Sequence[QmtDailyBar],
     definition: FactorDefinition,
@@ -318,8 +326,8 @@ def normalize_cross_sectional_observations(
             normalized.extend(rows)
             continue
         ordered = sorted(row.signal for row in eligible)
-        tail = int(len(ordered) * winsor_fraction)
-        lower, upper = ordered[tail], ordered[-tail - 1]
+        lower = _quantile(ordered, winsor_fraction)
+        upper = _quantile(ordered, 1 - winsor_fraction)
         clipped = {row.instrument: min(max(row.signal, lower), upper) for row in eligible}
         if groups:
             grouped: dict[str, list[float]] = defaultdict(list)

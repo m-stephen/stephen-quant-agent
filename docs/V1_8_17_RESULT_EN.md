@@ -43,7 +43,7 @@ The new sources improved research usefulness and walk-forward selection, but do 
 ## Acceptance and limitations
 
 - Ruff: passed.
-- pytest: 172 tests passed at the final commit.
+- pytest: 173 tests passed at the final commit.
 - Future-available or stale multi-source inputs: fail closed.
 - Cross-fold winsorization and standardization: fitted on training IDs only.
 - Machine paths, raw data, SQLite databases, and report directories: Git-ignored.

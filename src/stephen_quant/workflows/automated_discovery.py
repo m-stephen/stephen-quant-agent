@@ -360,15 +360,8 @@ def _trim_leading_warmup(
 ) -> tuple:
     """Drop only leading dates before a factor has any eligible cross-section."""
 
-    dates = sorted({row.execution_at for row in rows})
-    first_usable = next(
-        (
-            execution_at
-            for execution_at in dates
-            if any(row.execution_at == execution_at and row.eligible for row in rows)
-        ),
-        None,
-    )
+    eligible_dates = {row.execution_at for row in rows if row.eligible}
+    first_usable = min(eligible_dates) if eligible_dates else None
     if first_usable is None:
         return rows
     return tuple(row for row in rows if row.execution_at >= first_usable)
