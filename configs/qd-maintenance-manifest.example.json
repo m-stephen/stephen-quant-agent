@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "plane": "data_maintenance",
+  "state": "CONSUMED_2025_DATA_MAINTENANCE_ONLY",
+  "year": 2025,
+  "source_type": "local+alphapai",
+  "files": [
+    {
+      "path": "year=2025/announcements.jsonl",
+      "partition": "2025-08",
+      "sha256": "<64_HEX_SHA256_OF_EXACT_FILE_BYTES>",
+      "size_bytes": "<NON_NEGATIVE_INTEGER>"
+    }
+  ]
+}

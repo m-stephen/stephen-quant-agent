@@ -16,7 +16,6 @@ ALLOWED_PATH_KEYS = frozenset(
         "qd_audit_allowlist_manifest",
         "qd_audit_output_dir",
         "qd_data_maintenance_control_manifest",
-        "qd_data_operations_ledger_dir",
         "qd_daily_dir",
         "qd_fundamental_dir",
         "qd_concept_membership_csv",

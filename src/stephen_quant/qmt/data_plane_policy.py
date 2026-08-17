@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .models import QmtDataError
@@ -70,6 +71,7 @@ class MaintenanceExecutionContext:
     source_files: tuple[str, ...]
     code_commit: str
     source_manifest_bytes: bytes
+    source_root: Path
 
 
 @dataclass(frozen=True)
@@ -146,7 +148,13 @@ def _operation_id(value: object) -> str:
 
 
 def _validate_source_manifest(
-    raw: bytes, *, state: str, year: int, source_type: str, source_files: tuple[str, ...],
+    raw: bytes,
+    *,
+    state: str,
+    year: int,
+    source_type: str,
+    source_files: tuple[str, ...],
+    source_root: Path,
 ) -> str:
     try:
         manifest = json.loads(raw.decode("utf-8"), object_pairs_hook=_strict_pairs)
@@ -165,6 +173,9 @@ def _validate_source_manifest(
     if not isinstance(entries, list) or not entries:
         raise QmtDataError("maintenance source manifest requires files")
     manifest_files: list[str] = []
+    root = source_root.expanduser().resolve()
+    if not root.is_dir():
+        raise QmtDataError("maintenance source root does not exist")
     for entry in entries:
         if not isinstance(entry, dict):
             raise QmtDataError("maintenance source manifest file entry must be an object")
@@ -173,17 +184,40 @@ def _validate_source_manifest(
         match = re.fullmatch(r"(\d{4})(?:-\d{2}(?:-\d{2})?)?", partition)
         if match is None or int(match.group(1)) != year:
             raise QmtDataError("maintenance source partition does not match authorized year")
+        expected_hash = _sha256(str(entry.get("sha256", "")), "manifest file sha256")
+        expected_size = entry.get("size_bytes")
+        if not isinstance(expected_size, int) or expected_size < 0:
+            raise QmtDataError("manifest file size_bytes must be a non-negative integer")
+        source = (root / paths[0]).resolve()
+        try:
+            source.relative_to(root)
+        except ValueError as exc:
+            raise QmtDataError("maintenance manifest file escapes source root") from exc
+        if not source.is_file() or source.stat().st_size != expected_size:
+            raise QmtDataError("maintenance source file size does not match manifest")
+        digest = hashlib.sha256()
+        with source.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != expected_hash:
+            raise QmtDataError("maintenance source file SHA-256 does not match manifest")
         manifest_files.extend(paths)
     if tuple(sorted(manifest_files)) != source_files:
         raise QmtDataError("maintenance manifest files do not match authorized source files")
     return hashlib.sha256(raw).hexdigest()
 
 
-def _consume_operation(
-    authorization: DataMaintenanceAuthorization, ledger_dir: str | Path,
-) -> None:
-    directory = Path(ledger_dir).expanduser().resolve()
+def _fixed_operation_ledger_dir() -> Path:
+    return Path.home() / ".stephen-quant-agent" / "maintenance-control" / "operation-ledger"
+
+
+def _consume_operation(authorization: DataMaintenanceAuthorization) -> None:
+    directory = _fixed_operation_ledger_dir().resolve()
     directory.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.chmod(0o700)
+    except OSError as exc:
+        raise QmtDataError("cannot protect fixed operation ledger directory") from exc
     record = {
         "ledger": "data_operations_authorization_consumption",
         "operation_id": authorization.operation_id,
@@ -194,11 +228,12 @@ def _consume_operation(
         "approval_comment_id": authorization.approval_comment_id,
         "approval_comment_updated_at": authorization.approval_comment_updated_at,
         "approval_payload_sha256": authorization.approval_payload_sha256,
-        "consumed_at": authorization.approval_verified_at,
+        "consumed_at": datetime.now(timezone.utc).isoformat(),
     }
     target = directory / f"authorization-consumption-{authorization.operation_id}.json"
     try:
-        with target.open("x", encoding="utf-8", newline="\n") as handle:
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
     except FileExistsError as exc:
         raise QmtDataError("maintenance operation_id has already been consumed") from exc
@@ -374,7 +409,6 @@ def validate_data_maintenance_authorization(
     payload: dict[str, object],
     *,
     context: MaintenanceExecutionContext,
-    operations_ledger_dir: str | Path,
     github_token: str | None = None,
 ) -> DataMaintenanceAuthorization:
     if payload.get("plane") != "data_maintenance":
@@ -422,6 +456,7 @@ def validate_data_maintenance_authorization(
         year=year,
         source_type=values["source_type"],
         source_files=source_files,
+        source_root=context.source_root,
     )
     if actual_manifest_sha != manifest_sha:
         raise QmtDataError("actual maintenance manifest hash does not match authorization")
@@ -476,7 +511,7 @@ def validate_data_maintenance_authorization(
         approval_comment_updated_at=verified.comment_updated_at,
         approval_payload_sha256=verified.comment_payload_sha256,
     )
-    _consume_operation(authorization, operations_ledger_dir)
+    _consume_operation(authorization)
     return authorization
 
 

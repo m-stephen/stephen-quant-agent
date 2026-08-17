@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -27,10 +28,17 @@ _APPROVED_RECORD: dict[str, object] = {}
 _AUTHOR_ASSOCIATION = "OWNER"
 _AUTHOR_LOGIN = "m-stephen"
 _LEDGER_DIR = Path("unused")
+_SOURCE_ROOT = Path("unused")
 
 
 def _manifest_bytes(year: int) -> bytes:
     state = CONSUMED_MAINTENANCE if year == 2025 else SEALED_MAINTENANCE
+    relative = Path(f"year={year}/announcements.jsonl")
+    source = _SOURCE_ROOT / relative
+    source.parent.mkdir(parents=True, exist_ok=True)
+    if not source.exists():
+        source.write_bytes(f"synthetic-{year}\n".encode("ascii"))
+    raw = source.read_bytes()
     return json.dumps({
         "version": 1,
         "plane": "data_maintenance",
@@ -38,16 +46,20 @@ def _manifest_bytes(year: int) -> bytes:
         "year": year,
         "source_type": "local+alphapai",
         "files": [{
-            "path": f"year={year}/announcements.jsonl",
+            "path": relative.as_posix(),
             "partition": f"{year}-08",
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size_bytes": len(raw),
         }],
     }, sort_keys=True).encode("utf-8")
 
 
 @pytest.fixture(autouse=True)
 def _github_api_comment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    global _LEDGER_DIR
+    global _LEDGER_DIR, _SOURCE_ROOT
     _LEDGER_DIR = tmp_path / "operations-ledger"
+    _SOURCE_ROOT = tmp_path / "synthetic-source"
+    monkeypatch.setattr(data_plane_policy, "_fixed_operation_ledger_dir", lambda: _LEDGER_DIR)
     def fake_comment(reference: str, token: str | None, pattern: object) -> dict[str, object]:
         return {
             "html_url": reference,
@@ -94,13 +106,14 @@ def _context(year: int = 2026) -> MaintenanceExecutionContext:
         source_files=(f"year={year}/announcements.jsonl",),
         code_commit="b" * 40,
         source_manifest_bytes=manifest,
+        source_root=_SOURCE_ROOT,
     )
 
 
 def _validate(payload: dict[str, object], year: int = 2026):
     _set_approved(_authorization(year))
     return validate_data_maintenance_authorization(
-        payload, context=_context(year), operations_ledger_dir=_LEDGER_DIR
+        payload, context=_context(year)
     )
 
 
@@ -168,13 +181,13 @@ def test_github_comment_scope_and_repository_role_are_bound() -> None:
     _APPROVED_RECORD = {**_APPROVED_RECORD, "purpose": "collection"}
     with pytest.raises(QmtDataError, match="verification failed"):
         validate_data_maintenance_authorization(
-            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+            payload, context=_context()
         )
     _AUTHOR_ASSOCIATION = "NONE"
     try:
         with pytest.raises(QmtDataError, match="identity or repository role"):
             validate_data_maintenance_authorization(
-                payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+                payload, context=_context()
             )
     finally:
         _AUTHOR_ASSOCIATION = "OWNER"
@@ -182,7 +195,7 @@ def test_github_comment_scope_and_repository_role_are_bound() -> None:
     try:
         with pytest.raises(QmtDataError, match="identity or repository role"):
             validate_data_maintenance_authorization(
-                payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+                payload, context=_context()
             )
     finally:
         _AUTHOR_LOGIN = "m-stephen"
@@ -211,8 +224,27 @@ def test_manifest_partition_year_is_semantically_bound_to_authorization() -> Non
     )
     with pytest.raises(QmtDataError, match="partition does not match"):
         validate_data_maintenance_authorization(
-            payload, context=context, operations_ledger_dir=_LEDGER_DIR
+            payload, context=context
         )
+
+
+def test_manifest_verifies_actual_file_sha256_and_size() -> None:
+    payload = _authorization(2025)
+    context = _context(2025)
+    _set_approved(payload)
+    source = _SOURCE_ROOT / "year=2025/announcements.jsonl"
+    original = source.read_bytes()
+    source.write_bytes(b"x" * len(original))
+    with pytest.raises(QmtDataError, match="SHA-256"):
+        validate_data_maintenance_authorization(payload, context=context)
+    source.write_bytes(original + b"extra")
+    with pytest.raises(QmtDataError, match="size does not match"):
+        validate_data_maintenance_authorization(payload, context=context)
+
+
+def test_public_authorization_api_has_no_ledger_directory_override() -> None:
+    parameters = inspect.signature(validate_data_maintenance_authorization).parameters
+    assert "operations_ledger_dir" not in parameters
 
 
 def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
@@ -221,7 +253,7 @@ def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
     _set_approved(payload)
     with pytest.raises(QmtDataError, match="already been consumed"):
         validate_data_maintenance_authorization(
-            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+            payload, context=_context()
         )
     records = list(_LEDGER_DIR.glob("authorization-consumption-*.json"))
     assert len(records) == 1
@@ -229,6 +261,7 @@ def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
     assert record["approval_comment_id"] == 100
     assert record["approval_comment_updated_at"]
     assert len(record["approval_payload_sha256"]) == 64
+    assert record["consumed_at"] != record["approval_comment_updated_at"]
 
 
 @pytest.mark.parametrize(
@@ -253,7 +286,7 @@ def test_every_github_approved_scope_field_must_match(field_name: str, value: ob
     _APPROVED_RECORD = {**_APPROVED_RECORD, field_name: value}
     with pytest.raises(QmtDataError, match="verification failed"):
         validate_data_maintenance_authorization(
-            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+            payload, context=_context()
         )
 
 
