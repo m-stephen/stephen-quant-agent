@@ -1,0 +1,24 @@
+{
+  "manifest_version": "1.0.0",
+  "contract_version": "factor-schema-2.0.0",
+  "replay_manifest_version": "v2-replay-manifest-1.0.0",
+  "reference_library": {
+    "library_id": "reference_v1821",
+    "version": "1.0.0",
+    "portfolio_mapping": "exclude_bottom_decile",
+    "source_experiment_id": "exp_9f69d4068df04559",
+    "source_snapshot_id": "snap_eb6b8b61030a338f",
+    "config_sha256": "a8b671726c1fee3df614fb4099c855c186357151216767c4150efb0406975355",
+    "research_only": true,
+    "validated_alpha": false
+  },
+  "sealed_windows": [
+    "validation:2025-01-03:2025-12-31",
+    "final-test:2026-01-05:2026-08-14"
+  ],
+  "ledger_policy": {
+    "search_ledger_append_only": true,
+    "inferential_trial_ledger_append_only": true,
+    "empirical_feedback_requires_trial": true
+  }
+}
