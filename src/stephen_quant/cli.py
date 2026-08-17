@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from dataclasses import asdict, replace
+from pathlib import Path
 
 from .baseline import BaselineConfig
 from .factors import build_factor_catalog, write_factor_catalog
@@ -19,12 +21,15 @@ from .qmt import (
     XtquantExportConfig,
     XtquantExportError,
     build_dynamic_universe,
+    data_search_ledger_record,
     export_qmt_daily_csv,
     export_qmt_dat_daily_csv,
     load_qd_daily_directory,
     read_stock_file,
+    run_qd_data_audit,
     screen_factor_redundancy,
     select_qd_training_universe,
+    validate_research_environment,
     write_dynamic_universe,
     write_factor_redundancy_screen,
     write_qd_universe,
@@ -179,6 +184,12 @@ def build_parser() -> argparse.ArgumentParser:
     qd_universe.add_argument("--train-end", required=True)
     qd_universe.add_argument("--top-n", type=int, required=True)
     qd_universe.add_argument("--output", default="artifacts/qd-universe")
+
+    qd_data_audit = sub.add_parser("qd-data-audit")
+    qd_data_audit.add_argument("--snapshot-root")
+    qd_data_audit.add_argument("--allowlist-manifest")
+    qd_data_audit.add_argument("--paths-config")
+    qd_data_audit.add_argument("--output-dir")
 
     factor_screen = sub.add_parser("qd-factor-screen")
     factor_screen.add_argument("--daily-dir", required=True)
@@ -1067,6 +1078,80 @@ def main() -> None:
                 ensure_ascii=False,
             )
         )
+        return
+
+    if args.command == "qd-data-audit":
+        snapshot_root = args.snapshot_root
+        allowlist_manifest = args.allowlist_manifest
+        output_dir = args.output_dir
+        if args.paths_config:
+            local_paths = load_local_path_config(args.paths_config)
+            if not snapshot_root and "qd_audit_snapshot_root" in local_paths.paths:
+                snapshot_root = str(local_paths.paths["qd_audit_snapshot_root"])
+            if not allowlist_manifest and "qd_audit_allowlist_manifest" in local_paths.paths:
+                allowlist_manifest = str(local_paths.paths["qd_audit_allowlist_manifest"])
+            if not output_dir and "qd_audit_output_dir" in local_paths.paths:
+                output_dir = str(local_paths.paths["qd_audit_output_dir"])
+        if not snapshot_root or not allowlist_manifest:
+            raise SystemExit(
+                "qd-data-audit requires a physically isolated snapshot root and a pre-generated 2022-2024 allowlist manifest"
+            )
+        validate_research_environment(os.environ)
+        report = run_qd_data_audit(
+            snapshot_root,
+            allowlist_manifest,
+            github_token=os.environ.get("GITHUB_TOKEN"),
+        )
+        if output_dir:
+            output = Path(output_dir).expanduser().resolve()
+            snapshot = Path(snapshot_root).expanduser().resolve()
+            try:
+                output.relative_to(snapshot)
+                overlaps = True
+            except ValueError:
+                try:
+                    snapshot.relative_to(output)
+                    overlaps = True
+                except ValueError:
+                    overlaps = False
+            if overlaps:
+                raise SystemExit("qd-data-audit output must be physically disjoint from snapshot root")
+            output.mkdir(parents=True, exist_ok=True)
+            (output / "qd-data-audit.json").write_text(report.to_json() + "\n", encoding="utf-8", newline="\n")
+            (output / "qd-data-audit.zh.md").write_text(report.to_markdown(language="zh"), encoding="utf-8", newline="\n")
+            (output / "qd-data-audit.en.md").write_text(report.to_markdown(language="en"), encoding="utf-8", newline="\n")
+            ledger = data_search_ledger_record(report)
+            ledger_name = f"data-search-ledger-{ledger['event_id']}.json"
+            ledger_path = output / ledger_name
+            try:
+                with ledger_path.open("x", encoding="utf-8", newline="\n") as handle:
+                    handle.write(json.dumps(ledger, ensure_ascii=False, sort_keys=True) + "\n")
+            except FileExistsError:
+                existing = json.loads(ledger_path.read_text(encoding="utf-8"))
+                if existing != ledger:
+                    raise SystemExit("qd-data-audit immutable ledger event collision") from None
+            print(
+                json.dumps(
+                    {
+                        "command": "qd-data-audit",
+                        "artifacts": [
+                            "qd-data-audit.json",
+                            "qd-data-audit.zh.md",
+                            "qd-data-audit.en.md",
+                            ledger_name,
+                        ],
+                        "source_snapshot_sha256": report.source_snapshot_sha256,
+                        "normalized_report_sha256": report.normalized_report_sha256,
+                        "gate_pass": report.gate_pass,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(report.to_json())
+        if not report.gate_pass:
+            raise SystemExit(2)
         return
 
     if args.command == "qd-factor-screen":
