@@ -1,0 +1,17 @@
+{
+  "version": "v2.0-m4-1.0.0",
+  "policy": {
+    "version": "epoch-policy-1.0.0",
+    "exhaustion_threshold": 3,
+    "permitted_actions": ["EXPLORE", "EXPLOIT", "MUTATE", "RECOMBINE", "STOP_FAMILY"]
+  },
+  "budgets": {
+    "candidate_budget": 12,
+    "compute_budget": 12,
+    "token_budget": 1200,
+    "statistical_trial_budget": 12
+  },
+  "failure_query_version": "failure-query-1.0.0",
+  "allow_intra_epoch_policy_update": false,
+  "sealed_windows": ["2025-validation", "2026-final-test"]
+}

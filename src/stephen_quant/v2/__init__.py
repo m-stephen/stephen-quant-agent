@@ -21,6 +21,17 @@ from .diagnostics import (
     DiagnosticPolicy,
     run_cheap_diagnostics,
 )
+from .failures import (
+    FAILURE_QUERY_VERSION,
+    EpochBudget,
+    EpochDecision,
+    EpochPolicy,
+    FailureCode,
+    FailureNode,
+    FailureStore,
+    SearchAction,
+    plan_next_epoch,
+)
 from .marginal import (
     FoldResidualModel,
     MarginalObservation,
@@ -58,6 +69,7 @@ from .replay import (
 )
 
 __all__ = [
+    "FAILURE_QUERY_VERSION",
     "REPLAY_MANIFEST_VERSION",
     "V2_CONTRACT_VERSION",
     "CandidateSignature",
@@ -69,7 +81,13 @@ __all__ = [
     "DiagnosticCode",
     "DiagnosticObservation",
     "DiagnosticPolicy",
+    "EpochBudget",
+    "EpochDecision",
+    "EpochPolicy",
     "ExpressionBlueprint",
+    "FailureCode",
+    "FailureNode",
+    "FailureStore",
     "FieldPolicy",
     "FoldResidualModel",
     "FrozenInteraction",
@@ -88,6 +106,7 @@ __all__ = [
     "ReferenceLibraryRecord",
     "ReplayAudit",
     "ReplayManifest",
+    "SearchAction",
     "StaticAuditFinding",
     "V2FactorContract",
     "V2Hypothesis",
@@ -98,6 +117,7 @@ __all__ = [
     "migrate_v1_factor_schema",
     "normalized_ast",
     "novelty_gate",
+    "plan_next_epoch",
     "rank_marginal_candidates",
     "replay_frozen_selection",
     "run_cheap_diagnostics",
