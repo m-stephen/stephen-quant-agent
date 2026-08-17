@@ -31,6 +31,11 @@ from .generator import (
     normalized_generation_plan,
     seed_generation_plan,
     v21_mechanism_generation_plan,
+    v30_continuous_generation_plan,
+    v30_epoch_five_generation_plan,
+    v30_epoch_four_generation_plan,
+    v30_epoch_three_generation_plan,
+    v30_epoch_two_generation_plan,
 )
 from .memory import (
     RESEARCH_MEMORY_VERSION,
@@ -146,4 +151,9 @@ __all__ = [
     "run_training_screen",
     "seed_generation_plan",
     "v21_mechanism_generation_plan",
+    "v30_continuous_generation_plan",
+    "v30_epoch_five_generation_plan",
+    "v30_epoch_four_generation_plan",
+    "v30_epoch_three_generation_plan",
+    "v30_epoch_two_generation_plan",
 ]

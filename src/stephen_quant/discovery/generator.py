@@ -386,6 +386,328 @@ def v21_mechanism_generation_plan() -> GenerationPlan:
     )
 
 
+def v30_continuous_generation_plan() -> GenerationPlan:
+    """Issue #100 epoch-one mechanisms with no post-result mutation surface."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "point_in_time_multisource_and_daily_bars",
+        "output": "cross_sectional_score",
+        "direction": 1,
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="margin_demand_acceleration_5_20",
+                name="Financing-demand acceleration",
+                event="margin_demand_acceleration",
+                formula_template=(
+                    "mean(margin_financing_buy, 5) / (mean(amount, 5) + 1.0) - "
+                    "mean(margin_financing_buy, 20) / (mean(amount, 20) + 1.0)"
+                ),
+                required_fields=("amount", "margin_financing_buy"),
+                data_sources=("qd_daily", "qd_margin"),
+                economic_rationale=(
+                    "A recent acceleration in leveraged demand may precede delayed price pressure."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="leveraged_informed_acceleration_5_20",
+                name="Leveraged and extra-large demand acceleration",
+                event="cross_source_demand_acceleration",
+                formula_template=(
+                    "mean(margin_financing_buy, 5) / (mean(amount, 5) + 1.0) - "
+                    "mean(margin_financing_buy, 20) / (mean(amount, 20) + 1.0) + "
+                    "(mean(extra_large_buy_amount, 5) - mean(extra_large_sell_amount, 5)) / "
+                    "(mean(amount, 5) + 1.0) - "
+                    "(mean(extra_large_buy_amount, 20) - mean(extra_large_sell_amount, 20)) / "
+                    "(mean(amount, 20) + 1.0)"
+                ),
+                required_fields=(
+                    "amount",
+                    "margin_financing_buy",
+                    "extra_large_buy_amount",
+                    "extra_large_sell_amount",
+                ),
+                data_sources=("qd_daily", "qd_fund_flow", "qd_margin"),
+                economic_rationale=(
+                    "Independent acceleration in leveraged and very-large cash demand may identify informed buying."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="auction_price_absorption_5",
+                name="Auction pressure versus prior price movement",
+                event="auction_price_absorption",
+                formula_template="mean(auction_return, 5) - period_return(close, 5)",
+                required_fields=("auction_return", "close"),
+                data_sources=("qd_daily", "qd_auction"),
+                economic_rationale=(
+                    "Auction demand that exceeds the recent close-to-close move may reveal delayed price incorporation."
+                ),
+                **common,
+            ),
+        ),
+        windows=(20,),
+        horizons=("20d",),
+    )
+
+
+def v30_epoch_two_generation_plan() -> GenerationPlan:
+    """Issue #100 epoch-two mechanisms, frozen after epoch one was tombstoned."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "point_in_time_multisource_and_daily_bars",
+        "output": "cross_sectional_score",
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="liquidity_stress_reversal_20",
+                name="Temporary liquidity-stress premium",
+                event="liquidity_stress_reversal",
+                formula_template="amihud(close, amount, 20)",
+                required_fields=("amount", "close"),
+                data_sources=("qd_daily",),
+                direction=1,
+                economic_rationale=(
+                    "Temporary price impact may command subsequent reversal compensation."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="margin_crowding_reversal_20",
+                name="Leveraged price-crowding reversal",
+                event="margin_crowding_reversal",
+                formula_template=(
+                    "period_return(margin_financing_balance, 20) * period_return(close, 20)"
+                ),
+                required_fields=("close", "margin_financing_balance"),
+                data_sources=("qd_daily", "qd_margin"),
+                direction=-1,
+                economic_rationale=(
+                    "Price continuation accompanied by rapidly rising financing may become crowded and unwind."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="cash_absorbs_deleveraging_5_20",
+                name="Cash demand absorbing leveraged retrenchment",
+                event="cash_absorbs_deleveraging",
+                formula_template=(
+                    "(mean(extra_large_buy_amount, 5) - mean(extra_large_sell_amount, 5)) / "
+                    "(mean(amount, 5) + 1.0) - "
+                    "(mean(extra_large_buy_amount, 20) - mean(extra_large_sell_amount, 20)) / "
+                    "(mean(amount, 20) + 1.0) - "
+                    "(mean(margin_financing_buy, 5) / (mean(amount, 5) + 1.0) - "
+                    "mean(margin_financing_buy, 20) / (mean(amount, 20) + 1.0))"
+                ),
+                required_fields=(
+                    "amount",
+                    "extra_large_buy_amount",
+                    "extra_large_sell_amount",
+                    "margin_financing_buy",
+                ),
+                data_sources=("qd_daily", "qd_fund_flow", "qd_margin"),
+                direction=1,
+                economic_rationale=(
+                    "Accelerating very-large cash demand may absorb a relative slowdown in leveraged demand."
+                ),
+                **common,
+            ),
+        ),
+        windows=(20,),
+        horizons=("20d",),
+    )
+
+
+def v30_epoch_three_generation_plan() -> GenerationPlan:
+    """Issue #100 epoch-three chip-distribution mechanisms."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "end_of_day_chip_distribution_and_daily_bars",
+        "output": "cross_sectional_score",
+        "data_sources": ("qd_daily", "qd_chip"),
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="chip_cost_gap_reversal_5",
+                name="Holder cost-gap reversal",
+                event="chip_cost_gap_reversal",
+                formula_template=(
+                    "mean(close, 5) / (mean(chip_weighted_cost, 5) + 1.0) - 1.0"
+                ),
+                required_fields=("chip_weighted_cost", "close"),
+                direction=-1,
+                economic_rationale=(
+                    "Price far above the observed holder cost basis may face profit-taking."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="chip_profit_crowding_reversal_5",
+                name="Profitable-holder crowding reversal",
+                event="chip_profit_crowding_reversal",
+                formula_template=(
+                    "mean(chip_win_rate, 5) * "
+                    "(mean(close, 5) / (mean(chip_weighted_cost, 5) + 1.0) - 1.0)"
+                ),
+                required_fields=("chip_weighted_cost", "chip_win_rate", "close"),
+                direction=-1,
+                economic_rationale=(
+                    "A broadly profitable holder base may amplify profit-taking pressure."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="chip_concentrated_momentum_5",
+                name="Cost-concentrated momentum",
+                event="chip_concentrated_momentum",
+                formula_template=(
+                    "period_return(close, 5) * "
+                    "(1.0 - (mean(chip_cost_85, 5) - mean(chip_cost_15, 5)) / "
+                    "(mean(chip_weighted_cost, 5) + 1.0))"
+                ),
+                required_fields=(
+                    "chip_cost_15",
+                    "chip_cost_85",
+                    "chip_weighted_cost",
+                    "close",
+                ),
+                direction=1,
+                economic_rationale=(
+                    "Recent momentum may persist when holder costs are concentrated."
+                ),
+                **common,
+            ),
+        ),
+        windows=(20,),
+        horizons=("20d",),
+    )
+
+
+def v30_epoch_four_generation_plan() -> GenerationPlan:
+    """Issue #100 epoch-four chip-dynamics mechanisms."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "end_of_day_chip_distribution_dynamics_and_daily_bars",
+        "output": "cross_sectional_score",
+        "data_sources": ("qd_daily", "qd_chip"),
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="chip_win_rate_acceleration_5_20",
+                name="Profitable-holder acceleration reversal",
+                event="chip_win_rate_acceleration",
+                formula_template=(
+                    "mean(chip_win_rate, 5) - mean(chip_win_rate, 20)"
+                ),
+                required_fields=("chip_win_rate",),
+                direction=-1,
+                economic_rationale=(
+                    "A rapid increase in profitable holders may create near-term realization pressure."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="chip_cost_band_compression_5_20",
+                name="Holder cost-band compression",
+                event="chip_cost_band_compression",
+                formula_template=(
+                    "(mean(chip_cost_85, 5) - mean(chip_cost_15, 5)) / "
+                    "(mean(chip_weighted_cost, 5) + 1.0) - "
+                    "(mean(chip_cost_85, 20) - mean(chip_cost_15, 20)) / "
+                    "(mean(chip_weighted_cost, 20) + 1.0)"
+                ),
+                required_fields=("chip_cost_15", "chip_cost_85", "chip_weighted_cost"),
+                direction=-1,
+                economic_rationale=(
+                    "A tightening holder cost band may reduce overhead supply and support adjustment."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="chip_cost_basis_momentum_confirmation_5",
+                name="Cost-basis and price momentum confirmation",
+                event="chip_cost_basis_momentum_confirmation",
+                formula_template=(
+                    "period_return(chip_weighted_cost, 5) * period_return(close, 5)"
+                ),
+                required_fields=("chip_weighted_cost", "close"),
+                direction=1,
+                economic_rationale=(
+                    "Price continuation accompanied by a rising holder cost basis may be less fragile."
+                ),
+                **common,
+            ),
+        ),
+        windows=(20,),
+        horizons=("20d",),
+    )
+
+
+def v30_epoch_five_generation_plan() -> GenerationPlan:
+    """Issue #100 epoch-five limit-event mechanisms from a dense absence-aware panel."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "end_of_day_limit_event_panel_and_daily_bars",
+        "output": "cross_sectional_score",
+        "data_sources": ("qd_daily", "qd_limit_event"),
+        "direction": 1,
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="limit_up_persistence_20",
+                name="Limit-up event persistence",
+                event="limit_up_persistence",
+                formula_template="mean(kpl_limit_up_flag, 20)",
+                required_fields=("kpl_limit_up_flag",),
+                economic_rationale=(
+                    "Repeated limit-up participation may proxy sustained attention and demand."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="limit_up_main_net_intensity_5",
+                name="Limit-event main-flow intensity",
+                event="limit_up_main_flow",
+                formula_template=(
+                    "mean(kpl_main_net_amount, 5) / (mean(amount, 5) + 1.0)"
+                ),
+                required_fields=("amount", "kpl_main_net_amount"),
+                economic_rationale=(
+                    "Net main-flow demand during limit-up events may persist beyond the event day."
+                ),
+                **common,
+            ),
+            FactorTemplate(
+                template_id="limit_up_seal_strength_5",
+                name="Closing limit-seal strength",
+                event="limit_up_seal_strength",
+                formula_template=(
+                    "mean(kpl_close_seal_amount, 5) / "
+                    "(mean(kpl_turnover_amount, 5) + 1.0)"
+                ),
+                required_fields=("kpl_close_seal_amount", "kpl_turnover_amount"),
+                economic_rationale=(
+                    "A large closing seal relative to event turnover may reveal unfilled demand."
+                ),
+                **common,
+            ),
+        ),
+        windows=(20,),
+        horizons=("20d",),
+    )
+
+
 def flow_stress_generation_plan() -> GenerationPlan:
     """V1.8.18 preregistered 20-day flow-divergence family."""
 

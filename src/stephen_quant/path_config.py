@@ -30,6 +30,8 @@ ALLOWED_PATH_KEYS = frozenset(
         "qd_fund_flow_dir",
         "qd_industry_dir",
         "qd_margin_dir",
+        "qd_chip_dir",
+        "qd_limit_event_dir",
     }
 )
 

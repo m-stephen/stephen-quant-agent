@@ -35,6 +35,7 @@ def _write_source(path: Path, kind: str, *, row_date: str = "20240102") -> Path:
         ("fund_flow", "net_inflow_amount", 10_000.0, "15:00:00", "18:00:00"),
         ("auction", "auction_return", 0.01, "09:25:00", "09:26:00"),
         ("margin", "margin_financing_buy", 1.0, "15:00:00", "18:00:00"),
+        ("chip", "chip_win_rate", 0.01, "15:00:00", "18:00:00"),
         ("industry", "industry_amount", 10_000.0, "15:00:00", "18:00:00"),
     ),
 )
@@ -115,6 +116,50 @@ def test_alternative_adapter_rejects_schema_drift_partition_mismatch_and_bad_tim
 def test_safe_dsl_accepts_registered_alternative_fields() -> None:
     analysis = analyze_formula("mean(net_inflow_amount, 5) / mean(auction_amount, 5)")
     assert analysis.required_fields == ("auction_amount", "net_inflow_amount")
+
+
+def test_limit_event_adapter_densifies_absence_and_aggregates_duplicates(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "limit-event"
+    source.mkdir()
+    file_path = source / "20240102.csv"
+    headers = [
+        "日期",
+        "代码",
+        "名称",
+        "标签",
+        "主力净额(元)",
+        "收盘封单额",
+        "成交额",
+        "实际流通市值",
+        "日内最大封单额",
+    ]
+    with file_path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(headers)
+        writer.writerow([20240102, "000001.SZ", "平安银行", "涨停", 10, 20, 30, 40, 50])
+        writer.writerow([20240102, "000001.SZ", "平安银行", "涨停", -15, 25, 35, 45, 55])
+        writer.writerow([20240102, "000002.SZ", "万科A", "跌停", -10, "", 30, 40, 50])
+    dataset = load_qd_alternative_directory(
+        source,
+        QdAlternativeConfig(
+            source_kind="limit_event",
+            start_date="2024-01-02",
+            end_date="2024-01-02",
+            ingested_at="2024-02-01T12:00:00+08:00",
+            instruments=("000001.SZ", "000002.SZ", "600000.SH"),
+        ),
+    )
+    assert len(dataset.observations) == 3
+    by_instrument = {row.instrument: row for row in dataset.observations}
+    assert by_instrument["000001.SZ"].value("kpl_limit_up_flag") == 1.0
+    assert by_instrument["000001.SZ"].value("kpl_main_net_amount") == -15.0
+    assert by_instrument["000001.SZ"].value("kpl_close_seal_amount") == 25.0
+    assert by_instrument["000002.SZ"].value("kpl_limit_up_flag") == 0.0
+    assert by_instrument["600000.SH"].value("kpl_turnover_amount") == 0.0
+    assert dataset.audit.start_date == "2024-01-02"
+    assert any("Duplicate event rows" in item for item in dataset.audit.warnings)
 
 
 def test_alternative_factor_uses_only_values_available_before_execution() -> None:

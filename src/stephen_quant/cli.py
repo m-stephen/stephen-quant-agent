@@ -36,6 +36,7 @@ from .qmt import (
     validate_research_environment,
     write_dynamic_universe,
     write_factor_redundancy_screen,
+    write_industry_proxy_audit,
     write_qd_universe,
 )
 from .v2 import (
@@ -51,12 +52,14 @@ from .v2 import (
 from .workflows import (
     CompositeCpcvConfig,
     DynamicBacktestConfig,
+    PriceDiscoveryConfig,
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
     load_label_free_config,
+    load_pit_lite_config,
     load_v22_portfolio_breadth_config,
     load_v23_style_residualization_config,
     load_v24_temporal_stability_config,
@@ -72,6 +75,8 @@ from .workflows import (
     run_dynamic_stateful_backtest,
     run_fundamental_cpcv_research,
     run_label_free_benchmark,
+    run_pit_lite_research,
+    run_price_discovery_lab,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v21_real_research,
@@ -198,6 +203,11 @@ def build_parser() -> argparse.ArgumentParser:
     qd_data_audit.add_argument("--paths-config")
     qd_data_audit.add_argument("--output-dir")
 
+    industry_proxy = sub.add_parser("qd-industry-proxy-audit")
+    industry_proxy.add_argument("--paths-config")
+    industry_proxy.add_argument("--daily-dir")
+    industry_proxy.add_argument("--output", default="artifacts/qd-industry-proxy-audit")
+
     data_inventory = sub.add_parser("data-inventory")
     data_inventory.add_argument("--paths-config", required=True)
     data_inventory.add_argument("--year", type=int, required=True)
@@ -309,6 +319,10 @@ def build_parser() -> argparse.ArgumentParser:
     auto_suite.add_argument("--ingested-at", required=True)
     auto_suite.add_argument("--output", default="reports/qd-v1.8.16-suite")
 
+    price_discovery = sub.add_parser("v3-price-discovery")
+    price_discovery.add_argument("--paths-config", required=True)
+    price_discovery.add_argument("--output", default="reports/v3.1-price-discovery")
+
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
     v2_shadow.add_argument("--output", default="reports/v2.0-shadow")
@@ -396,6 +410,12 @@ def build_parser() -> argparse.ArgumentParser:
     v27_risk.add_argument("--mode", choices=("audit", "replay", "kill"), default="audit")
     v27_risk.add_argument("--output", default="reports/v2.7-m2")
     v27_risk.add_argument("--replay-manifest")
+
+    pit_lite = sub.add_parser("pit-lite-research")
+    pit_lite.add_argument("--paths-config", required=True)
+    pit_lite.add_argument("--config", default="configs/v2.9-pit-lite-research.json")
+    pit_lite.add_argument("--ingested-at", required=True)
+    pit_lite.add_argument("--output", default="reports/v2.9-pit-lite")
 
     label_free = sub.add_parser("v2-label-free-search")
     label_free.add_argument(
@@ -1069,6 +1089,40 @@ def main() -> None:
         )
         return
 
+    if args.command == "pit-lite-research":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            required = {"qd_daily_dir", "qd_fundamental_dir", "qd_fund_flow_dir"}
+            missing = sorted(required - set(local_paths.paths))
+            if missing:
+                raise ValueError(f"missing required local data sources: {missing}")
+            load_pit_lite_config(args.config)
+            report, artifacts = run_pit_lite_research(
+                local_paths,
+                args.config,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, TypeError, ValueError) as exc:
+            raise SystemExit(f"pit-lite-research failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
     if args.command == "factor-catalog":
         catalog = build_factor_catalog()
         artifacts = write_factor_catalog(catalog, args.output)
@@ -1222,6 +1276,36 @@ def main() -> None:
             print(report.to_json())
         if not report.gate_pass:
             raise SystemExit(2)
+        return
+
+    if args.command == "qd-industry-proxy-audit":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", args.daily_dir, "--daily-dir")
+            report, artifacts = write_industry_proxy_audit(daily_dir, args.output)
+        except (PathConfigError, QmtDataError) as exc:
+            raise SystemExit(f"qd-industry-proxy-audit failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "command": "qd-industry-proxy-audit",
+                    "classification": report.classification,
+                    "research_usage": report.research_usage,
+                    "inferential_trial_delta": report.inferential_trial_delta,
+                    "manifest_sha256": report.manifest_sha256,
+                    "result_sha256": report.result_sha256,
+                    "artifacts": [
+                        str(artifacts.manifest_path),
+                        str(artifacts.json_path),
+                        str(artifacts.markdown_zh_path),
+                        str(artifacts.markdown_en_path),
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return
 
     if args.command in {"data-inventory", "data-unlock", "data-maintain"}:
@@ -1460,6 +1544,39 @@ def main() -> None:
         print(run.report.to_json())
         return
 
+    if args.command == "v3-price-discovery":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.choose(
+                "dynamic_membership_jsonl", None, "--membership-jsonl"
+            )
+            report = run_price_discovery_lab(
+                daily_dir,
+                membership_path,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=PriceDiscoveryConfig(),
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v3-price-discovery failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "experiment_id": report.experiment_id,
+                    "snapshot_sha256": report.snapshot_sha256,
+                    "generated_candidates": report.generated_candidates,
+                    "selected_candidate": report.court.selected_candidate_id,
+                    "decision": report.court.decision,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -1477,6 +1594,8 @@ def main() -> None:
                     "qd_auction_dir",
                     "qd_margin_dir",
                     "qd_industry_dir",
+                    "qd_chip_dir",
+                    "qd_limit_event_dir",
                 }
             }
             common = {

@@ -35,6 +35,23 @@ SOURCE_FIELDS = {
         "margin_financing_repay",
     },
     "qd_industry": {"industry_return", "industry_pe", "industry_pb"},
+    "qd_chip": {
+        "chip_cost_5",
+        "chip_cost_15",
+        "chip_cost_50",
+        "chip_cost_85",
+        "chip_cost_95",
+        "chip_weighted_cost",
+        "chip_win_rate",
+    },
+    "qd_limit_event": {
+        "kpl_limit_up_flag",
+        "kpl_main_net_amount",
+        "kpl_close_seal_amount",
+        "kpl_turnover_amount",
+        "kpl_float_market_cap",
+        "kpl_max_seal_amount",
+    },
 }
 
 

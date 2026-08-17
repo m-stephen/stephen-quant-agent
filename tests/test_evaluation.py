@@ -16,6 +16,7 @@ from stephen_quant.evaluation import (
     spearman_correlation,
     write_alpha_card,
 )
+from stephen_quant.evaluation.metrics import summarize_horizon
 from stephen_quant.factors import build_seed_registry
 
 
@@ -157,3 +158,19 @@ def test_bad_samples_and_lineage_fail_explicitly() -> None:
 def test_constant_inputs_are_rejected() -> None:
     with pytest.raises(EvaluationError, match="constant"):
         pearson_correlation([1, 1, 1], [1, 2, 3])
+
+
+def test_horizon_summary_skips_constant_cross_sections() -> None:
+    rows = [row for row in _observations() if row.horizon == "5d"]
+    first_date = min(row.timestamp for row in rows)
+    adjusted = [
+        EvaluationObservation(
+            **{
+                **row.__dict__,
+                "factor_value": 0.0 if row.timestamp == first_date else row.factor_value,
+            }
+        )
+        for row in rows
+    ]
+    summary = summarize_horizon("5d", adjusted, direction=1)
+    assert summary.dates == 3

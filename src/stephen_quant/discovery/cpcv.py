@@ -140,9 +140,13 @@ def _daily_rank_ic(
         cross_section = sorted(by_day[day], key=lambda row: row.instrument)
         if len(cross_section) < 3:
             raise ValueError(f"CPCV cross-section {day} requires at least three instruments")
+        signals = [direction * row.signal for row in cross_section]
+        returns = [row.forward_return for row in cross_section]
+        if len(set(signals)) < 2 or len(set(returns)) < 2:
+            continue
         result[day] = spearman_correlation(
-            [direction * row.signal for row in cross_section],
-            [row.forward_return for row in cross_section],
+            signals,
+            returns,
         )
     return result
 

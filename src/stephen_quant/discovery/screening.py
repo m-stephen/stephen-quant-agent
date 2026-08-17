@@ -160,16 +160,11 @@ def _stability_and_turnover(
         ordered = sorted(cross_section, key=lambda item: item.instrument)
         if len(ordered) < minimum_cross_section:
             continue
-        daily_ic.append(
-            (
-                timestamp[:4],
-                spearman_correlation(
-                    [direction * row.factor_value for row in ordered],
-                    [row.forward_return for row in ordered],
-                ),
-            )
-        )
-        ranked = average_ranks([direction * row.factor_value for row in ordered])
+        factors = [direction * row.factor_value for row in ordered]
+        returns = [row.forward_return for row in ordered]
+        if len(set(factors)) >= 2 and len(set(returns)) >= 2:
+            daily_ic.append((timestamp[:4], spearman_correlation(factors, returns)))
+        ranked = average_ranks(factors)
         denominator = max(len(ordered) - 1, 1)
         ranks[timestamp] = {
             row.instrument: (rank - 1) / denominator

@@ -74,6 +74,8 @@ def daily_correlations(
             )
         factors = [direction * row.factor_value for row in cross_section]
         returns = [row.forward_return for row in cross_section]
+        if len(set(factors)) < 2 or len(set(returns)) < 2:
+            continue
         daily_ic.append(pearson_correlation(factors, returns))
         daily_rank_ic.append(spearman_correlation(factors, returns))
     return daily_ic, daily_rank_ic
@@ -160,6 +162,8 @@ def peer_rank_correlation(
             continue
         candidate = [direction * row.factor_value for row in rows]
         peer = [peer_values[(row.timestamp, row.instrument)] for row in rows]
+        if len(set(candidate)) < 2 or len(set(peer)) < 2:
+            continue
         correlations.append(spearman_correlation(candidate, peer))
     if not correlations:
         raise EvaluationError("peer correlation has no valid cross-sections")

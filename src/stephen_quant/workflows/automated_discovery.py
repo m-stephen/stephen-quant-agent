@@ -44,6 +44,11 @@ from stephen_quant.discovery import (
     run_training_screen,
     seed_generation_plan,
     v21_mechanism_generation_plan,
+    v30_continuous_generation_plan,
+    v30_epoch_five_generation_plan,
+    v30_epoch_four_generation_plan,
+    v30_epoch_three_generation_plan,
+    v30_epoch_two_generation_plan,
 )
 from stephen_quant.falsification import write_alpha_court_report
 from stephen_quant.integrity.models import ExperimentSpec
@@ -119,6 +124,10 @@ class AutomatedDiscoveryConfig:
     attribution_minimum_execution_sharpe: float = 0.50
     attribution_maximum_drawdown: float = 0.25
     regime_lookback: int = 20
+    prior_inferential_trials: int = 0
+    mechanism_epoch: int = 0
+    court_minimum_annualized_sharpe: float | None = None
+    court_maximum_drawdown: float | None = None
 
     def validate(self) -> None:
         window = ScreeningWindow(
@@ -149,8 +158,20 @@ class AutomatedDiscoveryConfig:
             "v1.8.20",
             "v1.8.21",
             "v2.1",
+            "v3.0",
         }:
-            raise ValueError("search_profile must be v1.8.16 through v1.8.21 or v2.1")
+            raise ValueError("unsupported automated-discovery search_profile")
+        if self.prior_inferential_trials < 0:
+            raise ValueError("prior_inferential_trials cannot be negative")
+        if self.search_profile == "v3.0" and self.mechanism_epoch not in {1, 2, 3, 4, 5}:
+            raise ValueError("v3.0 mechanism_epoch must be between 1 and 5")
+        if self.search_profile != "v3.0" and self.mechanism_epoch != 0:
+            raise ValueError("mechanism_epoch is reserved for v3.0")
+        if self.search_profile == "v3.0" and (
+            self.court_minimum_annualized_sharpe is None
+            or self.court_maximum_drawdown is None
+        ):
+            raise ValueError("v3.0 requires frozen Sharpe and drawdown court thresholds")
         if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
             not 0 < rate <= 1 for rate in self.capacity_stress_rates
         ):
@@ -466,6 +487,8 @@ def _alternative_datasets(
         "qd_auction_dir": ("qd_auction", "auction"),
         "qd_margin_dir": ("qd_margin", "margin"),
         "qd_industry_dir": ("qd_industry", "industry"),
+        "qd_chip_dir": ("qd_chip", "chip"),
+        "qd_limit_event_dir": ("qd_limit_event", "limit_event"),
     }
     datasets: dict[str, QdAlternativeDataset] = {}
     for key, (source_name, kind) in mapping.items():
@@ -540,12 +563,26 @@ def run_automated_discovery(
         "qd_auction_dir": "qd_auction",
         "qd_margin_dir": "qd_margin",
         "qd_industry_dir": "qd_industry",
+        "qd_chip_dir": "qd_chip",
+        "qd_limit_event_dir": "qd_limit_event",
     }
     available_sources = {"qd_daily"} | {
         source for key, source in source_keys.items() if key in alternative_paths
     }
     plan_seed = (
-        v21_mechanism_generation_plan()
+        (
+            v30_continuous_generation_plan()
+            if config.mechanism_epoch == 1
+            else v30_epoch_two_generation_plan()
+            if config.mechanism_epoch == 2
+            else v30_epoch_three_generation_plan()
+            if config.mechanism_epoch == 3
+            else v30_epoch_four_generation_plan()
+            if config.mechanism_epoch == 4
+            else v30_epoch_five_generation_plan()
+        )
+        if config.search_profile == "v3.0"
+        else v21_mechanism_generation_plan()
         if config.search_profile == "v2.1"
         else flow_stress_generation_plan()
         if config.search_profile in {"v1.8.18", "v1.8.19", "v1.8.20", "v1.8.21"}
@@ -645,7 +682,28 @@ def run_automated_discovery(
                 horizon_sessions=HORIZON_SESSIONS[config.horizon],
                 eligible_by_execution_date=eligibility,
             )
-    anchor = next(iter(observations.values()))
+    if observations:
+        anchor = next(iter(observations.values()))
+    else:
+        # A multi-source-only epoch still needs labels, execution timestamps and
+        # universe eligibility.  This deterministic daily schema is an anchor,
+        # not a searched candidate, and is never screened or entered in Court.
+        anchor_template = next(
+            template
+            for template in seed_generation_plan().templates
+            if template.template_id == "price_momentum"
+        )
+        anchor_schema = anchor_template.render(
+            window=max(config.windows), horizon=config.horizon  # type: ignore[arg-type]
+        )
+        anchor = build_qmt_factor_observations(
+            dataset.bars,
+            anchor_schema.compile(),
+            test_start=config.research_start,
+            test_end=config.research_end,
+            horizon_sessions=HORIZON_SESSIONS[config.horizon],
+            eligible_by_execution_date=eligibility,
+        )
     for item in candidates:
         if not item.unique or item.schema.data_sources == ("qd_daily",):
             continue
@@ -668,7 +726,7 @@ def run_automated_discovery(
                 item.schema.compile(),
                 anchor,
             )
-    if config.search_profile in {"v1.8.17", "v1.8.18"}:
+    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0"}:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
             for fingerprint, rows in observations.items()
@@ -814,6 +872,8 @@ def run_automated_discovery(
             max_placebo_p_value=config.max_placebo_p_value,
             min_dsr_probability=config.min_dsr_probability,
             maximum_pbo=config.maximum_pbo,
+            minimum_annualized_sharpe=config.court_minimum_annualized_sharpe,
+            maximum_drawdown=config.court_maximum_drawdown,
         )
         execution, execution_reports = run_discovery_execution(
             registry,
@@ -827,6 +887,7 @@ def run_automated_discovery(
             horizon_sessions=HORIZON_SESSIONS[config.horizon],
             config=execution_config,
             seed=config.seed,
+            prior_inferential_trials=config.prior_inferential_trials,
         )
         if attribution_registration is not None and attribution_target is not None:
             target_score = next(
@@ -907,7 +968,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v1.8.21-preregistered-portfolio-usage-1.0.0"
+            "v3.0-continuous-factor-research-1.0.0"
+            if config.search_profile == "v3.0"
+            else "v1.8.21-preregistered-portfolio-usage-1.0.0"
             if config.search_profile == "v1.8.21"
             else "v1.8.20-factor-attribution-1.0.0"
             if config.search_profile == "v1.8.20"

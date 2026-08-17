@@ -15,6 +15,8 @@
     "qd_fund_flow_dir": "<QD_FUND_FLOW_DIR>",
     "qd_auction_dir": "<QD_AUCTION_DIR>",
     "qd_margin_dir": "<QD_MARGIN_DIR>",
+    "qd_chip_dir": "<QD_CHIP_DISTRIBUTION_DIR>",
+    "qd_limit_event_dir": "<QD_KPL_LIMIT_EVENT_DIR>",
     "qd_industry_dir": "<QD_INDUSTRY_DIR>",
     "qd_concept_membership_csv": "<NORMALIZED_POINT_IN_TIME_CONCEPT_MEMBERSHIP_CSV>",
     "alphapai_cache_dir": "<RESEARCH_SAFE_METADATA_CACHE_ONLY>"

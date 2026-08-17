@@ -1,5 +1,61 @@
 # Stephen Quant Agent
 
+V3.1 adds a predeclared 630-candidate OHLCV discovery grammar and a layered Alpha Court. It
+separates factor efficacy from long-only feasibility, freezes a Top 60 on 2022, confirms only that
+shortlist on 2023/2024, supports a single survivor, audits purged/embargoed CPCV, and reports DSR,
+PBO, placebo tests and every holding-period offset. The current honest result is
+`RESEARCH_CANDIDATE`, not a deployable alpha: 120-session price reversal has stable positive
+RankIC, but fails multiplicity-adjusted DSR and cost-aware economic gates.
+
+```powershell
+stephen-quant --db artifacts/v3.1-price-discovery/registry.sqlite3 v3-price-discovery `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v3.1-price-discovery
+```
+
+See the [English V3.1 result](docs/V3_1_PRICE_DISCOVERY_RESULT_EN.md) and
+[V3.1 中文结果](docs/V3_1_PRICE_DISCOVERY_RESULT_ZH.md). Detailed machine-readable and bilingual
+runtime reports remain under the gitignored output directory.
+
+V3.0 adds a preregistered continuous factor-research loop over 2022–2024 daily bars, fund flow,
+auction, margin, chip-distribution and limit-event data. Five mechanism epochs were tested with
+immutable Alpha Court, Sharpe, drawdown, cost and multiplicity gates. The honest current result is
+`NO_ALPHA_IN_CURRENT_MECHANISM_SET`; 2025/2026 were never opened.
+
+Each epoch is replayed from a gitignored local path configuration, for example:
+
+```powershell
+stephen-quant --db artifacts/v3.0-continuous.sqlite3 qd-auto-discover `
+  --paths-config configs/qd-paths.local.json `
+  --manifest configs/v3.0-continuous-epoch-5.json `
+  --ingested-at 2024-12-31T23:59:59+08:00 `
+  --output reports/v3.0-continuous-epoch-5
+```
+
+See [V3.0 result](docs/V3_0_CONTINUOUS_RESEARCH_RESULT_EN.md),
+[V3.0 中文结果](docs/V3_0_CONTINUOUS_RESEARCH_RESULT_ZH.md), and the bilingual specifications.
+
+The PIT-Lite daily-bar industry audit can be replayed with the gitignored local path configuration:
+
+```powershell
+stephen-quant qd-industry-proxy-audit --paths-config configs/qd-paths.local.json
+```
+
+It reads only explicit 2022–2024 date partitions and emits a frozen manifest, JSON and bilingual
+Markdown. See `docs/PIT_LITE_INDUSTRY_PROXY_AUDIT_EN.md` and the Chinese companion for the current
+evidence and usage restriction.
+
+The bounded V2.9 PIT-Lite research operation is replayed from a gitignored local path config:
+
+```powershell
+stephen-quant --db artifacts/issue-98-pit-lite.sqlite3 pit-lite-research `
+  --paths-config configs/qd-paths.local.json `
+  --config configs/v2.9-pit-lite-research.json `
+  --ingested-at 2025-01-02T00:00:00+08:00
+```
+
+Its current decision is `NO_ROBUST_ALPHA_POPULATION`; see the bilingual PIT-Lite research result.
+
 ## V2.8 point-in-time data-source upgrade
 
 V2.8 promotes the tested data-maintenance and point-in-time staging foundation from
