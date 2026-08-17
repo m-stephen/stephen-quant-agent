@@ -16,7 +16,12 @@ from .models import (
     SplitLineage,
     SplitManifest,
 )
-from .preprocessing import FoldPreprocessor, FoldTransformResult, fit_transform_fold
+from .preprocessing import (
+    FoldPreprocessor,
+    FoldTransformResult,
+    WinsorZScorePreprocessor,
+    fit_transform_fold,
+)
 
 __all__ = [
     "CrossValidationError",
@@ -29,6 +34,7 @@ __all__ = [
     "SplitArtifacts",
     "SplitLineage",
     "SplitManifest",
+    "WinsorZScorePreprocessor",
     "audit_fold",
     "audit_manifest",
     "embargo_affects_any",

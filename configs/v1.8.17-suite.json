@@ -1,0 +1,9 @@
+{
+  "manifest_version": "1.0.0",
+  "global_trial_budget": 132,
+  "search_manifests": [
+    "v1.8.17-search-next-open.json",
+    "v1.8.17-search.json",
+    "v1.8.17-search-20d.json"
+  ]
+}

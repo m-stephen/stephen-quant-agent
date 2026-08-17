@@ -184,3 +184,153 @@ def seed_generation_plan() -> GenerationPlan:
         windows=(5, 20, 60),
         horizons=("next_open", "5d", "20d"),
     )
+
+
+def normalized_generation_plan() -> GenerationPlan:
+    """V1.8.17 hypotheses normalized by liquidity and combined across sources."""
+
+    return GenerationPlan(
+        templates=(
+            *seed_generation_plan().templates[:3],
+            FactorTemplate(
+                template_id="fund_flow_intensity",
+                name="ADV-normalized fund-flow intensity",
+                event="fund_flow_liquidity",
+                context="market_neutral_cross_section",
+                quality="point_in_time_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(net_inflow_amount, {window}) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=("amount", "net_inflow_amount"),
+                data_sources=("qd_daily", "qd_fund_flow"),
+                direction=1,
+                economic_rationale="Net demand is comparable only after scaling by traded value.",
+            ),
+            FactorTemplate(
+                template_id="large_flow_intensity",
+                name="ADV-normalized large-order imbalance",
+                event="large_order_flow",
+                context="market_neutral_cross_section",
+                quality="point_in_time_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "(mean(large_buy_amount, {window}) - "
+                    "mean(large_sell_amount, {window})) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=("amount", "large_buy_amount", "large_sell_amount"),
+                data_sources=("qd_daily", "qd_fund_flow"),
+                direction=1,
+                economic_rationale="Large-order imbalance may proxy informed demand.",
+            ),
+            FactorTemplate(
+                template_id="extra_large_flow_intensity",
+                name="ADV-normalized extra-large-order imbalance",
+                event="extra_large_order_flow",
+                context="market_neutral_cross_section",
+                quality="point_in_time_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "(mean(extra_large_buy_amount, {window}) - "
+                    "mean(extra_large_sell_amount, {window})) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=(
+                    "amount",
+                    "extra_large_buy_amount",
+                    "extra_large_sell_amount",
+                ),
+                data_sources=("qd_daily", "qd_fund_flow"),
+                direction=1,
+                economic_rationale="The largest orders may contain stronger information.",
+            ),
+            FactorTemplate(
+                template_id="flow_price_divergence",
+                name="Fund-flow versus price divergence",
+                event="flow_price_divergence",
+                context="market_neutral_cross_section",
+                quality="point_in_time_fund_flow_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(net_inflow_amount, {window}) / "
+                    "(mean(amount, {window}) + 1.0) - period_return(close, {window})"
+                ),
+                required_fields=("amount", "close", "net_inflow_amount"),
+                data_sources=("qd_daily", "qd_fund_flow"),
+                direction=1,
+                economic_rationale="Buying pressure without price response may reveal underreaction.",
+            ),
+            FactorTemplate(
+                template_id="margin_buy_intensity",
+                name="ADV-normalized financing demand",
+                event="margin_financing",
+                context="market_neutral_cross_section",
+                quality="point_in_time_margin_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(margin_financing_buy, {window}) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=("amount", "margin_financing_buy"),
+                data_sources=("qd_daily", "qd_margin"),
+                direction=1,
+                economic_rationale="Financing demand is scaled by normal market liquidity.",
+            ),
+            FactorTemplate(
+                template_id="margin_balance_surprise",
+                name="Net financing-flow intensity",
+                event="margin_balance_change",
+                context="market_neutral_cross_section",
+                quality="point_in_time_margin_and_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "(mean(margin_financing_buy, {window}) - "
+                    "mean(margin_financing_repay, {window})) / "
+                    "(mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=(
+                    "amount",
+                    "margin_financing_buy",
+                    "margin_financing_repay",
+                ),
+                data_sources=("qd_daily", "qd_margin"),
+                direction=1,
+                economic_rationale="Net leveraged buying may lead price adjustment.",
+            ),
+            FactorTemplate(
+                template_id="auction_liquidity_strength",
+                name="Auction return and liquidity interaction",
+                event="opening_auction",
+                context="pre_open_market_neutral_cross_section",
+                quality="same_day_point_in_time_auction",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(auction_return, {window}) * "
+                    "mean(auction_volume_ratio_1, {window})"
+                ),
+                required_fields=("auction_return", "auction_volume_ratio_1"),
+                data_sources=("qd_auction",),
+                direction=1,
+                economic_rationale="Price moves backed by auction liquidity should be more credible.",
+            ),
+            FactorTemplate(
+                template_id="auction_amount_intensity",
+                name="ADV-normalized opening-auction amount",
+                event="opening_auction_liquidity",
+                context="pre_open_market_neutral_cross_section",
+                quality="same_day_auction_and_prior_daily_bars",
+                output="cross_sectional_score",
+                formula_template=(
+                    "mean(auction_amount, {window}) / (mean(amount, {window}) + 1.0)"
+                ),
+                required_fields=("amount", "auction_amount"),
+                data_sources=("qd_daily", "qd_auction"),
+                direction=1,
+                economic_rationale="Auction demand is scaled by the stock's normal traded value.",
+            ),
+        ),
+        windows=(5, 20, 60),
+        horizons=("next_open", "5d", "20d"),
+    )

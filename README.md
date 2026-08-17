@@ -420,6 +420,24 @@ Machine-specific paths and all generated data remain ignored. See the
 The frozen three-horizon outcome is available in [English](docs/V1_8_16_RESULT_EN.md)
 and [中文](docs/V1_8_16_RESULT_ZH.md).
 
+## V1.8.17 normalized multi-source search
+
+V1.8.17 replaces raw alternative-data levels with liquidity-normalized and cross-source
+hypotheses, applies point-in-time cross-sectional normalization, limits each factor family in the
+CPCV shortlist, and adds yearly-stability and rank-turnover diagnostics to the frozen screen.
+It preserves the V1.8.16 CPCV, cost, placebo, PBO, DSR, walk-forward, and sealed-window gates.
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.17.sqlite3" qd-auto-discover-suite `
+  --paths-config "configs\qd-paths.local.json" `
+  --suite-manifest "configs\v1.8.17-suite.json" `
+  --ingested-at "2026-08-17T00:00:00+08:00" `
+  --output "reports\qd-v1.8.17-suite"
+```
+
+See the [English design](docs/V1_8_17_SPEC_EN.md) and
+[中文设计](docs/V1_8_17_SPEC_ZH.md). Local data paths and generated reports remain Git-ignored.
+
 ## Quick start
 
 ```bash

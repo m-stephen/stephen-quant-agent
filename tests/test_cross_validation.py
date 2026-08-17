@@ -219,6 +219,20 @@ def test_fold_preprocessor_fits_on_train_ids_only() -> None:
     assert len(result.transformed_test) == len(fold.test_ids)
 
 
+def test_winsor_zscore_uses_only_training_distribution() -> None:
+    from stephen_quant.cross_validation import WinsorZScorePreprocessor
+
+    transformer = WinsorZScorePreprocessor(
+        {"train-a": 0.0, "train-b": 2.0, "test-outlier": 1_000_000.0},
+        lower_quantile=0.0,
+        upper_quantile=1.0,
+    )
+    transformer.fit(("train-a", "train-b"))
+
+    assert transformer.transform(("train-a", "train-b")) == pytest.approx((-1.0, 1.0))
+    assert transformer.transform(("test-outlier",)) == pytest.approx((1.0,))
+
+
 def test_invalid_samples_and_split_parameters_fail() -> None:
     samples = _daily_samples(days=6)
     with pytest.raises(CrossValidationError, match="exceeds unique"):
