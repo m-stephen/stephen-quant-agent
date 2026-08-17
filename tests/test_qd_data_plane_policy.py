@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
+from stephen_quant.qmt import data_plane_policy
 from stephen_quant.qmt.data_plane_policy import (
     CONSUMED_MAINTENANCE,
     SEALED_MAINTENANCE,
     MaintenanceExecutionContext,
-    VerifiedGitHubApproval,
     data_operations_ledger_record,
     research_visible_control_metadata,
     validate_data_maintenance_authorization,
@@ -19,7 +20,23 @@ from stephen_quant.qmt.data_plane_policy import (
 )
 from stephen_quant.qmt.models import QmtDataError
 
-APPROVAL = "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-5315428119"
+APPROVAL = "https://github.com/m-stephen/stephen-quant-agent/issues/85#issuecomment-100"
+_APPROVED_RECORD: dict[str, object] = {}
+_AUTHOR_ASSOCIATION = "OWNER"
+
+
+@pytest.fixture(autouse=True)
+def _github_api_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_comment(reference: str, token: str | None, pattern: object) -> dict[str, object]:
+        return {
+            "html_url": reference,
+            "author_association": _AUTHOR_ASSOCIATION,
+            "user": {"login": "m-stephen"},
+            "updated_at": "2026-08-17T19:00:00+08:00",
+            "body": "QD_MAINTENANCE_APPROVAL_V1 " + json.dumps(_APPROVED_RECORD),
+        }
+
+    monkeypatch.setattr(data_plane_policy, "_github_issue_comment", fake_comment)
 
 
 def _authorization(year: int = 2026) -> dict[str, object]:
@@ -53,16 +70,22 @@ def _context(year: int = 2026) -> MaintenanceExecutionContext:
     )
 
 
-def _verifier(reference: str) -> VerifiedGitHubApproval:
-    return VerifiedGitHubApproval(
-        reference, "m-stephen", "repository_maintainer", True,
-        "2026-08-17T19:00:00+08:00", "github-api",
-    )
-
-
 def _validate(payload: dict[str, object], year: int = 2026):
+    global _APPROVED_RECORD
+    baseline = _authorization(year)
+    _APPROVED_RECORD = {
+        "approved": True,
+        "year": year,
+        "source_files": baseline["source_files"],
+        "purpose": baseline["purpose"],
+        "source_manifest_sha256": baseline["source_manifest_sha256"],
+        "code_commit": baseline["code_commit"],
+        "parser_version": baseline["parser_version"],
+        "schema_version": baseline["schema_version"],
+        "requested_outputs": baseline["requested_outputs"],
+    }
     return validate_data_maintenance_authorization(
-        payload, context=_context(year), approval_verifier=_verifier
+        payload, context=_context(year)
     )
 
 
@@ -72,14 +95,12 @@ def test_research_plane_rejects_restricted_states() -> None:
             validate_research_manifest_control({"plane": "research", "state": state})
 
 
-def test_maintenance_requires_live_verified_exact_approval() -> None:
+def test_maintenance_requires_live_verified_exact_issue_85_approval() -> None:
     assert _validate(_authorization()).state == SEALED_MAINTENANCE
-    with pytest.raises(QmtDataError, match="live GitHub"):
-        validate_data_maintenance_authorization(
-            _authorization(), context=_context(), approval_verifier=None
-        )
     payload = _authorization()
-    payload["approval_reference"] = "github-issue-explicit-authorization"
+    payload["approval_reference"] = (
+        "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-100"
+    )
     with pytest.raises(QmtDataError, match="exact repository Issue comment"):
         _validate(payload)
 
@@ -108,17 +129,41 @@ def test_maintenance_rejects_scope_hash_commit_identity_and_time_mismatch() -> N
             _validate(payload)
 
 
-def test_forged_verifier_and_approver_identity_are_rejected() -> None:
-    def forged(reference: str) -> VerifiedGitHubApproval:
-        return VerifiedGitHubApproval(
-            reference, "attacker", "agent", True,
-            "2026-08-17T19:00:00+08:00", "local-stub",
-        )
-
+def test_github_comment_scope_and_repository_role_are_bound() -> None:
+    global _AUTHOR_ASSOCIATION, _APPROVED_RECORD
+    payload = _authorization()
+    _ = _validate(payload)
+    _APPROVED_RECORD = {**_APPROVED_RECORD, "purpose": "collection"}
     with pytest.raises(QmtDataError, match="verification failed"):
-        validate_data_maintenance_authorization(
-            _authorization(), context=_context(), approval_verifier=forged
-        )
+        validate_data_maintenance_authorization(payload, context=_context())
+    _AUTHOR_ASSOCIATION = "NONE"
+    try:
+        with pytest.raises(QmtDataError, match="identity or repository role"):
+            validate_data_maintenance_authorization(payload, context=_context())
+    finally:
+        _AUTHOR_ASSOCIATION = "OWNER"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("year", 2025),
+        ("source_files", ["year=2026/other.jsonl"]),
+        ("purpose", "collection"),
+        ("source_manifest_sha256", "f" * 64),
+        ("code_commit", "e" * 40),
+        ("parser_version", "parser-v2"),
+        ("schema_version", "schema-v2"),
+        ("requested_outputs", ["manifest"]),
+    ],
+)
+def test_every_github_approved_scope_field_must_match(field_name: str, value: object) -> None:
+    global _APPROVED_RECORD
+    payload = _authorization()
+    _ = _validate(payload)
+    _APPROVED_RECORD = {**_APPROVED_RECORD, field_name: value}
+    with pytest.raises(QmtDataError, match="verification failed"):
+        validate_data_maintenance_authorization(payload, context=_context())
 
 
 def test_storage_roots_and_research_environment_are_physically_isolated(tmp_path: Path) -> None:

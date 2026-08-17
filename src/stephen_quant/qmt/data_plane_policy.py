@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Callable, Mapping
+import urllib.error
+import urllib.request
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -25,8 +27,13 @@ _ALLOWED_OUTPUTS = frozenset({
     "revision_chain_diagnostics", "operation_status",
 })
 _APPROVAL_PATTERN = re.compile(
-    r"https://github\.com/m-stephen/stephen-quant-agent/issues/\d+#issuecomment-\d+"
+    r"https://github\.com/m-stephen/stephen-quant-agent/issues/85#issuecomment-(\d+)"
 )
+_APPROVAL_MARKER = "QD_MAINTENANCE_APPROVAL_V1"
+_ISOLATION_PATTERN = re.compile(
+    r"https://github\.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-(\d+)"
+)
+_ISOLATION_MARKER = "QD_ISOLATION_PROOF_V1"
 _MAINTENANCE_ENV_MARKERS = (
     "ALPHAPAI", "MAINTENANCE", "SEALED", "RESTRICTED", "DATA_ENCLAVE",
 )
@@ -40,6 +47,14 @@ class VerifiedGitHubApproval:
     approved: bool
     verified_at: str
     verifier: str
+    year: int
+    source_files: tuple[str, ...]
+    purpose: str
+    source_manifest_sha256: str
+    code_commit: str
+    parser_version: str
+    schema_version: str
+    requested_outputs: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -70,9 +85,6 @@ class DataMaintenanceAuthorization:
     requested_outputs: tuple[str, ...]
     approval_verified_at: str
     approval_verifier: str
-
-
-ApprovalVerifier = Callable[[str], VerifiedGitHubApproval]
 
 
 def _timestamp(value: str, field: str) -> datetime:
@@ -150,14 +162,125 @@ def validate_research_environment(environment: Mapping[str, str]) -> None:
         raise QmtDataError(f"research environment exposes maintenance credentials/config: {exposed}")
 
 
+def _github_issue_comment(
+    reference: str, github_token: str | None, pattern: re.Pattern[str],
+) -> dict[str, object]:
+    match = pattern.fullmatch(reference)
+    if match is None:
+        raise QmtDataError("verification reference is not an authorized Issue comment URL")
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/m-stephen/stephen-quant-agent/issues/comments/{match.group(1)}",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {github_token}" if github_token else "",
+            "User-Agent": "stephen-quant-pit-verifier",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        raise QmtDataError("GitHub approval verification request failed") from exc
+    if not isinstance(result, dict):
+        raise QmtDataError("GitHub approval verification returned invalid data")
+    return result
+
+
+def _machine_payload(body: object, marker: str) -> dict[str, object]:
+    if not isinstance(body, str):
+        raise QmtDataError("approval comment body is missing")
+    matching = [line[len(marker):].strip() for line in body.splitlines() if line.startswith(marker)]
+    if len(matching) != 1:
+        raise QmtDataError(f"approval comment requires exactly one {marker} record")
+    try:
+        payload = json.loads(matching[0], object_pairs_hook=lambda pairs: _strict_pairs(pairs))
+    except json.JSONDecodeError as exc:
+        raise QmtDataError("approval comment contains invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise QmtDataError("approval record must be a JSON object")
+    return payload
+
+
+def _strict_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise QmtDataError(f"duplicate approval key: {key}")
+        result[key] = value
+    return result
+
+
+def verify_github_maintenance_approval(
+    reference: str, *, github_token: str | None = None,
+) -> VerifiedGitHubApproval:
+    comment = _github_issue_comment(reference, github_token, _APPROVAL_PATTERN)
+    if comment.get("html_url") != reference or comment.get("author_association") not in {
+        "OWNER", "MEMBER", "COLLABORATOR",
+    }:
+        raise QmtDataError("GitHub approval identity or repository role is invalid")
+    user = comment.get("user")
+    if not isinstance(user, dict) or not isinstance(user.get("login"), str):
+        raise QmtDataError("GitHub approval author is invalid")
+    record = _machine_payload(comment.get("body"), _APPROVAL_MARKER)
+    source_files = _safe_files(record.get("source_files"))
+    outputs_raw = record.get("requested_outputs")
+    if not isinstance(outputs_raw, list) or not outputs_raw:
+        raise QmtDataError("GitHub approval requires requested_outputs")
+    outputs = tuple(sorted({str(value).strip().lower() for value in outputs_raw}))
+    year = record.get("year")
+    if not isinstance(year, int):
+        raise QmtDataError("GitHub approval requires integer year")
+    return VerifiedGitHubApproval(
+        reference=reference,
+        approver_login=str(user["login"]),
+        approver_role="repository_maintainer",
+        approved=record.get("approved") is True,
+        verified_at=str(comment.get("updated_at") or comment.get("created_at") or ""),
+        verifier="github-api-v3-fixed-endpoint",
+        year=year,
+        source_files=source_files,
+        purpose=str(record.get("purpose", "")),
+        source_manifest_sha256=_sha256(str(record.get("source_manifest_sha256", "")), "approved manifest hash"),
+        code_commit=_commit(str(record.get("code_commit", ""))),
+        parser_version=str(record.get("parser_version", "")),
+        schema_version=str(record.get("schema_version", "")),
+        requested_outputs=outputs,
+    )
+
+
+def verify_github_isolation_proof(
+    reference: str,
+    *,
+    artifact_sha256: str,
+    start_date: str,
+    end_date: str,
+    sealed_years_excluded: tuple[int, ...],
+    github_token: str | None = None,
+) -> None:
+    comment = _github_issue_comment(reference, github_token, _ISOLATION_PATTERN)
+    if comment.get("html_url") != reference or comment.get("author_association") not in {
+        "OWNER", "MEMBER", "COLLABORATOR",
+    }:
+        raise QmtDataError("GitHub isolation proof identity or role is invalid")
+    record = _machine_payload(comment.get("body"), _ISOLATION_MARKER)
+    if (
+        record.get("verified") is not True
+        or _sha256(str(record.get("artifact_sha256", "")), "verified artifact hash")
+        != _sha256(artifact_sha256, "artifact hash")
+        or record.get("start_date") != start_date
+        or record.get("end_date") != end_date
+        or record.get("sealed_years_excluded") != list(sealed_years_excluded)
+    ):
+        raise QmtDataError("GitHub isolation proof does not match the allowlist artifact")
+
+
 def validate_data_maintenance_authorization(
     payload: dict[str, object],
     *,
     context: MaintenanceExecutionContext,
-    approval_verifier: ApprovalVerifier | None,
+    github_token: str | None = None,
 ) -> DataMaintenanceAuthorization:
-    if approval_verifier is None:
-        raise QmtDataError("maintenance authorization requires a live GitHub approval verifier")
     if payload.get("plane") != "data_maintenance":
         raise QmtDataError("maintenance authorization requires data_maintenance plane")
     state = str(payload.get("state", ""))
@@ -202,14 +325,22 @@ def validate_data_maintenance_authorization(
     code_commit = _commit(values["code_commit"])
     if code_commit != _commit(context.code_commit):
         raise QmtDataError("code commit does not match authorization")
-    verified = approval_verifier(values["approval_reference"])
+    verified = verify_github_maintenance_approval(
+        values["approval_reference"], github_token=github_token
+    )
     if (
         not verified.approved
         or verified.reference != values["approval_reference"]
         or verified.approver_login != values["approved_by"]
-        or verified.approver_role not in {"user", "repository_maintainer"}
         or verified.approver_role != values["approver_role"]
-        or verified.verifier != "github-api"
+        or verified.year != year
+        or verified.source_files != source_files
+        or verified.purpose != purpose
+        or verified.source_manifest_sha256 != manifest_sha
+        or verified.code_commit != code_commit
+        or verified.parser_version != values["parser_version"]
+        or verified.schema_version != values["schema_version"]
+        or verified.requested_outputs != requested_outputs
     ):
         raise QmtDataError("GitHub approval verification failed")
     if values["approved_by"] == values["access_subject"]:

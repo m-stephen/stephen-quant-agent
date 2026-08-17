@@ -8,10 +8,41 @@ from pathlib import Path
 import pytest
 
 from stephen_quant.cli import main
+from stephen_quant.qmt import data_plane_policy
+from stephen_quant.qmt import qd_data_audit as audit_module
 from stephen_quant.qmt.models import QmtDataError
 from stephen_quant.qmt.qd_data_audit import data_search_ledger_record, run_qd_data_audit
 
 HEADER = "日期,代码,行业,开盘价,最高价,最低价,收盘价,成交量(手),成交额(千元),复权因子,换手率(%),市盈率,市净率,总市值(万元),流通市值(万元)"
+PROOF_REFERENCE = "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-100"
+_PROOF_ARTIFACT = ""
+
+
+@pytest.fixture(autouse=True)
+def _verified_isolation_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_comment(reference: str, token: str | None, pattern: object) -> dict[str, object]:
+        assert reference == PROOF_REFERENCE
+        record = {
+            "verified": True,
+            "artifact_sha256": _PROOF_ARTIFACT,
+            "start_date": "2022-01-01",
+            "end_date": "2024-12-31",
+            "sealed_years_excluded": [2025, 2026],
+        }
+        return {
+            "html_url": reference,
+            "author_association": "OWNER",
+            "body": "QD_ISOLATION_PROOF_V1 " + json.dumps(record),
+        }
+
+    monkeypatch.setattr(data_plane_policy, "_github_issue_comment", fake_comment)
+    monkeypatch.setattr(
+        audit_module,
+        "verify_github_isolation_proof",
+        lambda reference, **kwargs: data_plane_policy.verify_github_isolation_proof(
+            reference, **kwargs
+        ),
+    )
 
 
 def _write_csv(path: Path, rows: list[str], header: str = HEADER) -> None:
@@ -20,11 +51,16 @@ def _write_csv(path: Path, rows: list[str], header: str = HEADER) -> None:
 
 
 def _manifest(path: Path, root: Path, files: list[str]) -> Path:
+    global _PROOF_ARTIFACT
     entries = []
     for relative in files:
         source = root / relative
         raw = source.read_bytes() if source.is_file() else b"missing"
         entries.append({"path": relative, "sha256": hashlib.sha256(raw).hexdigest()})
+    layers = {"daily_bars": entries}
+    _PROOF_ARTIFACT = hashlib.sha256(json.dumps(
+        layers, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
     payload = {
         "version": 1,
         "plane": "research",
@@ -40,12 +76,12 @@ def _manifest(path: Path, root: Path, files: list[str]) -> Path:
                 "generator_tool_version": "fixture-v1",
                 "schema_version": "fixture-v1",
                 "method": "explicit allowlist copy",
-                "artifact_sha256": "a" * 64,
+                "artifact_sha256": _PROOF_ARTIFACT,
                 "verified_by": "repository-maintainer",
-                "verification_reference": "https://github.com/m-stephen/stephen-quant-agent/issues/75",
+                "verification_reference": PROOF_REFERENCE,
             },
         },
-        "layers": {"daily_bars": entries},
+        "layers": layers,
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
@@ -95,6 +131,52 @@ def test_missing_header_has_zero_coverage_rejects_and_fails(tmp_path: Path) -> N
     assert volume["coverage_rate"] == 0.0
     assert volume["classification"] == "REJECT"
     assert report.gate_pass is False
+
+
+def test_missing_candidate_header_does_not_reject_complete_fields(tmp_path: Path) -> None:
+    root = tmp_path / "isolated"
+    header = HEADER.replace(",市盈率", "")
+    row = _row("20240102").replace(",12,1.2", ",1.2")
+    _write_csv(root / "daily" / "20240102.csv", [row], header)
+    report = run_qd_data_audit(
+        root, _manifest(tmp_path / "allowlist.json", root, ["daily/20240102.csv"])
+    )
+    admissions = {item["field"]: item for item in report.field_admission}
+    assert admissions["pe"]["classification"] == "REJECT"
+    for field_name in ("trade_date", "open", "high", "low", "close"):
+        assert admissions[field_name]["classification"] == "A"
+    assert report.gates["missing_mandatory_headers"] == 0
+    assert report.gate_pass is True
+
+
+def test_natural_candidate_missingness_is_field_local_and_not_global_gate(tmp_path: Path) -> None:
+    root = tmp_path / "isolated"
+    row = _row("20240102").replace(",12,1.2", ",,1.2")
+    _write_csv(root / "daily" / "20240102.csv", [row])
+    report = run_qd_data_audit(
+        root, _manifest(tmp_path / "allowlist.json", root, ["daily/20240102.csv"])
+    )
+    pe = next(item for item in report.field_admission if item["field"] == "pe")
+    assert pe["classification"] == "B"
+    assert pe["coverage_rate"] == 0.0
+    assert pe["allowed_use"] == "coverage_filtered"
+    assert report.gate_pass is True
+
+
+def test_isolation_hash_and_timezone_are_verified(tmp_path: Path) -> None:
+    root = tmp_path / "isolated"
+    _write_csv(root / "daily" / "20240102.csv", [_row("20240102")])
+    allowlist = _manifest(tmp_path / "allowlist.json", root, ["daily/20240102.csv"])
+    payload = json.loads(allowlist.read_text(encoding="utf-8"))
+    payload["scope"]["exclusion_proof"]["artifact_sha256"] = "f" * 64
+    allowlist.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(QmtDataError, match="does not bind"):
+        run_qd_data_audit(root, allowlist)
+    payload["scope"]["exclusion_proof"]["artifact_sha256"] = _PROOF_ARTIFACT
+    payload["scope"]["exclusion_proof"]["generated_at"] = "2026-08-17T18:00:00"
+    allowlist.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(QmtDataError, match="timezone"):
+        run_qd_data_audit(root, allowlist)
 
 
 def test_cross_file_duplicate_primary_key_fails_gate(tmp_path: Path) -> None:

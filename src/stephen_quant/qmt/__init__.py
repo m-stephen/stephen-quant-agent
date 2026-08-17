@@ -33,6 +33,8 @@ from .data_plane_policy import (
     validate_plane_storage_layout,
     validate_research_environment,
     validate_research_manifest_control,
+    verify_github_isolation_proof,
+    verify_github_maintenance_approval,
 )
 from .dividends import (
     DIVIDEND_PARSER_VERSION,
@@ -256,6 +258,8 @@ __all__ = [
     "validate_plane_storage_layout",
     "validate_research_environment",
     "validate_research_manifest_control",
+    "verify_github_isolation_proof",
+    "verify_github_maintenance_approval",
     "verify_qmt_dat_manifest",
     "write_benchmark_comparison",
     "write_dynamic_universe",

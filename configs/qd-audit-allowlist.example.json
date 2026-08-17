@@ -15,7 +15,7 @@
       "method": "<PHYSICAL_COPY_FROM_EXPLICIT_2022_2024_ALLOWLIST>",
       "artifact_sha256": "<64_HEX_SHA256>",
       "verified_by": "<REPOSITORY_MAINTAINER>",
-      "verification_reference": "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-<ID>"
+      "verification_reference": "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-<ID_WITH_QD_ISOLATION_PROOF_V1_RECORD>"
     }
   },
   "layers": {

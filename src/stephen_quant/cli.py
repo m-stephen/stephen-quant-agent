@@ -968,7 +968,11 @@ def main() -> None:
                 "qd-data-audit requires a physically isolated snapshot root and a pre-generated 2022-2024 allowlist manifest"
             )
         validate_research_environment(os.environ)
-        report = run_qd_data_audit(snapshot_root, allowlist_manifest)
+        report = run_qd_data_audit(
+            snapshot_root,
+            allowlist_manifest,
+            github_token=os.environ.get("GITHUB_TOKEN"),
+        )
         if output_dir:
             output = Path(output_dir).expanduser().resolve()
             snapshot = Path(snapshot_root).expanduser().resolve()

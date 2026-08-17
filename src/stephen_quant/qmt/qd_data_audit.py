@@ -15,7 +15,10 @@ from typing import Any
 from stephen_quant.integrity.snapshot import build_composite_snapshot_manifest
 
 from .csv_adapter import _normalize_header
-from .data_plane_policy import validate_research_manifest_control
+from .data_plane_policy import (
+    validate_research_manifest_control,
+    verify_github_isolation_proof,
+)
 from .models import QmtDataError
 
 AUDIT_VERSION = "qd-allowlist-audit-1.1.0-local-prototype"
@@ -69,6 +72,14 @@ _CLASS_A = frozenset({
     "trade_date", "instrument", "open", "high", "low", "close", "volume",
     "amount", "adjustment_factor", "listing_date",
 })
+_MANDATORY_STRUCTURAL_FIELDS = {
+    "daily_bars": frozenset({
+        "trade_date", "instrument", "open", "high", "low", "close", "volume", "amount",
+    }),
+    "fundamentals": frozenset({"trade_date", "instrument"}),
+    "technical_factors": frozenset({"trade_date", "instrument"}),
+    "shenwan_index_like": frozenset({"trade_date", "instrument"}),
+}
 
 
 @dataclass(frozen=True)
@@ -102,6 +113,7 @@ class QdLayerAudit:
     last_date: str
     missing_cells: dict[str, int]
     missing_rates: dict[str, float]
+    missing_headers: tuple[str, ...]
     missing_required_headers: int
     duplicate_primary_keys: int
     invalid_ohlc_rows: int
@@ -191,7 +203,9 @@ def _strict_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return result
 
 
-def _load_allowlist(path: Path, evidence: ExecutionEvidence) -> tuple[dict[str, object], str, str]:
+def _load_allowlist(
+    path: Path, evidence: ExecutionEvidence, github_token: str | None,
+) -> tuple[dict[str, object], str, str]:
     raw = path.read_bytes()
     try:
         payload = json.loads(raw.decode("utf-8"), object_pairs_hook=_strict_object)
@@ -220,15 +234,25 @@ def _load_allowlist(path: Path, evidence: ExecutionEvidence) -> tuple[dict[str, 
     ):
         if not isinstance(proof.get(key), str) or not str(proof[key]).strip():
             raise QmtDataError(f"exclusion_proof requires {key}")
-    _ = datetime.fromisoformat(str(proof["generated_at"]).replace("Z", "+00:00"))
+    generated_at = datetime.fromisoformat(str(proof["generated_at"]).replace("Z", "+00:00"))
+    if generated_at.tzinfo is None:
+        raise QmtDataError("exclusion proof generated_at must include timezone")
     proof_sha = _valid_sha256(proof["artifact_sha256"], "exclusion proof hash")
-    if not str(proof["verification_reference"]).startswith(
-        "https://github.com/m-stephen/stephen-quant-agent/"
-    ):
-        raise QmtDataError("exclusion proof requires repository verification reference")
-    evidence.isolation_proof_verifications += 1
-    if not isinstance(payload.get("layers"), dict) or not payload["layers"]:
+    layers = payload.get("layers")
+    if not isinstance(layers, dict) or not layers:
         raise QmtDataError("allowlist manifest requires non-empty layers")
+    actual_artifact_sha = _canonical_hash(layers)
+    if proof_sha != actual_artifact_sha:
+        raise QmtDataError("exclusion proof hash does not bind the allowlist artifact")
+    verify_github_isolation_proof(
+        str(proof["verification_reference"]),
+        artifact_sha256=actual_artifact_sha,
+        start_date=AUDIT_START.isoformat(),
+        end_date=AUDIT_CUTOFF.isoformat(),
+        sealed_years_excluded=(2025, 2026),
+        github_token=github_token,
+    )
+    evidence.isolation_proof_verifications += 1
     return payload, _sha256(raw), proof_sha
 
 
@@ -360,6 +384,7 @@ def _audit_layer(
     partitions = [source.partition for source in files]
     duplicates = invalid_ohlc = negative_volume = revisions = errors = empty_files = rows = 0
     missing_headers = 0
+    absent_headers: set[str] = set()
     samples: list[str] = []
     prior: dict[tuple[str, str], str] = {}
     snapshot_entries: list[tuple[str, str, int]] = []
@@ -375,6 +400,7 @@ def _audit_layer(
             schemas.add("|".join(headers))
             columns = _columns(headers, required)
             absent_fields = {field for field, column in columns.items() if column is None}
+            absent_headers.update(absent_fields)
             missing_headers += len(absent_fields)
             for line_number, row in enumerate(reader, start=2):
                 rows += 1
@@ -445,6 +471,7 @@ def _audit_layer(
         last_date=max(partitions).isoformat(),
         missing_cells=dict(sorted(missing.items())),
         missing_rates=rates,
+        missing_headers=tuple(sorted(absent_headers)),
         missing_required_headers=missing_headers,
         duplicate_primary_keys=duplicates,
         invalid_ohlc_rows=invalid_ohlc,
@@ -463,12 +490,16 @@ def _field_admission(layers: dict[str, dict[str, object]]) -> tuple[dict[str, ob
     for layer, audit in sorted(layers.items()):
         missing_rates = audit["missing_rates"]
         assert isinstance(missing_rates, dict)
+        missing_headers = set(audit["missing_headers"])
+        mandatory = _MANDATORY_STRUCTURAL_FIELDS[layer]
         for field_name in _LAYER_FIELDS[layer]:
             missing_rate = float(missing_rates[field_name])
-            rejected = missing_rate > 0 or int(audit["missing_required_headers"]) > 0
+            rejected = field_name in missing_headers or (
+                field_name in mandatory and missing_rate > 0
+            )
             classification = (
                 "REJECT" if rejected else "C" if layer == "technical_factors"
-                else "A" if field in _CLASS_A else "B"
+                else "A" if field_name in _CLASS_A else "B"
             )
             result.append({
                 "source": layer,
@@ -482,6 +513,7 @@ def _field_admission(layers: dict[str, dict[str, object]]) -> tuple[dict[str, ob
                 "revision_risk_cells": audit["revision_risk_cells"],
                 "allowed_use": (
                     "none_required_field_missing" if rejected
+                    else "coverage_filtered" if missing_rate > 0
                     else "after_close_or_next_session" if classification == "A"
                     else "candidate_only_requires_pit_evidence" if classification == "B"
                     else "not_for_formal_alpha_acceptance"
@@ -496,14 +528,17 @@ def _absolute_path_leaks(payload: object) -> int:
 
 
 def run_qd_data_audit(
-    snapshot_root: str | Path, allowlist_manifest: str | Path,
+    snapshot_root: str | Path,
+    allowlist_manifest: str | Path,
+    *,
+    github_token: str | None = None,
 ) -> QdAllowlistAudit:
     root = Path(snapshot_root).expanduser().resolve()
     manifest = Path(allowlist_manifest).expanduser().resolve()
     if not root.is_dir() or not manifest.is_file():
         raise QmtDataError("snapshot root and allowlist manifest must exist")
     evidence = ExecutionEvidence()
-    payload, manifest_sha, proof_sha = _load_allowlist(manifest, evidence)
+    payload, manifest_sha, proof_sha = _load_allowlist(manifest, evidence, github_token)
     allowlisted = _resolve_files(root, payload, evidence)
     layers: dict[str, dict[str, object]] = {}
     instrument_sets: dict[str, set[str]] = {}
@@ -540,8 +575,17 @@ def run_qd_data_audit(
         "restricted_year_files_hashed": len(evidence.restricted_files_hashed),
         "restricted_year_directory_lists": evidence.directory_list_operations,
         "date_or_row_errors": sum(int(value["error_count"]) for value in layer_values),
-        "missing_required_headers": sum(int(value["missing_required_headers"]) for value in layer_values),
-        "missing_required_cells": sum(sum(dict(value["missing_cells"]).values()) for value in layer_values),
+        "missing_mandatory_headers": sum(
+            len(set(value["missing_headers"]) & _MANDATORY_STRUCTURAL_FIELDS[str(value["layer"])])
+            for value in layer_values
+        ),
+        "missing_mandatory_cells": sum(
+            sum(
+                int(dict(value["missing_cells"]).get(field_name, 0))
+                for field_name in _MANDATORY_STRUCTURAL_FIELDS[str(value["layer"])]
+            )
+            for value in layer_values
+        ),
         "empty_files": sum(int(value["empty_files"]) for value in layer_values),
         "invalid_ohlc_rows": sum(int(value["invalid_ohlc_rows"]) for value in layer_values),
         "negative_volume_rows": sum(int(value["negative_volume_rows"]) for value in layer_values),
