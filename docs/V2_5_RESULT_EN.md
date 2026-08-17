@@ -1,5 +1,5 @@
 # V2.5 Regime-aware Portfolio Result
-worthy of independent validation, but not a proven Alpha or live rule. 2025/2026 stayed sealed.
+
 Engineering status: **RESEARCH_PREVIEW_READY**. Alpha status: **PROMOTE_RESEARCH_ONLY**.
 
 ## Policy results
