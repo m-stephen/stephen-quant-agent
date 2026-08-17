@@ -63,7 +63,10 @@ def _validate_config(config: BaselineConfig) -> None:
         "bottom_fraction_underweight",
     }:
         raise BaselineError("unsupported ranking_policy")
-    if config.ranking_policy not in {"top_k", "all_eligible"} and not 0 < config.selection_fraction < 1:
+    if (
+        config.ranking_policy not in {"top_k", "all_eligible"}
+        and not 0 < config.selection_fraction < 1
+    ):
         raise BaselineError("fractional ranking policies require selection_fraction in (0, 1)")
     if not 0 <= config.bottom_underweight <= 1:
         raise BaselineError("bottom_underweight must be in [0, 1]")
@@ -130,15 +133,15 @@ def _target_weights(
     rows: Sequence[BaselineObservation], config: BaselineConfig
 ) -> tuple[tuple[str, ...], dict[str, float]]:
     eligible = [row for row in rows if row.eligible]
+    if not eligible and config.allow_empty_selection:
+        return (), {}
     if config.ranking_policy == "top_k" and len(eligible) < config.top_k:
         raise BaselineError(
             f"cross-section has {len(eligible)} eligible assets but top_k requires {config.top_k}"
         )
     if not eligible:
         raise BaselineError("cross-section has no eligible assets")
-    ranked = sorted(
-        eligible, key=lambda row: (-config.direction * row.signal, row.instrument)
-    )
+    ranked = sorted(eligible, key=lambda row: (-config.direction * row.signal, row.instrument))
     if config.ranking_policy == "top_k":
         selected_rows = ranked[: config.top_k]
         raw_weights = {row.instrument: 1.0 for row in selected_rows}
@@ -240,8 +243,7 @@ def _execute_rebalance(
         for instrument, notional in desired.items()
     }
     capacity = {
-        instrument: by_instrument[instrument].average_daily_value
-        * config.max_participation_rate
+        instrument: by_instrument[instrument].average_daily_value * config.max_participation_rate
         for instrument in universe
     }
     capacity_executions = {
@@ -267,9 +269,7 @@ def _execute_rebalance(
     for instrument in universe:
         row = by_instrument[instrument]
         trade = executed.get(instrument, 0.0)
-        commission, sell_tax, slippage, impact = _costs(
-            trade, row.average_daily_value, config
-        )
+        commission, sell_tax, slippage, impact = _costs(trade, row.average_daily_value, config)
         cost = commission + sell_tax + slippage + impact
         total_cost += cost
         orders.append(
@@ -284,8 +284,7 @@ def _execute_rebalance(
                 executed_notional=trade,
                 participation_rate=abs(trade) / row.average_daily_value,
                 capacity_clipped_notional=max(
-                    abs(tradable_desired[instrument])
-                    - abs(capacity_executions[instrument]),
+                    abs(tradable_desired[instrument]) - abs(capacity_executions[instrument]),
                     0.0,
                 ),
                 funding_clipped_notional=max(
@@ -326,9 +325,7 @@ def _metrics(
     final_nav = periods[-1].end_nav
     annualized_return = (final_nav / initial_nav) ** (config.periods_per_year / len(periods)) - 1
     volatility = (
-        stdev(net_returns) * math.sqrt(config.periods_per_year)
-        if len(net_returns) > 1
-        else None
+        stdev(net_returns) * math.sqrt(config.periods_per_year) if len(net_returns) > 1 else None
     )
     sharpe = None
     if volatility not in (None, 0.0):
@@ -356,9 +353,7 @@ def _metrics(
         total_cost=sum(period.total_cost for period in periods),
         capacity_clipped_notional=sum(order.capacity_clipped_notional for order in orders),
         funding_clipped_notional=sum(order.funding_clipped_notional for order in orders),
-        tradability_clipped_notional=sum(
-            order.tradability_clipped_notional for order in orders
-        ),
+        tradability_clipped_notional=sum(order.tradability_clipped_notional for order in orders),
         tradability_blocked_orders=sum(
             order.tradability_clipped_notional > 1e-9 for order in orders
         ),

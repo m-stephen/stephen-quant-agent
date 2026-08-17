@@ -130,8 +130,7 @@ class V23StyleResidualizationConfig:
             self.control_fingerprint,
         )
         if any(
-            len(value) != 64 or any(c not in "0123456789abcdef" for c in value)
-            for value in hashes
+            len(value) != 64 or any(c not in "0123456789abcdef" for c in value) for value in hashes
         ):
             raise ValueError("V2.3 hashes must be lowercase SHA-256 values")
         if self.placebo_repetitions < 1 or self.maximum_drawdown <= 0:
@@ -201,6 +200,7 @@ class V23FrozenPanel:
     target_schema: FactorSchema
     control_schema: FactorSchema
     target_rows: tuple[BaselineObservation, ...]
+    control_rows: tuple[BaselineObservation, ...]
     residual_rows: tuple[BaselineObservation, ...]
     residualization_audit: V23ResidualizationAudit
 
@@ -331,8 +331,7 @@ def load_v23_style_residualization_config(
 
 def _visible(row: BaselineObservation) -> bool:
     return (
-        row.signal_available_at < row.execution_at
-        and row.liquidity_available_at < row.execution_at
+        row.signal_available_at < row.execution_at and row.liquidity_available_at < row.execution_at
     )
 
 
@@ -377,9 +376,7 @@ def residualize_v23_style(
                 raise ValueError("V2.3 target and control timing/labels are inconsistent")
             visible = visible and _visible(row) and _visible(peer)
             oriented_target.append(target_direction * row.signal)
-            design.append(
-                [control_direction * peer.signal, math.log(row.average_daily_value)]
-            )
+            design.append([control_direction * peer.signal, math.log(row.average_daily_value)])
         residuals = ols_residuals(oriented_target, design)
         price = [row[0] for row in design]
         adv = [row[1] for row in design]
@@ -388,9 +385,7 @@ def residualize_v23_style(
             adv_correlations.append(abs(pearson_correlation(residuals, adv)))
         except EvaluationError as exc:
             raise ValueError("V2.3 control correlation is undefined") from exc
-        for (instrument, _), raw, residual in zip(
-            ordered, oriented_target, residuals, strict=True
-        ):
+        for (instrument, _), raw, residual in zip(ordered, oriented_target, residuals, strict=True):
             replacements[(execution_at, instrument)] = residual * target_direction
             changed = changed or not math.isclose(raw, residual, abs_tol=1e-12)
         observation_count += len(ordered)
@@ -463,7 +458,10 @@ def build_v23_frozen_panel(
     templates = {item.template_id: item for item in v21_mechanism_generation_plan().templates}
     target = templates["flow_confirmation"].render(window=20, horizon="20d")
     control_schema = templates["price_momentum"].render(window=5, horizon="20d")
-    if target.schema_id != config.target_schema_id or target.fingerprint != config.target_fingerprint:
+    if (
+        target.schema_id != config.target_schema_id
+        or target.fingerprint != config.target_fingerprint
+    ):
         raise ValueError("V2.3 target factor differs from the frozen contract")
     if (
         control_schema.schema_id != config.control_schema_id
@@ -499,26 +497,25 @@ def build_v23_frozen_panel(
         control_direction=control_schema.direction,
     )
     return config, V23FrozenPanel(
-        readiness.source_snapshot_sha256,
-        daily.audit.source_sha256,
-        flow.audit.source_sha256,
-        discovery.research_start,
-        discovery.research_end,
-        discovery.validation_start,
-        discovery.validation_end,
-        discovery.test_start,
-        discovery.test_end,
-        target,
-        control_schema,
-        target_rows,
-        residual_rows,
-        audit,
+        source_snapshot_sha256=readiness.source_snapshot_sha256,
+        daily_source_sha256=daily.audit.source_sha256,
+        flow_source_sha256=flow.audit.source_sha256,
+        research_start=discovery.research_start,
+        research_end=discovery.research_end,
+        validation_start=discovery.validation_start,
+        validation_end=discovery.validation_end,
+        test_start=discovery.test_start,
+        test_end=discovery.test_end,
+        target_schema=target,
+        control_schema=control_schema,
+        target_rows=target_rows,
+        control_rows=controls,
+        residual_rows=residual_rows,
+        residualization_audit=audit,
     )
 
 
-def cumulative_v23_trial_count(
-    config: V23StyleResidualizationConfig, new_trial_count: int
-) -> int:
+def cumulative_v23_trial_count(config: V23StyleResidualizationConfig, new_trial_count: int) -> int:
     if new_trial_count != 2:
         raise ValueError("V2.3 requires one candidate and one negative-control trial")
     return config.prior_trial_count + new_trial_count
@@ -592,9 +589,7 @@ def run_v23_style_residualization(
     target_rows = panel.target_rows
     residual_rows = panel.residual_rows
     residual_audit = panel.residualization_audit
-    raw_execution = shared_non_overlapping(
-        target_rows, config.horizon_sessions, config.top_k
-    )
+    raw_execution = shared_non_overlapping(target_rows, config.horizon_sessions, config.top_k)
     residual_execution = shared_non_overlapping(
         residual_rows, config.horizon_sessions, config.top_k
     )
@@ -616,7 +611,12 @@ def run_v23_style_residualization(
     raw_report = run_momentum_topk(
         raw_execution,
         BaselineLineage(
-            target.schema_id, target.version, snapshot_id, experiment_id, "control_replay", code_version
+            target.schema_id,
+            target.version,
+            snapshot_id,
+            experiment_id,
+            "control_replay",
+            code_version,
         ),
         baseline_config,
         initial_nav=config.initial_nav,
@@ -687,9 +687,7 @@ def run_v23_style_residualization(
             experiment_id=experiment_id,
             model_name="v2.3_reversed_residualized_ranking_negative_control",
             factor_set=target.schema_id,
-            hyperparams=canonical_json(
-                {"top_k": config.top_k, "direction": -target.direction}
-            ),
+            hyperparams=canonical_json({"top_k": config.top_k, "direction": -target.direction}),
             seed=config.seed,
             train_start=panel.research_start,
             train_end=panel.research_end,
@@ -718,14 +716,11 @@ def run_v23_style_residualization(
         config.prior_trial_count + negative_trial_number,
         negative_report.metrics.net_sharpe,
         negative_report.metrics.net_total_return,
-        negative_report.metrics.net_sharpe is not None
-        and negative_report.metrics.net_sharpe <= 0,
+        negative_report.metrics.net_sharpe is not None and negative_report.metrics.net_sharpe <= 0,
     )
     registry.record_trial_result(negative_trial_id, canonical_json(asdict(negative)))
     cumulative = cumulative_v23_trial_count(config, registry.global_trial_count())
-    moments = sample_return_moments(
-        tuple(period.net_return for period in candidate_report.periods)
-    )
+    moments = sample_return_moments(tuple(period.net_return for period in candidate_report.periods))
     dsr = deflated_sharpe_ratio(
         observed_sharpe=candidate.raw_net_sharpe,
         trial_sharpes=(*config.prior_execution_raw_sharpes, candidate.raw_net_sharpe),
@@ -784,7 +779,11 @@ def run_v23_style_residualization(
             candidate.max_drawdown >= -config.maximum_drawdown,
             f"{candidate.max_drawdown:.2%}",
         ),
-        ("POSITIVE_NET_RETURN", candidate.net_total_return > 0, f"{candidate.net_total_return:.2%}"),
+        (
+            "POSITIVE_NET_RETURN",
+            candidate.net_total_return > 0,
+            f"{candidate.net_total_return:.2%}",
+        ),
         (
             "NO_CAPACITY_CLIP",
             candidate.capacity_clipped_notional == 0,
@@ -867,9 +866,7 @@ def run_v23_style_residualization(
         encoding="utf-8",
         newline="\n",
     )
-    return report, V23StyleResidualizationArtifacts(
-        json_path, en_path, zh_path, replay_path
-    )
+    return report, V23StyleResidualizationArtifacts(json_path, en_path, zh_path, replay_path)
 
 
 def verify_v23_style_residualization_replay(source: str | Path) -> V23ReplayVerification:
