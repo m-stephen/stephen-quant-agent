@@ -141,6 +141,23 @@ def test_manifest_loader_is_strict_and_normalizes_windows(tmp_path: Path) -> Non
         raise AssertionError("unknown manifest field was accepted")
 
 
+def test_manifest_loader_normalizes_family_budgets(tmp_path: Path) -> None:
+    sessions = _sessions()
+    payload = {
+        "manifest_version": "1.0.0",
+        **_config(sessions).__dict__,
+        "search_profile": "v1.8.17",
+        "family_budgets": [["price_momentum", 1]],
+    }
+    payload["windows"] = list(payload["windows"])
+    path = tmp_path / "manifest-v17.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_automated_discovery_config(path)
+
+    assert loaded.family_budgets == (("price_momentum", 1),)
+
+
 def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
     tmp_path: Path,
 ) -> None:

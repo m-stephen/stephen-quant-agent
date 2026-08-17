@@ -436,7 +436,9 @@ stephen-quant --db "artifacts\qd-v1.8.17.sqlite3" qd-auto-discover-suite `
 ```
 
 See the [English design](docs/V1_8_17_SPEC_EN.md) and
-[中文设计](docs/V1_8_17_SPEC_ZH.md). Local data paths and generated reports remain Git-ignored.
+[中文设计](docs/V1_8_17_SPEC_ZH.md). The frozen engineering-pass/alpha-reject result is available
+in [English](docs/V1_8_17_RESULT_EN.md) and [中文](docs/V1_8_17_RESULT_ZH.md). Local data paths and
+generated reports remain Git-ignored.
 
 ## Quick start
 

@@ -13,6 +13,7 @@ from .automated_discovery import (
 )
 
 AUTOMATED_DISCOVERY_SUITE_VERSION = "v1.8.16-multi-horizon-suite-1.0.0"
+NORMALIZED_DISCOVERY_SUITE_VERSION = "v1.8.17-normalized-multi-horizon-suite-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -41,10 +42,11 @@ class AutomatedDiscoverySuiteReport:
     def to_markdown(self, language: str) -> str:
         if language not in {"en", "zh"}:
             raise ValueError("suite report language must be en or zh")
+        version = "V1.8.17" if "1.8.17" in self.method_version else "V1.8.16"
         title = (
-            "# V1.8.16 多期限自动因子研究汇总"
+            f"# {version} 多期限自动因子研究汇总"
             if language == "zh"
-            else "# V1.8.16 Multi-horizon Automated Factor Research"
+            else f"# {version} Multi-horizon Automated Factor Research"
         )
         lines = [
             title,
@@ -146,7 +148,11 @@ def run_automated_discovery_suite(
             raise ValueError("suite consumed more than its frozen global trial budget")
     ending_trials = registry.global_trial_count()
     report = AutomatedDiscoverySuiteReport(
-        method_version=AUTOMATED_DISCOVERY_SUITE_VERSION,
+        method_version=(
+            NORMALIZED_DISCOVERY_SUITE_VERSION
+            if all(config.search_profile == "v1.8.17" for config in configs)
+            else AUTOMATED_DISCOVERY_SUITE_VERSION
+        ),
         runs=tuple(
             AutomatedDiscoverySuiteItem(
                 horizon,
