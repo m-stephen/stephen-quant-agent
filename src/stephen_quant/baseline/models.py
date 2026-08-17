@@ -54,6 +54,7 @@ class BaselineConfig:
     ranking_policy: str = "top_k"
     selection_fraction: float = 0.0
     bottom_underweight: float = 0.25
+    allow_empty_selection: bool = False
 
 
 @dataclass(frozen=True)
