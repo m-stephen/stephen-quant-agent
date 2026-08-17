@@ -135,6 +135,19 @@ from .research_audit import (
     run_qd_placebo_audit,
     write_qd_placebo_audit,
 )
+from .single_user_data import (
+    PARSER_VERSION as SINGLE_USER_PARSER_VERSION,
+)
+from .single_user_data import (
+    SCHEMA_VERSION as SINGLE_USER_SCHEMA_VERSION,
+)
+from .single_user_data import (
+    SINGLE_USER_DATA_VERSION,
+    LocalDataResult,
+    create_local_unlock,
+    inventory_local_data,
+    maintain_local_data,
+)
 from .xtquant_export import (
     EXPORTER_VERSION,
     XtquantExportConfig,
@@ -175,6 +188,9 @@ __all__ = [
     "RESEARCH_ALLOWED",
     "SCHEMA_SHA256",
     "SEALED_MAINTENANCE",
+    "SINGLE_USER_DATA_VERSION",
+    "SINGLE_USER_PARSER_VERSION",
+    "SINGLE_USER_SCHEMA_VERSION",
     "SOURCE_FIELDS",
     "VOLUME_LOT_TO_SHARE",
     "AlternativeObservation",
@@ -195,6 +211,7 @@ __all__ = [
     "FactorScreenArtifacts",
     "FundamentalFactorAudit",
     "FundamentalFactorObservation",
+    "LocalDataResult",
     "MaintenanceExecutionContext",
     "MembershipAudit",
     "PointInTimeMembership",
@@ -229,11 +246,13 @@ __all__ = [
     "build_qmt_factor_observations",
     "combine_qmt_factor_observations",
     "compare_to_benchmark",
+    "create_local_unlock",
     "data_operations_ledger_record",
     "data_search_ledger_record",
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
+    "inventory_local_data",
     "load_point_in_time_memberships",
     "load_qd_alternative_directory",
     "load_qd_confirmed_fundamentals",
@@ -241,6 +260,7 @@ __all__ = [
     "load_qmt_daily_csv",
     "load_qmt_dividend_records",
     "load_xtdata",
+    "maintain_local_data",
     "normalize_cross_sectional_observations",
     "normalize_stocks",
     "parse_qmt_daily_dat",
