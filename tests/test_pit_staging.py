@@ -255,6 +255,7 @@ def test_alphapai_missing_actual_publish_time_uses_explicit_conservative_delay()
         "code": 200000,
         "data": {"pageNum": 1, "pageSize": 1, "totalPageNum": 1, "totalSize": 1,
                  "data": [{
+                     "announcementId": "missing-time-id",
                      "title": "Example annual report", "publishTime": "2023-04-30 18:00:00",
                      "actualPublishTime": None, "endDate": "2022-12-31 00:00:00",
                      "announcementType": "年度报告", "announcementTypeCode": "annual",
@@ -335,6 +336,14 @@ def test_different_ids_with_same_unhashed_metadata_are_automatically_quarantined
         hashlib.sha256(b"first-id").hexdigest(),
         hashlib.sha256(b"second-id").hexdigest(),
     )))
+    missing_id = dict(item)
+    missing_id.pop("announcementId")
+    with pytest.raises(QmtDataError, match="requires announcementId"):
+        ingest_alphapai_announcement_response(
+            {"code": 200000, "data": {"pageNum": 1, "pageSize": 1,
+             "totalPageNum": 1, "totalSize": 1, "data": [missing_id]}},
+            query_start="2023-01-01", query_end="2023-12-31",
+        )
 
 
 def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> None:

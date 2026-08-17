@@ -64,7 +64,7 @@ def test_builder_binds_envelope_pages_and_rejects_overwrite_and_source_output(
     document = documents / "first.pdf"
     document.write_bytes(b"%PDF-test-evidence")
     first_id_hash = hashlib.sha256(b"transient-1").hexdigest()
-    quarantine_hash = hashlib.sha256(b"quarantined-id").hexdigest()
+    quarantine_hash = first_id_hash
     automatic_hashes = {
         hashlib.sha256(b"transient-2").hexdigest(),
         hashlib.sha256(b"transient-3").hexdigest(),
@@ -118,3 +118,10 @@ def test_builder_binds_envelope_pages_and_rejects_overwrite_and_source_output(
     result = _run(config)
     assert result.returncode != 0
     assert "document_hashes is forbidden" in result.stderr
+    payload.pop("document_hashes")
+    payload["operation_id"] = "operation-5"
+    payload["quarantined_transient_id_hashes"] = [hashlib.sha256(b"unmatched").hexdigest()]
+    config.write_text(json.dumps(payload), encoding="utf-8")
+    result = _run(config)
+    assert result.returncode != 0
+    assert "did not match" in result.stderr

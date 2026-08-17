@@ -540,6 +540,8 @@ def ingest_alphapai_announcement_response(
         type_name = str(item.get("announcementType") or "")
         if not any(token in f"{title} {type_name}" for token in allowed_tokens):
             continue
+        if not transient_id_hash:
+            raise QmtDataError("AlphaPai periodic announcement requires announcementId")
         report_period = str(item.get("endDate") or "")[:10]
         _day(report_period, "AlphaPai endDate")
         announcement_time = _alphapai_time(item.get("publishTime"), "publishTime", timezone_offset)

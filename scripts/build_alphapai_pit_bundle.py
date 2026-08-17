@@ -98,7 +98,10 @@ def main() -> None:
         tuple(partitions), query_start=config["query_start"], query_end=config["query_end"],
         ingested_at=config["ingested_at"],
     )
-    complete_quarantine_ids = quarantined_ids | set(ledger.quarantined_transient_id_hashes)
+    complete_quarantine_ids = set(ledger.quarantined_transient_id_hashes)
+    unmatched_quarantine_ids = quarantined_ids - complete_quarantine_ids
+    if unmatched_quarantine_ids:
+        raise ValueError("configured quarantine hash did not match a source record")
     operation_dir = output_root / operation_id
     operation_dir.mkdir(parents=True, exist_ok=False)
     bundle_hash = write_pit_bundle(
