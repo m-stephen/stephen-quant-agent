@@ -1,0 +1,240 @@
+{
+  "version": "label-free-semantic-config-1.0.0",
+  "proposal_budget": 9,
+  "seeds": [7, 19, 41],
+  "cases": [
+    {
+      "case_id": "train_flow_anchor",
+      "split": "train",
+      "stage_order": 0,
+      "expected_code": "ACCEPT",
+      "plan": {
+        "plan_id": "train_flow_anchor",
+        "economic_claim": "persistent informed flow is incorporated into price gradually",
+        "event": "flow_price_divergence",
+        "contexts": [
+          {"value": "persistent_flow", "role": "CONSTITUTIVE"},
+          {"value": "liquid_security", "role": "ELIGIBILITY"}
+        ],
+        "data_semantics": ["daily_close", "daily_fund_flow"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "inventory pressure followed by delayed price response",
+        "economic_direction": 1,
+        "observable_proxy": "mean(net_inflow_amount, 20) / (mean(amount, 20) + 1.0) - period_return(close, 20)",
+        "required_data": ["amount", "close", "net_inflow_amount"],
+        "pit_readiness": {"amount": "READY", "close": "READY", "net_inflow_amount": "CONDITIONAL"},
+        "falsification": ["signal vanishes when flow persistence is removed"],
+        "primary_horizon": "20d",
+        "secondary_horizon": "5d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "20"}
+    },
+    {
+      "case_id": "train_flow_semantic_duplicate",
+      "split": "train",
+      "stage_order": 1,
+      "expected_code": "SEMANTIC_DUPLICATE",
+      "plan": {
+        "plan_id": "train_flow_semantic_duplicate",
+        "economic_claim": "persistent informed flow is incorporated into price gradually",
+        "event": "flow_price_divergence",
+        "contexts": [
+          {"value": "persistent_flow", "role": "CONSTITUTIVE"},
+          {"value": "high_turnover", "role": "ELIGIBILITY"}
+        ],
+        "data_semantics": ["daily_close", "daily_fund_flow"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "inventory pressure followed by delayed price response",
+        "economic_direction": 1,
+        "observable_proxy": "mean(net_inflow_amount, 60) / (mean(amount, 60) + 1.0) - period_return(close, 60)",
+        "required_data": ["amount", "close", "net_inflow_amount"],
+        "pit_readiness": {"amount": "READY", "close": "READY", "net_inflow_amount": "CONDITIONAL"},
+        "falsification": ["signal vanishes when flow persistence is removed"],
+        "primary_horizon": "20d",
+        "secondary_horizon": "5d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "60"}
+    },
+    {
+      "case_id": "train_industry_blocked",
+      "split": "train",
+      "stage_order": 1,
+      "expected_code": "DATA_NOT_RESEARCH_READY",
+      "plan": {
+        "plan_id": "train_industry_blocked",
+        "economic_claim": "industry-relative valuation mean reverts",
+        "event": "industry_relative_valuation",
+        "contexts": [{"value": "industry_membership", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["historical_stock_industry_membership", "industry_valuation"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "industry-relative valuation normalization",
+        "economic_direction": -1,
+        "observable_proxy": "mean(industry_pe, 20)",
+        "required_data": ["industry_pe", "industry_membership_pit"],
+        "pit_readiness": {"industry_pe": "CONDITIONAL", "industry_membership_pit": "BLOCKED"},
+        "falsification": ["effect disappears with point-in-time industry controls"],
+        "primary_horizon": "20d",
+        "secondary_horizon": null,
+        "logic_budget": 1,
+        "parameter_budget": 0
+      }
+    },
+    {
+      "case_id": "validation_margin_anchor",
+      "split": "validation",
+      "stage_order": 0,
+      "expected_code": "ACCEPT",
+      "plan": {
+        "plan_id": "validation_margin_anchor",
+        "economic_claim": "persistent financing demand precedes delayed price pressure",
+        "event": "margin_demand",
+        "contexts": [{"value": "persistent_margin_demand", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["daily_margin_financing", "daily_amount"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "leveraged demand accumulates before price adjustment",
+        "economic_direction": 1,
+        "observable_proxy": "mean(margin_financing_buy, 20) / (mean(amount, 20) + 1.0)",
+        "required_data": ["amount", "margin_financing_buy"],
+        "pit_readiness": {"amount": "READY", "margin_financing_buy": "CONDITIONAL"},
+        "falsification": ["effect disappears after financing demand normalizes"],
+        "primary_horizon": "20d",
+        "secondary_horizon": "5d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "20"}
+    },
+    {
+      "case_id": "validation_margin_exact_duplicate",
+      "split": "validation",
+      "stage_order": 1,
+      "expected_code": "SEMANTIC_DUPLICATE",
+      "plan": {
+        "plan_id": "validation_margin_exact_duplicate",
+        "economic_claim": "persistent financing demand precedes delayed price pressure",
+        "event": "margin_demand",
+        "contexts": [{"value": "persistent_margin_demand", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["daily_margin_financing", "daily_amount"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "leveraged demand accumulates before price adjustment",
+        "economic_direction": 1,
+        "observable_proxy": "mean(margin_financing_buy, 20) / (mean(amount, 20) + 1.0)",
+        "required_data": ["amount", "margin_financing_buy"],
+        "pit_readiness": {"amount": "READY", "margin_financing_buy": "CONDITIONAL"},
+        "falsification": ["effect disappears after financing demand normalizes"],
+        "primary_horizon": "20d",
+        "secondary_horizon": "5d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "20"}
+    },
+    {
+      "case_id": "validation_tombstone_descendant",
+      "split": "validation",
+      "stage_order": 1,
+      "expected_code": "TOMBSTONE_DESCENDANT",
+      "tombstoned": true,
+      "plan": {
+        "plan_id": "validation_tombstone_descendant",
+        "economic_claim": "short-term price continuation persists after a large move",
+        "event": "price_continuation",
+        "contexts": [{"value": "large_recent_move", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["daily_close"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "behavioral underreaction to recent returns",
+        "economic_direction": 1,
+        "observable_proxy": "period_return(close, 5)",
+        "required_data": ["close"],
+        "pit_readiness": {"close": "READY"},
+        "falsification": ["family was rejected in independent validation"],
+        "primary_horizon": "5d",
+        "secondary_horizon": null,
+        "logic_budget": 1,
+        "parameter_budget": 0
+      }
+    },
+    {
+      "case_id": "sealed_liquidity_anchor",
+      "split": "sealed_test",
+      "stage_order": 0,
+      "expected_code": "ACCEPT",
+      "plan": {
+        "plan_id": "sealed_liquidity_anchor",
+        "economic_claim": "temporary liquidity stress commands a subsequent reversal premium",
+        "event": "liquidity_stress",
+        "contexts": [{"value": "temporary_liquidity_stress", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["daily_close", "daily_amount"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "temporary price pressure reverses after liquidity recovers",
+        "economic_direction": -1,
+        "observable_proxy": "amihud(close, amount, 20)",
+        "required_data": ["amount", "close"],
+        "pit_readiness": {"amount": "READY", "close": "READY"},
+        "falsification": ["effect survives only during permanent information shocks"],
+        "primary_horizon": "5d",
+        "secondary_horizon": "20d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "20"}
+    },
+    {
+      "case_id": "sealed_liquidity_semantic_duplicate",
+      "split": "sealed_test",
+      "stage_order": 1,
+      "expected_code": "SEMANTIC_DUPLICATE",
+      "plan": {
+        "plan_id": "sealed_liquidity_semantic_duplicate",
+        "economic_claim": "temporary liquidity stress commands a subsequent reversal premium",
+        "event": "liquidity_stress",
+        "contexts": [
+          {"value": "temporary_liquidity_stress", "role": "CONSTITUTIVE"},
+          {"value": "high_turnover", "role": "ELIGIBILITY"}
+        ],
+        "data_semantics": ["daily_close", "daily_amount"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "temporary price pressure reverses after liquidity recovers",
+        "economic_direction": -1,
+        "observable_proxy": "amihud(close, amount, 60)",
+        "required_data": ["amount", "close"],
+        "pit_readiness": {"amount": "READY", "close": "READY"},
+        "falsification": ["effect survives only during permanent information shocks"],
+        "primary_horizon": "5d",
+        "secondary_horizon": "20d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "60"}
+    },
+    {
+      "case_id": "sealed_liquidity_reverse_sign",
+      "split": "sealed_test",
+      "stage_order": 1,
+      "expected_code": "SEMANTIC_DUPLICATE",
+      "plan": {
+        "plan_id": "sealed_liquidity_reverse_sign",
+        "economic_claim": "temporary liquidity stress commands a subsequent reversal premium",
+        "event": "liquidity_stress",
+        "contexts": [{"value": "temporary_liquidity_stress", "role": "CONSTITUTIVE"}],
+        "data_semantics": ["daily_close", "daily_amount"],
+        "information_set": ["after_close_t"],
+        "transmission_path": "temporary price pressure reverses after liquidity recovers",
+        "economic_direction": -1,
+        "observable_proxy": "-amihud(close, amount, 20)",
+        "required_data": ["amount", "close"],
+        "pit_readiness": {"amount": "READY", "close": "READY"},
+        "falsification": ["effect survives only during permanent information shocks"],
+        "primary_horizon": "5d",
+        "secondary_horizon": "20d",
+        "logic_budget": 2,
+        "parameter_budget": 1
+      },
+      "parameters": {"lookback": "20"}
+    }
+  ]
+}

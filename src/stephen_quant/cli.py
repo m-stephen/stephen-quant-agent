@@ -56,6 +56,7 @@ from .workflows import (
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
+    load_label_free_config,
     load_v22_portfolio_breadth_config,
     load_v23_style_residualization_config,
     load_v24_temporal_stability_config,
@@ -70,6 +71,7 @@ from .workflows import (
     run_dynamic_cpcv_research,
     run_dynamic_stateful_backtest,
     run_fundamental_cpcv_research,
+    run_label_free_benchmark,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v21_real_research,
@@ -81,6 +83,7 @@ from .workflows import (
     run_v27_m0_governance,
     run_v27_m1_pit_readiness,
     run_v27_m2_engineering_audit,
+    verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
     verify_v23_style_residualization_replay,
@@ -393,6 +396,14 @@ def build_parser() -> argparse.ArgumentParser:
     v27_risk.add_argument("--mode", choices=("audit", "replay", "kill"), default="audit")
     v27_risk.add_argument("--output", default="reports/v2.7-m2")
     v27_risk.add_argument("--replay-manifest")
+
+    label_free = sub.add_parser("v2-label-free-search")
+    label_free.add_argument(
+        "--config", default="configs/v2.8-label-free-semantic-search.json"
+    )
+    label_free.add_argument("--mode", choices=("run", "replay", "kill"), default="run")
+    label_free.add_argument("--output", default="reports/v2.8-label-free-semantic-search")
+    label_free.add_argument("--replay-manifest")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -1005,6 +1016,43 @@ def main() -> None:
             report, artifacts = run_v27_m2_engineering_audit(args.config, args.output)
         except ValueError as exc:
             raise SystemExit(f"v2-risk-controls failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_manifest_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v2-label-free-search":
+        if args.mode == "kill":
+            raise SystemExit(
+                "v2-label-free-search stopped before config, fixture or artifact access"
+            )
+        try:
+            if args.mode == "replay":
+                if not args.replay_manifest:
+                    raise ValueError("--replay-manifest is required in replay mode")
+                print(
+                    json.dumps(
+                        asdict(verify_label_free_replay(args.config, args.replay_manifest)),
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return
+            load_label_free_config(args.config)
+            report, artifacts = run_label_free_benchmark(args.config, args.output)
+        except (TypeError, ValueError) as exc:
+            raise SystemExit(f"v2-label-free-search failed: {exc}") from exc
         print(
             json.dumps(
                 {
