@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from itertools import pairwise
 from pathlib import Path
@@ -57,6 +57,7 @@ class FinancialVisibility:
     source_type: str = "announcement_metadata"
     exchange_calendar_version: str = "SSE-SZSE-calendar-unspecified"
     timezone: str = "Asia/Shanghai"
+    publish_time_quality: Literal["actual", "nominal_plus_delay"] = "actual"
 
     @property
     def visible_at(self) -> str:
@@ -176,6 +177,9 @@ class RemoteRetrievalLedger:
     inferential_trial_delta: int
     requested_outputs: tuple[str, ...]
     note: str
+    records_with_conservative_delay: int = 0
+    duplicate_source_records_removed: int = 0
+    quarantined_source_records: int = 0
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, indent=2, sort_keys=True)
@@ -236,6 +240,9 @@ def validate_financial_visibility(
             raise QmtDataError("financial ingested_at precedes availability")
         if available < max(announced, published):
             raise QmtDataError("financial available_at precedes publication")
+        if row.publish_time_quality == "nominal_plus_delay" \
+                and available < announced + timedelta(days=1):
+            raise QmtDataError("financial conservative publication delay is too short")
         if not all((row.parser_version, row.source_type, row.exchange_calendar_version, row.timezone)):
             raise QmtDataError("financial timing metadata cannot be empty")
         _sha256(row.source_hash, "source_hash")
@@ -491,9 +498,22 @@ def ingest_alphapai_announcement_response(
     allowed_tokens = ("定期报告", "年度报告", "年报", "季度报告", "季报", "中期报告", "半年报",
                       "业绩预告", "业绩快报")
     rows: list[FinancialVisibility] = []
+    seen_transient_ids: set[str] = set()
+    seen_source_hashes: set[str] = set()
+    duplicate_source_records_removed = 0
+    quarantined_source_records = 0
     for item in envelope["data"]:
         if not isinstance(item, dict):
             raise QmtDataError("AlphaPai announcement item must be an object")
+        transient_id = str(item.get("announcementId") or "")
+        if transient_id and transient_id in seen_transient_ids:
+            duplicate_source_records_removed += 1
+            continue
+        if transient_id:
+            seen_transient_ids.add(transient_id)
+        if item.get("_pitQuarantined") is True:
+            quarantined_source_records += 1
+            continue
         title = str(item.get("title") or "")
         report_type = str(item.get("announcementTypeCode") or item.get("announcementType") or "")
         type_name = str(item.get("announcementType") or "")
@@ -502,13 +522,21 @@ def ingest_alphapai_announcement_response(
         report_period = str(item.get("endDate") or "")[:10]
         _day(report_period, "AlphaPai endDate")
         announcement_time = _alphapai_time(item.get("publishTime"), "publishTime", timezone_offset)
-        actual_publish_time = _alphapai_time(
-            item.get("actualPublishTime"), "actualPublishTime", timezone_offset
-        )
+        raw_actual_publish_time = item.get("actualPublishTime")
+        publish_time_quality: Literal["actual", "nominal_plus_delay"] = "actual"
+        if raw_actual_publish_time:
+            actual_publish_time = _alphapai_time(
+                raw_actual_publish_time, "actualPublishTime", timezone_offset
+            )
+        else:
+            actual_publish_time = announcement_time
+            publish_time_quality = "nominal_plus_delay"
         available_at = max(
             _time(announcement_time, "announcement_time"),
             _time(actual_publish_time, "actual_publish_time"),
         ).isoformat()
+        if publish_time_quality == "nominal_plus_delay":
+            available_at = (_time(available_at, "available_at") + timedelta(days=1)).isoformat()
         source_type = "earnings_forecast" if "业绩预告" in f"{title} {type_name}" else (
             "earnings_flash" if "业绩快报" in f"{title} {type_name}" else "periodic_report"
         )
@@ -522,9 +550,18 @@ def ingest_alphapai_announcement_response(
                 "hasPdf",
             )
         }
+        document_hash = item.get("sourceDocumentHash")
+        if document_hash is not None:
+            stable_metadata["sourceDocumentHash"] = _sha256(
+                str(document_hash), "AlphaPai sourceDocumentHash"
+            )
         source_hash = hashlib.sha256(json.dumps(
             stable_metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")).hexdigest()
+        if source_hash in seen_source_hashes:
+            duplicate_source_records_removed += 1
+            continue
+        seen_source_hashes.add(source_hash)
         source_document_id = hashlib.sha256(
             f"alphapai-announcement|{source_hash}".encode()
         ).hexdigest()
@@ -548,6 +585,7 @@ def ingest_alphapai_announcement_response(
                 available_at=available_at,
                 ingested_at=ingested_at,
                 source_type=source_type,
+                publish_time_quality=publish_time_quality,
             ))
     linked: list[FinancialVisibility] = []
     grouped: dict[tuple[str, str, str], list[FinancialVisibility]] = {}
@@ -574,6 +612,11 @@ def ingest_alphapai_announcement_response(
             "announcement_metadata", "actual_publish_time", "source_document_provenance",
         ),
         note="Encrypted announcement IDs are transient and excluded from durable PIT identifiers.",
+        records_with_conservative_delay=sum(
+            row.publish_time_quality == "nominal_plus_delay" for row in validated
+        ),
+        duplicate_source_records_removed=duplicate_source_records_removed,
+        quarantined_source_records=quarantined_source_records,
     )
     return validated, ledger
 
@@ -595,7 +638,12 @@ def ingest_alphapai_announcement_pages(
         page = int(envelope.get("pageNum", 0))
         total_pages = int(envelope.get("totalPageNum", 0))
         total_size = int(envelope.get("totalSize", -1))
-        if page <= 0 or total_pages <= 0 or page in seen_pages:
+        page_items = envelope.get("data")
+        empty_partition = page == 1 and total_pages == 0 and total_size == 0 \
+            and page_items == []
+        if page <= 0 or total_pages < 0 or page in seen_pages or (
+            total_pages == 0 and not empty_partition
+        ):
             raise QmtDataError("AlphaPai pagination metadata is invalid")
         if expected_pages is None:
             expected_pages = total_pages
@@ -604,12 +652,14 @@ def ingest_alphapai_announcement_pages(
             raise QmtDataError("AlphaPai pagination changed during retrieval")
         if total_size != expected_total:
             raise QmtDataError("AlphaPai pagination total changed during retrieval")
-        page_items = envelope.get("data")
         if not isinstance(page_items, list):
             raise QmtDataError("AlphaPai pagination data must be a list")
         seen_pages.add(page)
         items.extend(page_items)
-    if expected_pages != len(seen_pages) or seen_pages != set(range(1, expected_pages + 1)):
+    if expected_pages == 0:
+        if seen_pages != {1} or expected_total != 0 or items:
+            raise QmtDataError("AlphaPai empty pagination is inconsistent")
+    elif expected_pages != len(seen_pages) or seen_pages != set(range(1, expected_pages + 1)):
         raise QmtDataError("AlphaPai pagination is incomplete")
     if expected_total != len(items):
         raise QmtDataError("AlphaPai pagination item count is incomplete")

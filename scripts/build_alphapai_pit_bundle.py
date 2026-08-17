@@ -18,6 +18,8 @@ def main() -> None:
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    document_hashes = config.get("document_hashes", {})
+    quarantined_ids = set(config.get("quarantined_transient_id_hashes", []))
     output_root = Path(config["output_dir"]).resolve()
     operation_id = str(config["operation_id"]).strip()
     if not operation_id or operation_id in {".", ".."} or Path(operation_id).name != operation_id:
@@ -44,8 +46,20 @@ def main() -> None:
             page_number = int(envelope.get("pageNum", 0))
             total_pages = int(envelope.get("totalPageNum", 0))
             total_size = int(envelope.get("totalSize", -1))
-            if page_number <= 0 or total_pages <= 0 or total_size < 0:
+            page_items = envelope.get("data")
+            empty_partition = page_number == 1 and total_pages == 0 and total_size == 0 \
+                and page_items == []
+            if page_number <= 0 or total_pages < 0 or total_size < 0 or (
+                total_pages == 0 and not empty_partition
+            ):
                 raise ValueError("source page has invalid pagination metadata")
+            for item in envelope.get("data", []):
+                transient_id = str(item.get("announcementId") or "")
+                transient_hash = hashlib.sha256(transient_id.encode()).hexdigest()
+                if transient_hash in document_hashes:
+                    item["sourceDocumentHash"] = document_hashes[transient_hash]
+                if transient_hash in quarantined_ids:
+                    item["_pitQuarantined"] = True
             responses.append(response)
             source_files.append({
                 "partition": partition["name"],
@@ -79,6 +93,7 @@ def main() -> None:
         "bundle_sha256": bundle_hash,
         "inferential_trial_delta": 0,
         "formal_research_eligible": False,
+        "quarantined_source_records": ledger.quarantined_source_records,
         "files": sorted(source_files, key=lambda row: (row["partition"], row["page"])),
     }
     with (operation_dir / "source-page-manifest.json").open(
