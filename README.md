@@ -518,6 +518,13 @@ V1.8.19 tests CNY 1m/3m/5m/10m/20m at 1%/5%/10% ADV participation, using CNY 3m 
 - [中文规格](docs/V1_8_19_SPEC_ZH.md) / [English specification](docs/V1_8_19_SPEC_EN.md)
 - [中文结果](docs/V1_8_19_RESULT_ZH.md) / [English results](docs/V1_8_19_RESULT_EN.md)
 
+### V1.8.20 factor incremental value and return attribution
+
+V1.8.20 residualizes the flow-divergence parent against price reversal and decision-time liquidity, decomposes daily decile returns, and emits structured stop/redesign reasons. The real run finds residual RankIC of 0.085 but shows that most value comes from avoiding the bottom decile; weak long-only Sharpe and excessive drawdown still force rejection.
+
+- [中文规格](docs/V1_8_20_SPEC_ZH.md) / [English specification](docs/V1_8_20_SPEC_EN.md)
+- [中文结果](docs/V1_8_20_RESULT_ZH.md) / [English results](docs/V1_8_20_RESULT_EN.md)
+
 ## Principle
 
 > LLM discovers → statistics verifies → RL allocates → evaluation attacks.
