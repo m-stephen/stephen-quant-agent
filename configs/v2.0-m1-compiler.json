@@ -1,0 +1,11 @@
+{
+  "version": "v2.0-m1-1.0.0",
+  "dataset_snapshot_id": "operator_supplied_frozen_snapshot",
+  "decision_context": "after_close",
+  "minimum_coverage": 0.8,
+  "maximum_lookback": 252,
+  "maximum_complexity_nodes": 64,
+  "proposal_modes": ["EXPLORE", "MUTATE_ONE_DIMENSION"],
+  "sealed_windows": ["2025-validation", "2026-final-test"],
+  "allow_model_request_during_replay": false
+}
