@@ -40,4 +40,3 @@ two-thirds positive years, worst-year return at least -10%, annual and rolling S
 The concentration gate is an inherited V2.4 guardrail. Its omission from the Issue was found
 during release audit and conservatively corrected without changing candidates, threshold,
 selection, or trial budget; the correction can only add a failure.
-

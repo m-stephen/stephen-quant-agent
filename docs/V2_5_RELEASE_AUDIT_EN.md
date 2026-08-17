@@ -26,4 +26,3 @@ The cash gate improves research-period metrics, but PBO, DSR, and return concent
 Release authorizes the research infrastructure and its positive and negative evidence only. It
 does not authorize opening sealed windows, relaxing gates, or deploying trading. The next test
 must be genuinely independent in time rather than another threshold adjustment on 2022–2024.
-

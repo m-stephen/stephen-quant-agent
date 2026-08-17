@@ -1,5 +1,5 @@
 # V2.5 Regime-aware Portfolio Result
-
+worthy of independent validation, but not a proven Alpha or live rule. 2025/2026 stayed sealed.
 Engineering status: **RESEARCH_PREVIEW_READY**. Alpha status: **PROMOTE_RESEARCH_ONLY**.
 
 ## Policy results
@@ -24,4 +24,3 @@ minimum rolling-12 Sharpe is 0.0601.
 Signal and return placebo p-values are 0.015 and 0.020. All engineering, exact replay, PIT,
 capacity, ledger, and sealed-window gates pass. The evidence makes “do not trade in risk-off”
 worthy of independent validation, but not a proven Alpha or live rule. 2025/2026 stayed sealed.
-
