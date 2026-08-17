@@ -334,3 +334,126 @@ def normalized_generation_plan() -> GenerationPlan:
         windows=(5, 20, 60),
         horizons=("next_open", "5d", "20d"),
     )
+
+
+def flow_stress_generation_plan() -> GenerationPlan:
+    """V1.8.18 preregistered 20-day flow-divergence family."""
+
+    common = {
+        "context": "market_neutral_cross_section",
+        "quality": "point_in_time_fund_flow_and_daily_bars",
+        "output": "cross_sectional_score",
+        "data_sources": ("qd_daily", "qd_fund_flow"),
+        "direction": 1,
+    }
+    return GenerationPlan(
+        templates=(
+            FactorTemplate(
+                template_id="flow_price_divergence_parent",
+                name="Flow-price divergence parent",
+                event="flow_price_divergence",
+                formula_template=(
+                    "mean(net_inflow_amount, 60) / (mean(amount, 60) + 1.0) "
+                    "- period_return(close, 60)"
+                ),
+                required_fields=("amount", "close", "net_inflow_amount"),
+                economic_rationale="Frozen V1.8.17 parent control.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="fund_flow_surprise_5_60",
+                name="Five-versus-sixty-day fund-flow surprise",
+                event="fund_flow_surprise",
+                formula_template=(
+                    "mean(net_inflow_amount, 5) / (mean(amount, 5) + 1.0) "
+                    "- mean(net_inflow_amount, 60) / (mean(amount, 60) + 1.0)"
+                ),
+                required_fields=("amount", "net_inflow_amount"),
+                economic_rationale="Recent normalized demand may surprise its long baseline.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="fund_flow_surprise_20_60",
+                name="Twenty-versus-sixty-day fund-flow surprise",
+                event="fund_flow_surprise",
+                formula_template=(
+                    "mean(net_inflow_amount, 20) / (mean(amount, 20) + 1.0) "
+                    "- mean(net_inflow_amount, 60) / (mean(amount, 60) + 1.0)"
+                ),
+                required_fields=("amount", "net_inflow_amount"),
+                economic_rationale="Medium-horizon normalized demand may lead price response.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="large_flow_surprise_5_60",
+                name="Large-order imbalance surprise",
+                event="large_flow_surprise",
+                formula_template=(
+                    "(mean(large_buy_amount, 5) - mean(large_sell_amount, 5)) / "
+                    "(mean(amount, 5) + 1.0) - "
+                    "(mean(large_buy_amount, 60) - mean(large_sell_amount, 60)) / "
+                    "(mean(amount, 60) + 1.0)"
+                ),
+                required_fields=("amount", "large_buy_amount", "large_sell_amount"),
+                economic_rationale="Recent large-order imbalance is compared with its own baseline.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="extra_large_flow_surprise_5_60",
+                name="Extra-large-order imbalance surprise",
+                event="extra_large_flow_surprise",
+                formula_template=(
+                    "(mean(extra_large_buy_amount, 5) - "
+                    "mean(extra_large_sell_amount, 5)) / (mean(amount, 5) + 1.0) - "
+                    "(mean(extra_large_buy_amount, 60) - "
+                    "mean(extra_large_sell_amount, 60)) / (mean(amount, 60) + 1.0)"
+                ),
+                required_fields=(
+                    "amount",
+                    "extra_large_buy_amount",
+                    "extra_large_sell_amount",
+                ),
+                economic_rationale="The largest-order surprise may isolate informed demand.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="flow_reversal_interaction",
+                name="Flow persistence and price-reversal interaction",
+                event="flow_price_interaction",
+                formula_template=(
+                    "mean(net_inflow_amount, 20) / (mean(amount, 20) + 1.0) "
+                    "* (-period_return(close, 20))"
+                ),
+                required_fields=("amount", "close", "net_inflow_amount"),
+                economic_rationale="Buying pressure during weakness may identify delayed response.",
+                **common,
+            ),
+            FactorTemplate(
+                template_id="price_reversal_control",
+                name="Twenty-day price-reversal control",
+                event="price_reversal_control",
+                context="market_neutral_cross_section",
+                quality="complete_daily_bars",
+                output="cross_sectional_score",
+                formula_template="period_return(close, 20)",
+                required_fields=("close",),
+                data_sources=("qd_daily",),
+                direction=-1,
+                economic_rationale="Frozen price-only control for incremental-information tests.",
+            ),
+            FactorTemplate(
+                template_id="large_flow_control",
+                name="Sixty-day large-flow control",
+                event="large_flow_control",
+                formula_template=(
+                    "(mean(large_buy_amount, 60) - mean(large_sell_amount, 60)) / "
+                    "(mean(amount, 60) + 1.0)"
+                ),
+                required_fields=("amount", "large_buy_amount", "large_sell_amount"),
+                economic_rationale="Frozen large-flow control for surprise comparisons.",
+                **common,
+            ),
+        ),
+        windows=(60,),
+        horizons=("20d",),
+    )

@@ -137,7 +137,15 @@ def _peer_values(
 
 
 def _family(schema_id: str) -> str:
-    return re.sub(r"_\d+_(?:next_open|1d|5d|20d)$", "", schema_id)
+    normalized = re.sub(r"_\d+_(?:next_open|1d|5d|20d)$", "", schema_id)
+    for family in (
+        "fund_flow_surprise",
+        "large_flow_surprise",
+        "extra_large_flow_surprise",
+    ):
+        if normalized.startswith(family):
+            return family
+    return normalized
 
 
 def _stability_and_turnover(
