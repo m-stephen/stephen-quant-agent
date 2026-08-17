@@ -121,6 +121,20 @@ See the [English V2.6 specification](docs/V2_6_SPEC_EN.md),
 [中文结果](docs/V2_6_RESULT_ZH.md), and the
 [release audit](docs/V2_6_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_6_RELEASE_AUDIT_ZH.md).
 
+**V2.7 M0** starts the post-validation research reset without opening any market-data
+window. It records the V2.6 failure as an append-only family tombstone, marks 2025 as
+consumed validation evidence, keeps 2026 sealed, and adds an explicit-manifest information
+firewall. The rejected family and wrapper/horizon descendants are stopped deterministically,
+while a genuinely distinct mechanism fixture remains eligible for a future data-readiness audit.
+No new inferential trial or remote-model request is created.
+
+See the [English V2.7 M0 specification](docs/V2_7_M0_SPEC_EN.md),
+[中文 V2.7 M0 规格](docs/V2_7_M0_SPEC_ZH.md),
+[English result](docs/V2_7_M0_RESULT_EN.md),
+[中文结果](docs/V2_7_M0_RESULT_ZH.md), and the
+[release audit](docs/V2_7_M0_RELEASE_AUDIT_EN.md) /
+[发布审计](docs/V2_7_M0_RELEASE_AUDIT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
