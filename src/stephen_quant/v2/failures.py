@@ -27,6 +27,11 @@ class FailureCode(str, Enum):
     CPCV_FAIL = "CPCV_FAIL"
     PLACEBO_FAIL = "PLACEBO_FAIL"
     BUDGET_EXHAUSTED = "BUDGET_EXHAUSTED"
+    TEMPORAL_NON_GENERALIZATION = "TEMPORAL_NON_GENERALIZATION"
+    PLACEBO_FAILURE_OOS = "PLACEBO_FAILURE_OOS"
+    RETURN_CONCENTRATION = "RETURN_CONCENTRATION"
+    DSR_FAILURE = "DSR_FAILURE"
+    POLICY_OVERFIT_RISK = "POLICY_OVERFIT_RISK"
 
 
 class SearchAction(str, Enum):
@@ -114,6 +119,123 @@ class EpochDecision:
     source_failure_node_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class FamilySignature:
+    mechanism_id: str
+    data_semantics: tuple[str, ...]
+    information_set: tuple[str, ...]
+    economic_claim: str
+    signal_direction: str
+
+    def validate(self) -> None:
+        if any(
+            not value.strip()
+            for value in (self.mechanism_id, self.economic_claim, self.signal_direction)
+        ):
+            raise ValueError("family signature contains empty identity data")
+        for name, values in (
+            ("data semantics", self.data_semantics),
+            ("information set", self.information_set),
+        ):
+            if not values or any(not value.strip() for value in values):
+                raise ValueError(f"family signature {name} cannot be empty")
+            if len(values) != len(set(values)):
+                raise ValueError(f"family signature {name} must be unique")
+
+    def canonical_payload(self) -> dict[str, object]:
+        self.validate()
+        return {
+            "mechanism_id": self.mechanism_id,
+            "data_semantics": sorted(self.data_semantics),
+            "information_set": sorted(self.information_set),
+            "economic_claim": self.economic_claim,
+            "signal_direction": self.signal_direction,
+        }
+
+    @property
+    def sha256(self) -> str:
+        return _sha(self.canonical_payload())
+
+
+@dataclass(frozen=True)
+class VariantSignature:
+    family: FamilySignature
+    expression_family: str
+    primary_horizon: int
+    secondary_horizon: int | None
+    transformation_lineage: tuple[str, ...]
+    portfolio_wrapper: str
+    policy_wrapper: str
+
+    def validate(self) -> None:
+        self.family.validate()
+        if not self.expression_family.strip() or self.primary_horizon < 1:
+            raise ValueError("variant signature requires expression and primary horizon")
+        if self.secondary_horizon is not None and self.secondary_horizon < 1:
+            raise ValueError("secondary horizon must be positive")
+        if self.secondary_horizon == self.primary_horizon:
+            raise ValueError("secondary horizon must differ from primary horizon")
+        if not self.transformation_lineage or any(
+            not value.strip() for value in self.transformation_lineage
+        ):
+            raise ValueError("variant transformation lineage cannot be empty")
+        if not self.portfolio_wrapper.strip() or not self.policy_wrapper.strip():
+            raise ValueError("variant wrappers cannot be empty")
+
+    @property
+    def sha256(self) -> str:
+        self.validate()
+        return _sha(
+            {
+                "family_sha256": self.family.sha256,
+                "expression_family": self.expression_family,
+                "primary_horizon": self.primary_horizon,
+                "secondary_horizon": self.secondary_horizon,
+                "transformation_lineage": list(self.transformation_lineage),
+                "portfolio_wrapper": self.portfolio_wrapper,
+                "policy_wrapper": self.policy_wrapper,
+            }
+        )
+
+
+@dataclass(frozen=True)
+class FamilyTombstone:
+    tombstone_id: str
+    family_sha256: str
+    reason_code: str
+    authority: str
+    source_failure_node_ids: tuple[str, ...]
+    recorded_at: str
+
+
+@dataclass(frozen=True)
+class TombstoneDecision:
+    family_sha256: str
+    variant_sha256: str
+    action: SearchAction
+    reason_code: str
+    tombstone_id: str | None
+
+
+class WindowState(str, Enum):
+    SEALED_VALIDATION = "SEALED_VALIDATION"
+    CONSUMED_VALIDATION = "CONSUMED_VALIDATION"
+    SEALED_FINAL_TEST = "SEALED_FINAL_TEST"
+
+
+@dataclass(frozen=True)
+class WindowStateEvent:
+    event_id: str
+    window_id: str
+    event_index: int
+    previous_state: WindowState
+    new_state: WindowState
+    authority: str
+    source_artifact_sha256: str
+    recorded_at: str
+    payload_sha256: str
+
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS research_epochs (
@@ -171,6 +293,28 @@ CREATE TABLE IF NOT EXISTS epoch_decisions (
     FOREIGN KEY(epoch_id) REFERENCES research_epochs(epoch_id),
     UNIQUE(epoch_id, family_id)
 );
+CREATE TABLE IF NOT EXISTS family_tombstones (
+    tombstone_id TEXT PRIMARY KEY,
+    family_sha256 TEXT NOT NULL UNIQUE,
+    family_signature_json TEXT NOT NULL,
+    reason_code TEXT NOT NULL,
+    authority TEXT NOT NULL,
+    source_failure_node_ids_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS window_state_events (
+    event_id TEXT PRIMARY KEY,
+    window_id TEXT NOT NULL,
+    event_index INTEGER NOT NULL,
+    previous_state TEXT NOT NULL,
+    new_state TEXT NOT NULL,
+    authority TEXT NOT NULL,
+    source_artifact_sha256 TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL,
+    UNIQUE(window_id, event_index)
+);
 CREATE TRIGGER IF NOT EXISTS research_epochs_no_update BEFORE UPDATE ON research_epochs
 BEGIN SELECT RAISE(ABORT, 'research epochs are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS research_epochs_no_delete BEFORE DELETE ON research_epochs
@@ -195,12 +339,21 @@ CREATE TRIGGER IF NOT EXISTS epoch_closures_no_update BEFORE UPDATE ON epoch_clo
 BEGIN SELECT RAISE(ABORT, 'epoch closures are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS epoch_closures_no_delete BEFORE DELETE ON epoch_closures
 BEGIN SELECT RAISE(ABORT, 'epoch closures are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS family_tombstones_no_update BEFORE UPDATE ON family_tombstones
+BEGIN SELECT RAISE(ABORT, 'family tombstones are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS family_tombstones_no_delete BEFORE DELETE ON family_tombstones
+BEGIN SELECT RAISE(ABORT, 'family tombstones are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS window_state_events_no_update BEFORE UPDATE ON window_state_events
+BEGIN SELECT RAISE(ABORT, 'window state events are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS window_state_events_no_delete BEFORE DELETE ON window_state_events
+BEGIN SELECT RAISE(ABORT, 'window state events are append-only'); END;
 """
 
 
 class FailureStore:
     def __init__(self, path: Path) -> None:
         self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.executescript(SCHEMA)
 
@@ -389,9 +542,190 @@ class FailureStore:
             )
         return decision_id
 
+    def record_family_tombstone(
+        self,
+        signature: FamilySignature,
+        *,
+        reason_code: str,
+        authority: str,
+        source_failure_node_ids: tuple[str, ...],
+        recorded_at: str,
+    ) -> FamilyTombstone:
+        signature.validate()
+        if any(not value.strip() for value in (reason_code, authority, recorded_at)):
+            raise ValueError("tombstone reason, authority and timestamp are required")
+        if not source_failure_node_ids or len(source_failure_node_ids) != len(
+            set(source_failure_node_ids)
+        ):
+            raise ValueError("tombstone failure nodes must be non-empty and unique")
+        with self.connect() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM failure_nodes WHERE node_id IN "
+                f"({','.join('?' for _ in source_failure_node_ids)})",
+                source_failure_node_ids,
+            ).fetchone()[0]
+            if int(count) != len(source_failure_node_ids):
+                raise ValueError("tombstone references unknown failure nodes")
+            payload = {
+                "family": signature.canonical_payload(),
+                "reason_code": reason_code,
+                "authority": authority,
+                "source_failure_node_ids": list(source_failure_node_ids),
+                "recorded_at": recorded_at,
+            }
+            payload_sha = _sha(payload)
+            tombstone_id = f"tombstone_{_sha((signature.sha256, payload_sha))[:24]}"
+            conn.execute(
+                "INSERT INTO family_tombstones VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    tombstone_id,
+                    signature.sha256,
+                    _canonical(signature.canonical_payload()),
+                    reason_code,
+                    authority,
+                    _canonical(source_failure_node_ids),
+                    recorded_at,
+                    payload_sha,
+                ),
+            )
+        return FamilyTombstone(
+            tombstone_id,
+            signature.sha256,
+            reason_code,
+            authority,
+            source_failure_node_ids,
+            recorded_at,
+        )
+
+    def tombstone_decision(self, variant: VariantSignature) -> TombstoneDecision:
+        variant.validate()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT tombstone_id, reason_code FROM family_tombstones "
+                "WHERE family_sha256 = ?",
+                (variant.family.sha256,),
+            ).fetchone()
+        if row is None:
+            return TombstoneDecision(
+                variant.family.sha256,
+                variant.sha256,
+                SearchAction.EXPLORE,
+                "MECHANISM_NOT_TOMBSTONED",
+                None,
+            )
+        return TombstoneDecision(
+            variant.family.sha256,
+            variant.sha256,
+            SearchAction.STOP_FAMILY,
+            str(row[1]),
+            str(row[0]),
+        )
+
+    def record_window_state(
+        self,
+        *,
+        window_id: str,
+        previous_state: WindowState,
+        new_state: WindowState,
+        authority: str,
+        source_artifact_sha256: str,
+        recorded_at: str,
+    ) -> WindowStateEvent:
+        if any(not value.strip() for value in (window_id, authority, recorded_at)):
+            raise ValueError("window event identity, authority and timestamp are required")
+        if len(source_artifact_sha256) != 64:
+            raise ValueError("window event source artifact requires SHA-256")
+        allowed = {
+            (WindowState.SEALED_VALIDATION, WindowState.CONSUMED_VALIDATION),
+            (WindowState.CONSUMED_VALIDATION, WindowState.CONSUMED_VALIDATION),
+            (WindowState.SEALED_FINAL_TEST, WindowState.SEALED_FINAL_TEST),
+        }
+        if (previous_state, new_state) not in allowed:
+            raise ValueError("window state transition is not permitted")
+        with self.connect() as conn:
+            latest = conn.execute(
+                "SELECT event_index, new_state FROM window_state_events "
+                "WHERE window_id = ? ORDER BY event_index DESC LIMIT 1",
+                (window_id,),
+            ).fetchone()
+            if latest is not None and WindowState(str(latest[1])) != previous_state:
+                raise ValueError("window previous state does not match append-only history")
+            event_index = 1 if latest is None else int(latest[0]) + 1
+            payload = {
+                "window_id": window_id,
+                "event_index": event_index,
+                "previous_state": previous_state.value,
+                "new_state": new_state.value,
+                "authority": authority,
+                "source_artifact_sha256": source_artifact_sha256,
+                "recorded_at": recorded_at,
+            }
+            payload_sha = _sha(payload)
+            event_id = f"window_{_sha((window_id, event_index, payload_sha))[:24]}"
+            conn.execute(
+                "INSERT INTO window_state_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event_id,
+                    window_id,
+                    event_index,
+                    previous_state.value,
+                    new_state.value,
+                    authority,
+                    source_artifact_sha256,
+                    recorded_at,
+                    payload_sha,
+                ),
+            )
+        return WindowStateEvent(
+            event_id,
+            window_id,
+            event_index,
+            previous_state,
+            new_state,
+            authority,
+            source_artifact_sha256,
+            recorded_at,
+            payload_sha,
+        )
+
+    def window_state_events(self, window_id: str) -> tuple[WindowStateEvent, ...]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT event_id, window_id, event_index, previous_state, new_state, "
+                "authority, source_artifact_sha256, recorded_at, payload_sha256 "
+                "FROM window_state_events WHERE window_id = ? ORDER BY event_index",
+                (window_id,),
+            ).fetchall()
+        return tuple(
+            WindowStateEvent(
+                str(row[0]),
+                str(row[1]),
+                int(row[2]),
+                WindowState(str(row[3])),
+                WindowState(str(row[4])),
+                str(row[5]),
+                str(row[6]),
+                str(row[7]),
+                str(row[8]),
+            )
+            for row in rows
+        )
+
 
 def _action_for(failures: tuple[FailureNode, ...], threshold: int) -> tuple[SearchAction, str]:
     codes = {node.code for node in failures}
+    independent_validation_codes = {
+        FailureCode.TEMPORAL_NON_GENERALIZATION,
+        FailureCode.PLACEBO_FAILURE_OOS,
+        FailureCode.RETURN_CONCENTRATION,
+        FailureCode.DSR_FAILURE,
+        FailureCode.POLICY_OVERFIT_RISK,
+    }
+    if any(
+        node.stage == "independent_validation" and node.code in independent_validation_codes
+        for node in failures
+    ):
+        return SearchAction.STOP_FAMILY, "VALIDATION_FAIL_STOP"
     if len(failures) >= threshold or FailureCode.BUDGET_EXHAUSTED in codes:
         return SearchAction.STOP_FAMILY, "FAMILY_EXHAUSTED"
     if len(codes) >= 2:

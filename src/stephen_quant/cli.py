@@ -52,6 +52,7 @@ from .workflows import (
     load_v24_temporal_stability_config,
     load_v25_regime_portfolio_config,
     load_v26_validation_config,
+    load_v27_m0_config,
     run_automated_discovery,
     run_automated_discovery_suite,
     run_composite_cpcv_research,
@@ -66,12 +67,14 @@ from .workflows import (
     run_v24_temporal_stability,
     run_v25_regime_portfolio,
     run_v26_validation,
+    run_v27_m0_governance,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
     verify_v23_style_residualization_replay,
     verify_v24_temporal_stability_replay,
     verify_v25_regime_portfolio_replay,
     verify_v26_validation_replay,
+    verify_v27_m0_replay,
     write_factor_family_validation_report,
 )
 
@@ -330,6 +333,15 @@ def build_parser() -> argparse.ArgumentParser:
     v26_validation.add_argument("--ingested-at")
     v26_validation.add_argument("--output", default="reports/v2.6-validation-2025")
     v26_validation.add_argument("--replay-manifest")
+
+    v27_governance = sub.add_parser("v2-governance-reset")
+    v27_governance.add_argument("--config", default="configs/v2.7-m0-governance.json")
+    v27_governance.add_argument(
+        "--mode", choices=("run", "replay", "kill"), default="run"
+    )
+    v27_governance.add_argument("--failure-store", default="reports/v2.7-m0/failures.sqlite3")
+    v27_governance.add_argument("--output", default="reports/v2.7-m0")
+    v27_governance.add_argument("--replay-manifest")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -847,6 +859,47 @@ def main() -> None:
                 {
                     "report": report.to_dict(),
                     "readiness_json_path": str(artifacts.readiness_json_path),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_manifest_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v2-governance-reset":
+        if args.mode == "kill":
+            raise SystemExit(
+                "v2-governance-reset stopped before failure-store or artifact access"
+            )
+        try:
+            if args.mode == "replay":
+                if not args.replay_manifest:
+                    raise ValueError("--replay-manifest is required in replay mode")
+                print(
+                    json.dumps(
+                        asdict(verify_v27_m0_replay(args.replay_manifest)),
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return
+            load_v27_m0_config(args.config)
+            report, artifacts = run_v27_m0_governance(
+                args.config,
+                failure_store_path=args.failure_store,
+                output_dir=args.output,
+            )
+        except ValueError as exc:
+            raise SystemExit(f"v2-governance-reset failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
                     "json_path": str(artifacts.json_path),
                     "markdown_en_path": str(artifacts.markdown_en_path),
                     "markdown_zh_path": str(artifacts.markdown_zh_path),

@@ -179,6 +179,18 @@ from .v26_validation_2025 import (
     run_v26_validation,
     verify_v26_validation_replay,
 )
+from .v27_governance import (
+    V27_M0_CONFIG_VERSION,
+    V27_M0_METHOD_VERSION,
+    V27_M0_REPLAY_VERSION,
+    V27M0Artifacts,
+    V27M0Config,
+    V27M0ReplayVerification,
+    V27M0Report,
+    load_v27_m0_config,
+    run_v27_m0_governance,
+    verify_v27_m0_replay,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -211,6 +223,9 @@ __all__ = [
     "V26_METHOD_VERSION",
     "V26_PBO_STATUS",
     "V26_REPLAY_VERSION",
+    "V27_M0_CONFIG_VERSION",
+    "V27_M0_METHOD_VERSION",
+    "V27_M0_REPLAY_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AutomatedDiscoveryConfig",
@@ -282,6 +297,10 @@ __all__ = [
     "V26ValidationPanel",
     "V26ValidationReport",
     "V26ValidationScore",
+    "V27M0Artifacts",
+    "V27M0Config",
+    "V27M0ReplayVerification",
+    "V27M0Report",
     "apply_v25_policy",
     "build_factor_family_validation_report",
     "build_v23_frozen_panel",
@@ -299,6 +318,7 @@ __all__ = [
     "load_v24_temporal_stability_config",
     "load_v25_regime_portfolio_config",
     "load_v26_validation_config",
+    "load_v27_m0_config",
     "raw_sharpe",
     "residualize_v23_style",
     "run_automated_discovery",
@@ -315,6 +335,7 @@ __all__ = [
     "run_v24_temporal_stability",
     "run_v25_regime_portfolio",
     "run_v26_validation",
+    "run_v27_m0_governance",
     "sample_return_moments",
     "select_v22_breadth",
     "select_v25_policy",
@@ -329,5 +350,6 @@ __all__ = [
     "verify_v24_temporal_stability_replay",
     "verify_v25_regime_portfolio_replay",
     "verify_v26_validation_replay",
+    "verify_v27_m0_replay",
     "write_factor_family_validation_report",
 ]
