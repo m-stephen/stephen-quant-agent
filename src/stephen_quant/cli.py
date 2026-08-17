@@ -36,6 +36,7 @@ from .qmt import (
     validate_research_environment,
     write_dynamic_universe,
     write_factor_redundancy_screen,
+    write_industry_proxy_audit,
     write_qd_universe,
 )
 from .v2 import (
@@ -197,6 +198,11 @@ def build_parser() -> argparse.ArgumentParser:
     qd_data_audit.add_argument("--allowlist-manifest")
     qd_data_audit.add_argument("--paths-config")
     qd_data_audit.add_argument("--output-dir")
+
+    industry_proxy = sub.add_parser("qd-industry-proxy-audit")
+    industry_proxy.add_argument("--paths-config")
+    industry_proxy.add_argument("--daily-dir")
+    industry_proxy.add_argument("--output", default="artifacts/qd-industry-proxy-audit")
 
     data_inventory = sub.add_parser("data-inventory")
     data_inventory.add_argument("--paths-config", required=True)
@@ -1222,6 +1228,36 @@ def main() -> None:
             print(report.to_json())
         if not report.gate_pass:
             raise SystemExit(2)
+        return
+
+    if args.command == "qd-industry-proxy-audit":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", args.daily_dir, "--daily-dir")
+            report, artifacts = write_industry_proxy_audit(daily_dir, args.output)
+        except (PathConfigError, QmtDataError) as exc:
+            raise SystemExit(f"qd-industry-proxy-audit failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "command": "qd-industry-proxy-audit",
+                    "classification": report.classification,
+                    "research_usage": report.research_usage,
+                    "inferential_trial_delta": report.inferential_trial_delta,
+                    "manifest_sha256": report.manifest_sha256,
+                    "result_sha256": report.result_sha256,
+                    "artifacts": [
+                        str(artifacts.manifest_path),
+                        str(artifacts.json_path),
+                        str(artifacts.markdown_zh_path),
+                        str(artifacts.markdown_en_path),
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return
 
     if args.command in {"data-inventory", "data-unlock", "data-maintain"}:

@@ -1,5 +1,15 @@
 # Stephen Quant Agent
 
+The PIT-Lite daily-bar industry audit can be replayed with the gitignored local path configuration:
+
+```powershell
+stephen-quant qd-industry-proxy-audit --paths-config configs/qd-paths.local.json
+```
+
+It reads only explicit 2022–2024 date partitions and emits a frozen manifest, JSON and bilingual
+Markdown. See `docs/PIT_LITE_INDUSTRY_PROXY_AUDIT_EN.md` and the Chinese companion for the current
+evidence and usage restriction.
+
 ## V2.8 point-in-time data-source upgrade
 
 V2.8 promotes the tested data-maintenance and point-in-time staging foundation from
