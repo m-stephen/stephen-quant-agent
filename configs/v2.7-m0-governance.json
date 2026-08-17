@@ -1,0 +1,24 @@
+{
+  "config_version": "2.7-m0.1",
+  "issue_number": 67,
+  "v26_config": "v2.6-validation-2025.json",
+  "authority": "github-issue-67",
+  "recorded_at": "2026-08-17T17:36:46+08:00",
+  "prior_evidence_sha256": "123f9bad9126babc6d89c378190b8233dd7fa7dca76bc11d8a39c51bd466c3b1",
+  "prior_inferential_trials": 48,
+  "family": {
+    "mechanism_id": "flow_confirmation",
+    "data_semantics": [
+      "20d_main_net_flow_confirmation",
+      "price_confirmation"
+    ],
+    "information_set": [
+      "decision_time_daily_bar",
+      "decision_time_fund_flow"
+    ],
+    "economic_claim": "persistent informed fund flow predicts medium-horizon continuation",
+    "signal_direction": "positive"
+  },
+  "rejected_expression_family": "flow_confirmation_20_20d",
+  "rejected_primary_horizon": 20
+}
