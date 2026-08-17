@@ -44,12 +44,18 @@ quotes are not treated as historical stock constituent mappings.
 
 The default contract sets `formal_research_eligible = false` for this complete staging package.
 
-## AlphaPai gap
+## AlphaPai evidence and remaining gap
 
-`ALPHAPAI_API_KEY` was not configured during this run. No response, announcement metadata, publish
-time, source document, or coverage statistic was fabricated. The Remote Retrieval Ledger records
-`not_run_missing_credentials`; a later local run may populate announcement metadata without changing
-the contract or using hotspot/social content as factual evidence.
+`ALPHAPAI_API_KEY` and the configured base URL were verified with a minimal read-only 2025
+announcement probe for one security. The probe returned five records successfully. This is
+connectivity and schema evidence only: it is not full-market coverage, does not establish complete
+revision history, and does not promote any record into research. Transient AlphaPai announcement
+identifiers are excluded from durable staging identifiers; source-document and revision identifiers
+are deterministically derived from hashed content.
+
+Full-market announcement retrieval, source-document collection, and complete revision-chain
+coverage remain outstanding. Missing credentials continue to produce an explicit
+`not_run_missing_credentials` Remote Retrieval Ledger record rather than fabricated data.
 
 ## Remaining promotion gates
 

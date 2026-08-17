@@ -13,6 +13,7 @@ from stephen_quant.qmt.pit_staging import (
     alphapai_missing_credentials_ledger,
     audit_pit_staging,
     default_staging_contract,
+    ingest_alphapai_announcement_response,
     validate_financial_visibility,
     validate_industry_memberships,
     visible_financial_revision,
@@ -58,11 +59,11 @@ def test_financial_visibility_respects_publish_boundary_and_revision_chain() -> 
     ) == revised
 
 
-def test_financial_visibility_rejects_future_and_duplicate_revision() -> None:
+def test_financial_visibility_rejects_invalid_timing_and_duplicate_revision() -> None:
     row = _financial()
-    with pytest.raises(QmtDataError, match="precedes announcement"):
+    with pytest.raises(QmtDataError, match="timezone"):
         validate_financial_visibility((replace(
-            row, actual_publish_time="2025-04-30T16:00:00+08:00"
+            row, actual_publish_time="2025-04-30T16:00:00"
         ),))
     with pytest.raises(QmtDataError, match="duplicate"):
         validate_financial_visibility((row, row))
@@ -116,6 +117,54 @@ def test_missing_alphapai_credentials_are_recorded_without_fabrication() -> None
     assert ledger.documents_received == 0
     assert ledger.inferential_trial_delta == 0
     assert "fabricated" in ledger.note
+
+
+def test_alphapai_periodic_metadata_builds_stable_visibility_without_encrypted_id() -> None:
+    response = {
+        "code": 200000,
+        "message": "success",
+        "data": {
+            "pageNum": 1,
+            "pageSize": 2,
+            "totalPageNum": 1,
+            "totalSize": 2,
+            "data": [
+                {
+                    "announcementId": "transient-secret-id",
+                    "title": "Example 2025 first-quarter report",
+                    "publishTime": "2025-04-30 18:00:00",
+                    "actualPublishTime": "2025-04-30 17:59:00",
+                    "endDate": "2025-03-31 00:00:00",
+                    "announcementType": "季度报告",
+                    "announcementTypeCode": "periodic-quarterly",
+                    "market": "A",
+                    "stockTag": [{"code": "000001.SZ", "name": "Example"}],
+                    "industryTag": [],
+                    "hasPdf": True,
+                },
+                {
+                    "announcementId": "ignored-id",
+                    "title": "Daily operation notice",
+                    "publishTime": "2025-04-30 18:00:00",
+                    "actualPublishTime": "2025-04-30 18:00:00",
+                    "endDate": "2025-04-30 00:00:00",
+                    "announcementType": "日常经营其他",
+                    "stockTag": [{"code": "000001.SZ", "name": "Example"}],
+                },
+            ],
+        },
+    }
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2025-01-01", query_end="2025-12-31"
+    )
+    assert len(rows) == 1
+    assert rows[0].code == "000001.SZ"
+    assert rows[0].actual_publish_time.endswith("+08:00")
+    assert "transient-secret-id" not in json.dumps(rows[0].__dict__)
+    assert len(rows[0].source_document_id) == 64
+    assert ledger.status == "success"
+    assert ledger.documents_received == 1
+    assert ledger.inferential_trial_delta == 0
 
 
 def test_staging_contract_output_is_deterministic(tmp_path: Path) -> None:
