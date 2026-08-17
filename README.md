@@ -44,6 +44,26 @@ See the [English V2.2 specification](docs/V2_2_SPEC_EN.md),
 [English result](docs/V2_2_RESULT_EN.md), and
 [中文结果](docs/V2_2_RESULT_ZH.md).
 
+**V2.3** freezes the same signal and Top-5 portfolio, then removes same-day exposure to
+five-day price momentum and `log(ADV20)`. It improves research-period net Sharpe from 0.4266
+to 0.6028 and maximum drawdown from -28.42% to -21.12%, but remains research-only because
+trial-aware DSR is 0.5818 rather than the required 0.95. Industry neutralization remains
+blocked until point-in-time stock-industry membership is available.
+
+```powershell
+stephen-quant --db "artifacts\v2.3-style.sqlite3" v2-style-residualization `
+  --paths-config "configs\qd-paths.local.json" `
+  --config "configs\v2.3-style-residualization.json" `
+  --mode research `
+  --ingested-at "2026-08-17T00:00:00+08:00" `
+  --output "reports\v2.3-style-residualization"
+```
+
+See the [English V2.3 specification](docs/V2_3_SPEC_EN.md),
+[中文 V2.3 规格](docs/V2_3_SPEC_ZH.md),
+[English result](docs/V2_3_RESULT_EN.md), and
+[中文结果](docs/V2_3_RESULT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
