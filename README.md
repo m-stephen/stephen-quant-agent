@@ -16,6 +16,23 @@ Consequently, Gate 5 remains blocked and the 2025/2026 research restrictions rem
 See the [English V2.8 release audit](docs/V2_8_RELEASE_AUDIT_EN.md) and
 [中文 V2.8 发布审计](docs/V2_8_RELEASE_AUDIT_ZH.md).
 
+The label-free semantic search prototype improves candidate design while the remaining PIT
+sources are acquired. It introduces five-layer candidate identity, deterministic tombstone and
+duplicate gates, an offline Remote/Search Ledger, and synthetic train/validation/sealed-test
+benchmarks without reading real returns:
+
+```powershell
+stephen-quant v2-label-free-search `
+  --config configs/v2.8-label-free-semantic-search.json `
+  --output reports/v2.8-label-free-semantic-search
+```
+
+See the [English specification](docs/LABEL_FREE_SEMANTIC_SEARCH_SPEC_EN.md),
+[中文规格](docs/LABEL_FREE_SEMANTIC_SEARCH_SPEC_ZH.md),
+[English result](docs/LABEL_FREE_SEMANTIC_SEARCH_RESULT_EN.md), and
+[中文结果](docs/LABEL_FREE_SEMANTIC_SEARCH_RESULT_ZH.md). This prototype does not authorize
+real-return factor search or change the #92/#93/#84 boundaries.
+
 ## V2.7 integrity-first reset
 
 M0 records rejected factor families and seals research-window governance. M1 adds a source-specific point-in-time readiness audit without reading raw directories or observing returns:
