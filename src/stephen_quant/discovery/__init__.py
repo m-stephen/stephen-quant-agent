@@ -1,3 +1,12 @@
+from .attribution import (
+    FACTOR_ATTRIBUTION_VERSION,
+    AttributionRegistration,
+    AttributionThresholds,
+    FactorAttributionReport,
+    QuantileReturn,
+    register_attribution_trial,
+    run_factor_attribution,
+)
 from .campaign import CampaignSpec, SearchCampaign
 from .cpcv import (
     DiscoveryCpcvConfig,
@@ -57,10 +66,13 @@ from .stability import (
 )
 
 __all__ = [
+    "FACTOR_ATTRIBUTION_VERSION",
     "RESEARCH_MEMORY_VERSION",
     "SIGNAL_PORTFOLIO_PROTOCOL_VERSION",
     "STABILITY_DIAGNOSTICS_VERSION",
     "AlphaCard",
+    "AttributionRegistration",
+    "AttributionThresholds",
     "CampaignBudget",
     "CampaignSpec",
     "CandidateScreenScore",
@@ -73,12 +85,14 @@ __all__ = [
     "DiscoveryExecutionConfig",
     "DiscoveryExecutionReport",
     "ExecutionCandidateScore",
+    "FactorAttributionReport",
     "FactorSchema",
     "FactorTemplate",
     "GeneratedCandidate",
     "GenerationPlan",
     "PortfolioSignalPackage",
     "PredictionHorizon",
+    "QuantileReturn",
     "ResearchExperience",
     "ResearchMemory",
     "ScreeningConfig",
@@ -98,9 +112,11 @@ __all__ = [
     "mutate_schema",
     "normalized_generation_plan",
     "point_in_time_industry_groups",
+    "register_attribution_trial",
     "register_capacity_stress_trials",
     "run_discovery_cpcv",
     "run_discovery_execution",
+    "run_factor_attribution",
     "run_stability_diagnostics",
     "run_training_screen",
     "seed_generation_plan",

@@ -9,12 +9,15 @@ from pathlib import Path
 
 from stephen_quant.baseline import write_baseline_report
 from stephen_quant.discovery import (
+    AttributionRegistration,
+    AttributionThresholds,
     CampaignBudget,
     CampaignSpec,
     DiscoveryCpcvConfig,
     DiscoveryCpcvReport,
     DiscoveryExecutionConfig,
     DiscoveryExecutionReport,
+    FactorAttributionReport,
     GenerationPlan,
     ScreeningConfig,
     ScreeningReport,
@@ -27,9 +30,11 @@ from stephen_quant.discovery import (
     flow_stress_generation_plan,
     generate_candidates,
     normalized_generation_plan,
+    register_attribution_trial,
     register_capacity_stress_trials,
     run_discovery_cpcv,
     run_discovery_execution,
+    run_factor_attribution,
     run_stability_diagnostics,
     run_training_screen,
     seed_generation_plan,
@@ -102,6 +107,11 @@ class AutomatedDiscoveryConfig:
     capacity_stress_rates: tuple[float, ...] = ()
     capacity_stress_navs: tuple[float, ...] = ()
     capacity_reference_nav: float | None = None
+    attribution_minimum_residual_rank_ic: float = 0.02
+    attribution_minimum_monotonicity: float = 0.50
+    attribution_maximum_date_concentration: float = 0.50
+    attribution_minimum_execution_sharpe: float = 0.50
+    attribution_maximum_drawdown: float = 0.25
     regime_lookback: int = 20
 
     def validate(self) -> None:
@@ -127,9 +137,15 @@ class AutomatedDiscoveryConfig:
             raise ValueError("execution_budget must be zero or at least two for DSR")
         if self.dynamic_universe_top_n < 3:
             raise ValueError("dynamic_universe_top_n must be at least three")
-        if self.search_profile not in {"v1.8.16", "v1.8.17", "v1.8.18", "v1.8.19"}:
+        if self.search_profile not in {
+            "v1.8.16",
+            "v1.8.17",
+            "v1.8.18",
+            "v1.8.19",
+            "v1.8.20",
+        }:
             raise ValueError(
-                "search_profile must be v1.8.16, v1.8.17, v1.8.18 or v1.8.19"
+                "search_profile must be v1.8.16 through v1.8.20"
             )
         if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
             not 0 < rate <= 1 for rate in self.capacity_stress_rates
@@ -149,6 +165,19 @@ class AutomatedDiscoveryConfig:
                 raise ValueError("v1.8.19 requires 1%, 5% and 10% participation rates")
             if self.capacity_reference_nav != 3_000_000.0:
                 raise ValueError("v1.8.19 capacity reference NAV must be CNY 3m")
+        attribution_thresholds = AttributionThresholds(
+            minimum_residual_rank_ic=self.attribution_minimum_residual_rank_ic,
+            minimum_monotonicity=self.attribution_minimum_monotonicity,
+            maximum_date_concentration=self.attribution_maximum_date_concentration,
+            minimum_execution_sharpe=self.attribution_minimum_execution_sharpe,
+            maximum_drawdown=self.attribution_maximum_drawdown,
+        )
+        attribution_thresholds.validate()
+        if self.search_profile == "v1.8.20":
+            if self.capacity_stress_rates or self.capacity_stress_navs:
+                raise ValueError("v1.8.20 does not repeat the capacity search")
+            if attribution_thresholds != AttributionThresholds():
+                raise ValueError("v1.8.20 requires the frozen attribution thresholds")
         if self.regime_lookback < 5:
             raise ValueError("regime_lookback must be at least five")
         ScreeningConfig(
@@ -189,6 +218,7 @@ class AutomatedDiscoveryReport:
     cpcv: DiscoveryCpcvReport | None
     execution: DiscoveryExecutionReport | None
     stability_diagnostics: StabilityDiagnosticsReport | None
+    factor_attribution: FactorAttributionReport | None
     alternative_audits: tuple[QdAlternativeAudit, ...]
     dynamic_universe_sha256: str | None
     dynamic_universe_unique_members: int | None
@@ -205,7 +235,11 @@ class AutomatedDiscoveryReport:
             raise ValueError("report language must be en or zh")
         zh = language == "zh"
         title = (
-            "# V1.8.19 资金容量曲线报告"
+            "# V1.8.20 因子增量价值与收益归因报告"
+            if zh and "1.8.20" in self.method_version
+            else "# V1.8.20 Factor Incremental Value and Return Attribution"
+            if "1.8.20" in self.method_version
+            else "# V1.8.19 资金容量曲线报告"
             if zh and "1.8.19" in self.method_version
             else "# V1.8.19 NAV Capacity Frontier"
             if "1.8.19" in self.method_version
@@ -313,6 +347,8 @@ class AutomatedDiscoveryReport:
             )
         if self.stability_diagnostics is not None:
             lines.extend(["", self.stability_diagnostics.to_markdown(language).strip(), ""])
+        if self.factor_attribution is not None:
+            lines.extend(["", self.factor_attribution.to_markdown(language).strip(), ""])
         return "\n".join(lines) + "\n"
 
 
@@ -510,7 +546,7 @@ def run_automated_discovery(
     }
     plan_seed = (
         flow_stress_generation_plan()
-        if config.search_profile in {"v1.8.18", "v1.8.19"}
+        if config.search_profile in {"v1.8.18", "v1.8.19", "v1.8.20"}
         else normalized_generation_plan()
         if config.search_profile == "v1.8.17"
         else seed_generation_plan()
@@ -530,7 +566,9 @@ def run_automated_discovery(
     search_space = json.dumps(
         {
             "method_version": (
-                "v1.8.19-nav-capacity-frontier-1.0.0"
+                "v1.8.20-factor-attribution-1.0.0"
+                if config.search_profile == "v1.8.20"
+                else "v1.8.19-nav-capacity-frontier-1.0.0"
                 if config.search_profile == "v1.8.19"
                 else "v1.8.18-flow-stability-1.0.0"
                 if config.search_profile == "v1.8.18"
@@ -704,8 +742,43 @@ def run_automated_discovery(
         )
     execution: DiscoveryExecutionReport | None = None
     stability_diagnostics: StabilityDiagnosticsReport | None = None
+    factor_attribution: FactorAttributionReport | None = None
     execution_reports = {}
     if cpcv is not None and cpcv.signal_gate_passed and config.execution_budget >= 2:
+        attribution_registration: AttributionRegistration | None = None
+        attribution_target = None
+        attribution_controls = ()
+        attribution_thresholds = AttributionThresholds(
+            minimum_residual_rank_ic=config.attribution_minimum_residual_rank_ic,
+            minimum_monotonicity=config.attribution_minimum_monotonicity,
+            maximum_date_concentration=config.attribution_maximum_date_concentration,
+            minimum_execution_sharpe=config.attribution_minimum_execution_sharpe,
+            maximum_drawdown=config.attribution_maximum_drawdown,
+        )
+        if config.search_profile == "v1.8.20":
+            candidate_by_schema_id = {
+                item.schema.schema_id: item for item in candidates if item.unique
+            }
+            attribution_target = next(
+                item
+                for schema_id, item in candidate_by_schema_id.items()
+                if schema_id.startswith("flow_price_divergence_parent")
+            )
+            price_control = next(
+                item
+                for schema_id, item in candidate_by_schema_id.items()
+                if schema_id.startswith("price_reversal_control")
+            )
+            attribution_controls = (price_control,)
+            attribution_registration = register_attribution_trial(
+                registry,
+                experiment_id=campaign.spec.experiment_id,
+                window=window,
+                target=attribution_target.schema,
+                controls=tuple(item.schema for item in attribution_controls),
+                thresholds=attribution_thresholds,
+                seed=config.seed,
+            )
         stress_registrations = (
             register_capacity_stress_trials(
                 registry,
@@ -744,6 +817,31 @@ def run_automated_discovery(
             config=execution_config,
             seed=config.seed,
         )
+        if attribution_registration is not None and attribution_target is not None:
+            target_score = next(
+                (
+                    item
+                    for item in execution.configurations
+                    if item.fingerprint == attribution_target.schema.fingerprint
+                ),
+                None,
+            )
+            if target_score is None:
+                raise ValueError("V1.8.20 attribution target did not enter frozen execution")
+            factor_attribution = run_factor_attribution(
+                registry,
+                registration=attribution_registration,
+                target_schema=attribution_target.schema,
+                target_rows=observations[attribution_target.schema.fingerprint],
+                controls=tuple(
+                    (item.schema, observations[item.schema.fingerprint])
+                    for item in attribution_controls
+                ),
+                thresholds=attribution_thresholds,
+                execution_net_return=target_score.net_total_return,
+                execution_sharpe=target_score.annualized_net_sharpe,
+                execution_max_drawdown=target_score.max_drawdown,
+            )
         if stress_registrations:
             candidate_by_fingerprint = {
                 item.schema.fingerprint: item for item in candidates if item.unique
@@ -785,7 +883,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v1.8.19-nav-capacity-frontier-1.0.0"
+            "v1.8.20-factor-attribution-1.0.0"
+            if config.search_profile == "v1.8.20"
+            else "v1.8.19-nav-capacity-frontier-1.0.0"
             if config.search_profile == "v1.8.19"
             else "v1.8.18-flow-stability-1.0.0"
             if config.search_profile == "v1.8.18"
@@ -803,6 +903,7 @@ def run_automated_discovery(
         cpcv=cpcv,
         execution=execution,
         stability_diagnostics=stability_diagnostics,
+        factor_attribution=factor_attribution,
         alternative_audits=alternative_audits,
         dynamic_universe_sha256=dynamic_sha256,
         dynamic_universe_unique_members=(len(instruments) if dynamic_memberships else None),
@@ -830,6 +931,9 @@ def run_automated_discovery(
     stability_json_path = output / "stability-diagnostics.json"
     stability_en_path = output / "stability-diagnostics.en.md"
     stability_zh_path = output / "stability-diagnostics.zh.md"
+    attribution_json_path = output / "factor-attribution.json"
+    attribution_en_path = output / "factor-attribution.en.md"
+    attribution_zh_path = output / "factor-attribution.zh.md"
     json_sha = _write(json_path, report.to_json() + "\n")
     en_sha = _write(markdown_en_path, report.to_markdown("en"))
     zh_sha = _write(markdown_zh_path, report.to_markdown("zh"))
@@ -865,6 +969,31 @@ def run_automated_discovery(
                 _write(stability_zh_path, stability_diagnostics.to_markdown("zh")),
             ),
         )
+    if factor_attribution is not None:
+        attribution_artifacts = (
+            (
+                "factor_attribution_json",
+                attribution_json_path,
+                _write(attribution_json_path, factor_attribution.to_json() + "\n"),
+            ),
+            (
+                "factor_attribution_markdown_en",
+                attribution_en_path,
+                _write(attribution_en_path, factor_attribution.to_markdown("en")),
+            ),
+            (
+                "factor_attribution_markdown_zh",
+                attribution_zh_path,
+                _write(attribution_zh_path, factor_attribution.to_markdown("zh")),
+            ),
+        )
+        for kind, path, digest in attribution_artifacts:
+            registry.register_artifact(
+                trial_id=factor_attribution.trial_id,
+                kind=kind,
+                path=str(path),
+                sha256=digest,
+            )
     first_trial = screening.scores[0].trial_id
     for fingerprint, baseline_report in execution_reports.items():
         artifacts = write_baseline_report(baseline_report, output / "execution")

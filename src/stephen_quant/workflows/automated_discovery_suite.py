@@ -125,6 +125,7 @@ def run_automated_discovery_suite(
         + config.execution_budget
         + len(config.capacity_stress_rates)
         * max(1, len(config.capacity_stress_navs))
+        + (1 if config.search_profile == "v1.8.20" else 0)
         for config in configs
     )
     if maximum_requested > frozen_budget:
