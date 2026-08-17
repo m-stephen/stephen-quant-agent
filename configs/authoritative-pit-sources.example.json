@@ -1,0 +1,17 @@
+{
+  "operation_id": "authoritative-pit-example",
+  "output_dir": "<GITIGNORED_STAGING_OUTPUT>",
+  "document_files": {
+    "exchange-document-1": "<LOCAL_EXCHANGE_PDF>",
+    "industry-source-1": "<LOCAL_LICENSED_INDUSTRY_SOURCE>"
+  },
+  "source_types": {
+    "exchange-document-1": "szse_announcement",
+    "industry-source-1": "licensed_industry_source"
+  },
+  "announcement_document_links": {
+    "<SHA256_OF_TRANSIENT_PROVIDER_ID>": "exchange-document-1"
+  },
+  "industry_records": "<LOCAL_INDUSTRY_JSONL>",
+  "corporate_action_records": "<LOCAL_CORPORATE_ACTION_JSONL>"
+}

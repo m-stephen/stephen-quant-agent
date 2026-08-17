@@ -12,8 +12,16 @@ class PathConfigError(ValueError):
 
 ALLOWED_PATH_KEYS = frozenset(
     {
+        "qd_audit_snapshot_root",
+        "qd_audit_allowlist_manifest",
+        "qd_audit_output_dir",
+        "qd_single_user_data_root",
+        "qd_single_user_manifest_dir",
+        "qd_single_user_ledger_dir",
+        "qd_data_maintenance_control_manifest",
         "qd_daily_dir",
         "qd_fundamental_dir",
+        "qd_concept_membership_csv",
         "csi300_csv",
         "dynamic_membership_jsonl",
         "discovery_stock_file",

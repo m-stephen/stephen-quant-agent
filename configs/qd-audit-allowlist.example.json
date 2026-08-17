@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "plane": "research",
+  "state": "RESEARCH_ALLOWED_2022_2024",
+  "scope": {
+    "start_date": "2022-01-01",
+    "end_date": "2024-12-31",
+    "sealed_years_excluded": [2025, 2026],
+    "generated_by": "<EXTERNAL_ISOLATION_OWNER>",
+    "exclusion_proof": {
+      "generated_by": "<EXTERNAL_ISOLATION_OWNER>",
+      "generated_at": "<ISO_8601_WITH_TIMEZONE>",
+      "generator_tool_version": "<VERSION>",
+      "schema_version": "<VERSION>",
+      "method": "<PHYSICAL_COPY_FROM_EXPLICIT_2022_2024_ALLOWLIST>",
+      "artifact_sha256": "<64_HEX_SHA256>",
+      "verified_by": "<REPOSITORY_MAINTAINER>",
+      "verification_reference": "https://github.com/m-stephen/stephen-quant-agent/issues/75#issuecomment-<ID_WITH_QD_ISOLATION_PROOF_V1_RECORD>"
+    }
+  },
+  "layers": {
+    "daily_bars": [
+      {"path": "股票日K_按日期/20220104.csv", "sha256": "<64_HEX_SHA256>"},
+      {"path": "股票日K_按日期/20241231.csv", "sha256": "<64_HEX_SHA256>"}
+    ],
+    "fundamentals": [
+      {"path": "基本面指标/20220104.csv", "sha256": "<64_HEX_SHA256>"},
+      {"path": "基本面指标/20241231.csv", "sha256": "<64_HEX_SHA256>"}
+    ]
+  }
+}

@@ -1,6 +1,12 @@
 {
   "version": 1,
   "paths": {
+    "qd_audit_snapshot_root": "<PHYSICALLY_ISOLATED_2022_2024_SNAPSHOT_ROOT>",
+    "qd_audit_allowlist_manifest": "<PREGENERATED_2022_2024_ALLOWLIST_JSON>",
+    "qd_audit_output_dir": "../artifacts/qd-allowlist-audit",
+    "qd_single_user_data_root": "<LOCAL_DATA_ROOT_IN_GITIGNORED_CONFIG>",
+    "qd_single_user_manifest_dir": "<LOCAL_MANIFEST_OUTPUT_DIR>",
+    "qd_single_user_ledger_dir": "<LOCAL_OPERATION_LEDGER_DIR>",
     "qd_daily_dir": "<QD_DAILY_DIR>",
     "qd_fundamental_dir": "<QD_FUNDAMENTAL_DIR>",
     "csi300_csv": "<CSI300_CSV>",
@@ -11,6 +17,6 @@
     "qd_margin_dir": "<QD_MARGIN_DIR>",
     "qd_industry_dir": "<QD_INDUSTRY_DIR>",
     "qd_concept_membership_csv": "<NORMALIZED_POINT_IN_TIME_CONCEPT_MEMBERSHIP_CSV>",
-    "alphapai_cache_dir": "../artifacts/alphapai-cache"
+    "alphapai_cache_dir": "<RESEARCH_SAFE_METADATA_CACHE_ONLY>"
   }
 }
