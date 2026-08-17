@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -249,6 +250,102 @@ def test_alphapai_periodic_metadata_builds_stable_visibility_without_encrypted_i
     assert ledger.inferential_trial_delta == 0
 
 
+def test_alphapai_missing_actual_publish_time_uses_explicit_conservative_delay() -> None:
+    response = {
+        "code": 200000,
+        "data": {"pageNum": 1, "pageSize": 1, "totalPageNum": 1, "totalSize": 1,
+                 "data": [{
+                     "announcementId": "missing-time-id",
+                     "title": "Example annual report", "publishTime": "2023-04-30 18:00:00",
+                     "actualPublishTime": None, "endDate": "2022-12-31 00:00:00",
+                     "announcementType": "年度报告", "announcementTypeCode": "annual",
+                     "market": "A", "stockTag": [{"code": "000001.SZ", "name": "Example"}],
+                     "industryTag": [], "hasPdf": True,
+                 }]},
+    }
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2023-01-01", query_end="2023-12-31"
+    )
+    assert rows[0].publish_time_quality == "nominal_plus_delay"
+    assert rows[0].actual_publish_time is None
+    assert rows[0].available_at == "2023-05-01T18:00:00+08:00"
+    assert ledger.records_with_conservative_delay == 1
+    with pytest.raises(QmtDataError, match="publish_time_quality"):
+        validate_financial_visibility((replace(rows[0], publish_time_quality="unknown"),))
+    with pytest.raises(QmtDataError, match="cannot claim"):
+        validate_financial_visibility((replace(
+            rows[0], actual_publish_time="2023-04-30T18:00:00+08:00"
+        ),))
+
+
+def test_alphapai_exact_transient_duplicates_are_counted_and_removed() -> None:
+    item = {
+        "announcementId": "same-transient-id", "title": "Example annual report",
+        "publishTime": "2023-04-30 18:00:00", "actualPublishTime": "2023-04-30 18:00:00",
+        "endDate": "2022-12-31 00:00:00", "announcementType": "年度报告",
+        "announcementTypeCode": "annual", "market": "A",
+        "stockTag": [{"code": "000001.SZ", "name": "Example"}], "industryTag": [],
+        "hasPdf": True,
+    }
+    response = {"code": 200000, "data": {"pageNum": 1, "pageSize": 2,
+                "totalPageNum": 1, "totalSize": 2, "data": [item, dict(item)]}}
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2023-01-01", query_end="2023-12-31"
+    )
+    assert len(rows) == 1
+    assert ledger.duplicate_source_records_removed == 1
+
+
+def test_alphapai_quarantine_is_explicit_and_excluded() -> None:
+    item = {
+        "announcementId": "ambiguous-id", "_pitQuarantined": True,
+        "title": "Example annual report", "publishTime": "2023-04-30 18:00:00",
+        "actualPublishTime": "2023-04-30 18:00:00", "endDate": "2022-12-31 00:00:00",
+        "announcementType": "年度报告", "announcementTypeCode": "annual", "market": "A",
+        "stockTag": [{"code": "000001.SZ", "name": "Example"}], "industryTag": [],
+        "hasPdf": False,
+    }
+    response = {"code": 200000, "data": {"pageNum": 1, "pageSize": 1,
+                "totalPageNum": 1, "totalSize": 1, "data": [item]}}
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2023-01-01", query_end="2023-12-31"
+    )
+    assert rows == ()
+    assert ledger.quarantined_source_records == 1
+
+
+def test_different_ids_with_same_unhashed_metadata_are_automatically_quarantined() -> None:
+    item = {
+        "announcementId": "first-id", "title": "Example annual report",
+        "publishTime": "2023-04-30 18:00:00", "actualPublishTime": "2023-04-30 18:00:00",
+        "endDate": "2022-12-31 00:00:00", "announcementType": "年度报告",
+        "announcementTypeCode": "annual", "market": "A",
+        "stockTag": [{"code": "000001.SZ", "name": "Example"}], "industryTag": [],
+        "hasPdf": False,
+    }
+    second = dict(item)
+    second["announcementId"] = "second-id"
+    response = {"code": 200000, "data": {"pageNum": 1, "pageSize": 2,
+                "totalPageNum": 1, "totalSize": 2, "data": [item, second]}}
+    rows, ledger = ingest_alphapai_announcement_response(
+        response, query_start="2023-01-01", query_end="2023-12-31"
+    )
+    assert rows == ()
+    assert ledger.quarantined_source_records == 2
+    assert ledger.quarantined_transient_id_hashes == tuple(sorted((
+        hashlib.sha256(b"first-id").hexdigest(),
+        hashlib.sha256(b"second-id").hexdigest(),
+    )))
+    missing_id = dict(item)
+    missing_id.pop("announcementId")
+    with pytest.raises(QmtDataError, match="requires announcementId"):
+        ingest_alphapai_announcement_response(
+            {"code": 200000, "data": {"pageNum": 1, "pageSize": 1,
+             "totalPageNum": 1, "totalSize": 1, "data": [missing_id]}},
+            query_start="2023-01-01", query_end="2023-12-31",
+        )
+
+
 def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> None:
     item = {
         "announcementId": "transient-id", "title": "Example annual report",
@@ -274,6 +371,7 @@ def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> 
             query_start="2025-01-01", query_end="2025-12-31",
         )
     second_item = dict(item)
+    second_item["announcementId"] = "second-transient-id"
     second_item["title"] = "Second example annual report"
     second_item["stockTag"] = [{"code": "000002.SZ", "name": "Second"}]
     rows, ledger = ingest_alphapai_announcement_pages(
@@ -293,6 +391,25 @@ def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> 
         financial=rows, industry=(), corporate_actions=(), output=first
     ) == write_pit_bundle(financial=rows, industry=(), corporate_actions=(), output=second)
     assert first.read_bytes() == second.read_bytes()
+
+
+def test_alphapai_explicit_empty_partition_is_valid_but_inconsistent_empty_fails() -> None:
+    empty = {
+        "code": 200000,
+        "data": {"pageNum": 1, "pageSize": 100, "totalPageNum": 0,
+                 "totalSize": 0, "data": []},
+    }
+    rows, ledger = ingest_alphapai_announcement_pages(
+        (empty,), query_start="2024-05-01", query_end="2024-05-31"
+    )
+    assert rows == ()
+    assert ledger.documents_received == 0
+    invalid = json.loads(json.dumps(empty))
+    invalid["data"]["totalSize"] = 1
+    with pytest.raises(QmtDataError, match="metadata"):
+        ingest_alphapai_announcement_pages(
+            (invalid,), query_start="2024-05-01", query_end="2024-05-31"
+        )
 
 
 def test_staging_contract_output_is_deterministic(tmp_path: Path) -> None:
