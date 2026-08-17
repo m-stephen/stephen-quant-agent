@@ -217,12 +217,15 @@ def _verify_source_files(
             source.relative_to(root)
         except ValueError as exc:
             raise QmtDataError("maintenance manifest file escapes source root") from exc
-        if not source.is_file() or source.stat().st_size != entry.size_bytes:
-            raise QmtDataError("maintenance source file size does not match manifest")
-        digest = hashlib.sha256()
-        with source.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
+        try:
+            if not source.is_file() or source.stat().st_size != entry.size_bytes:
+                raise QmtDataError("maintenance source file size does not match manifest")
+            digest = hashlib.sha256()
+            with source.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        except OSError as exc:
+            raise QmtDataError("maintenance source file I/O failed") from exc
         if digest.hexdigest() != entry.sha256:
             raise QmtDataError("maintenance source file SHA-256 does not match manifest")
 

@@ -248,6 +248,30 @@ def test_manifest_verifies_actual_file_sha256_and_size(tamper: str) -> None:
         validate_data_maintenance_authorization(payload, context=context)
 
 
+def test_source_permission_error_is_recorded_failed_and_consumed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _authorization(2025)
+    context = _context(2025)
+    _set_approved(payload)
+    source = (_SOURCE_ROOT / "year=2025/announcements.jsonl").resolve()
+    original_open = Path.open
+
+    def denied_open(path: Path, *args: object, **kwargs: object):
+        if path.resolve() == source:
+            raise PermissionError("synthetic denied")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", denied_open)
+    with pytest.raises(QmtDataError, match="I/O failed"):
+        validate_data_maintenance_authorization(payload, context=context)
+    record = json.loads(next(_LEDGER_DIR.glob("*.json")).read_text(encoding="utf-8"))
+    assert record["status"] == "failed"
+    assert record["completed_at"]
+    with pytest.raises(QmtDataError, match="already been consumed"):
+        validate_data_maintenance_authorization(payload, context=context)
+
+
 def test_public_authorization_api_has_no_ledger_directory_override() -> None:
     parameters = inspect.signature(validate_data_maintenance_authorization).parameters
     assert "operations_ledger_dir" not in parameters

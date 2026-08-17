@@ -15,9 +15,9 @@ to include:
 - the SHA-256 of the exact source file bytes;
 - the exact file size in bytes.
 
-Before consuming an operation authorization, the runtime resolves every file below the execution
-source root, rejects path escapes, reads the file, and compares its size and SHA-256 with the
-approved manifest.
+After GitHub approval and atomic operation reservation, the runtime resolves every file below the
+execution source root, rejects path escapes, reads the file, and compares its size and SHA-256 with
+the approved manifest.
 
 ## Operation ledger contract
 
