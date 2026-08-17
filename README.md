@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+V3.0 adds a preregistered continuous factor-research loop over 2022–2024 daily bars, fund flow,
+auction, margin, chip-distribution and limit-event data. Five mechanism epochs were tested with
+immutable Alpha Court, Sharpe, drawdown, cost and multiplicity gates. The honest current result is
+`NO_ALPHA_IN_CURRENT_MECHANISM_SET`; 2025/2026 were never opened.
+
+Each epoch is replayed from a gitignored local path configuration, for example:
+
+```powershell
+stephen-quant --db artifacts/v3.0-continuous.sqlite3 qd-auto-discover `
+  --paths-config configs/qd-paths.local.json `
+  --manifest configs/v3.0-continuous-epoch-5.json `
+  --ingested-at 2024-12-31T23:59:59+08:00 `
+  --output reports/v3.0-continuous-epoch-5
+```
+
+See [V3.0 result](docs/V3_0_CONTINUOUS_RESEARCH_RESULT_EN.md),
+[V3.0 中文结果](docs/V3_0_CONTINUOUS_RESEARCH_RESULT_ZH.md), and the bilingual specifications.
+
 The PIT-Lite daily-bar industry audit can be replayed with the gitignored local path configuration:
 
 ```powershell

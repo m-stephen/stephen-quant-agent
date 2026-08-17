@@ -1555,6 +1555,8 @@ def main() -> None:
                     "qd_auction_dir",
                     "qd_margin_dir",
                     "qd_industry_dir",
+                    "qd_chip_dir",
+                    "qd_limit_event_dir",
                 }
             }
             common = {

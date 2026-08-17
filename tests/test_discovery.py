@@ -518,10 +518,11 @@ def test_execution_tournament_counts_trials_and_builds_alpha_court(tmp_path: Pat
         ),
         horizon_sessions=1,
         config=DiscoveryExecutionConfig(top_k=3, placebo_repetitions=19),
+        prior_inferential_trials=52,
     )
     assert len(report.configurations) == 2
     assert len(baselines) == 3
     assert report.walk_forward.blocks
     assert report.walk_forward.periods > 0
-    assert report.alpha_court.recorded_trial_count == 2
+    assert report.alpha_court.recorded_trial_count == 54
     assert registry.trial_count(experiment_id) == 2

@@ -14,7 +14,9 @@ from .csv_adapter import _decode, _parse_date, _parse_number
 from .models import QmtDataError
 
 QD_ALTERNATIVE_ADAPTER_VERSION = "qd-alternative-daily-1.0.0"
-SourceKind = Literal["fund_flow", "auction", "margin", "industry"]
+SourceKind = Literal[
+    "fund_flow", "auction", "margin", "industry", "chip", "limit_event"
+]
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,23 @@ SOURCE_FIELDS: dict[SourceKind, dict[str, AlternativeField]] = {
         "industry_float_market_cap": AlternativeField("流通市值(万元)", 10_000.0),
         "industry_total_market_cap": AlternativeField("总市值(万元)", 10_000.0),
     },
+    "chip": {
+        "chip_cost_5": AlternativeField("5分位成本"),
+        "chip_cost_15": AlternativeField("15分位成本"),
+        "chip_cost_50": AlternativeField("50分位成本"),
+        "chip_cost_85": AlternativeField("85分位成本"),
+        "chip_cost_95": AlternativeField("95分位成本"),
+        "chip_weighted_cost": AlternativeField("加权平均成本"),
+        "chip_win_rate": AlternativeField("胜率", 0.01),
+    },
+    "limit_event": {
+        "kpl_limit_up_flag": AlternativeField("<derived_limit_up_presence>"),
+        "kpl_main_net_amount": AlternativeField("主力净额(元)"),
+        "kpl_close_seal_amount": AlternativeField("收盘封单额"),
+        "kpl_turnover_amount": AlternativeField("成交额"),
+        "kpl_float_market_cap": AlternativeField("实际流通市值"),
+        "kpl_max_seal_amount": AlternativeField("日内最大封单额"),
+    },
 }
 
 DEFAULT_CLOCKS: dict[SourceKind, tuple[str, str]] = {
@@ -87,6 +106,8 @@ DEFAULT_CLOCKS: dict[SourceKind, tuple[str, str]] = {
     "auction": ("09:25:00", "09:26:00"),
     "margin": ("15:00:00", "18:00:00"),
     "industry": ("15:00:00", "18:00:00"),
+    "chip": ("15:00:00", "18:00:00"),
+    "limit_event": ("15:00:00", "18:00:00"),
 }
 
 
@@ -198,6 +219,143 @@ def _optional_number(
     return _parse_number(value, field, row_number=row_number)
 
 
+def _load_limit_event_directory(
+    root: Path,
+    config: QdAlternativeConfig,
+    files: tuple[Path, ...],
+) -> QdAlternativeDataset:
+    """Densify the 开盘啦 limit-up event table over the declared stock universe."""
+
+    wanted = tuple(sorted({instrument.upper() for instrument in config.instruments}))
+    if not wanted:
+        raise QmtDataError("limit-event source requires an explicit instrument universe")
+    manifest = build_selected_files_snapshot_manifest(root, files)
+    effective_clock, available_clock = DEFAULT_CLOCKS["limit_event"]
+    effective_clock = config.effective_clock or effective_clock
+    available_clock = config.available_clock or available_clock
+    numeric_columns = {
+        "kpl_main_net_amount": "主力净额(元)",
+        "kpl_close_seal_amount": "收盘封单额",
+        "kpl_turnover_amount": "成交额",
+        "kpl_float_market_cap": "实际流通市值",
+        "kpl_max_seal_amount": "日内最大封单额",
+    }
+    expected_headers = {*COMMON_COLUMNS.values(), "标签", *numeric_columns.values()}
+    observations: list[AlternativeObservation] = []
+    encodings: set[str] = set()
+    missing_values = {field: 0 for field in numeric_columns}
+    missing_names = 0
+    duplicate_rows = 0
+    for path in files:
+        text, encoding = _decode(path.read_bytes())
+        encodings.add(encoding)
+        reader = csv.DictReader(io.StringIO(text, newline=""))
+        headers = set(reader.fieldnames or ())
+        missing = sorted(expected_headers - headers)
+        if missing:
+            raise QmtDataError(f"{path.name}: missing limit-event columns: {missing}")
+        file_date = date(int(path.stem[:4]), int(path.stem[4:6]), int(path.stem[6:8]))
+        present: dict[str, tuple[str, dict[str, float | None]]] = {}
+        for row_number, row in enumerate(reader, start=2):
+            label = (row.get("标签") or "").strip()
+            if "涨停" not in label:
+                continue
+            trade_date = _parse_date(
+                _required(row, COMMON_COLUMNS["trade_date"], row_number),
+                row_number=row_number,
+            )
+            if trade_date != file_date.isoformat():
+                raise QmtDataError(f"{path.name} row {row_number}: date differs from partition")
+            instrument = _required(row, COMMON_COLUMNS["instrument"], row_number).upper()
+            if instrument not in wanted:
+                continue
+            name = (row.get(COMMON_COLUMNS["name"]) or "").strip()
+            if not name:
+                missing_names += 1
+            values = {
+                field: _optional_number(row, column, field, row_number)
+                for field, column in numeric_columns.items()
+            }
+            for field, value in values.items():
+                if value is None:
+                    missing_values[field] += 1
+            if instrument in present:
+                duplicate_rows += 1
+                prior_name, prior = present[instrument]
+                combined: dict[str, float | None] = {}
+                for field in numeric_columns:
+                    options = [value for value in (prior[field], values[field]) if value is not None]
+                    if not options:
+                        combined[field] = None
+                    elif field == "kpl_main_net_amount":
+                        combined[field] = max(options, key=lambda value: (abs(value), value))
+                    else:
+                        combined[field] = max(options)
+                present[instrument] = (prior_name or name, combined)
+            else:
+                present[instrument] = (name, values)
+        available_day = file_date + timedelta(days=config.availability_lag_days)
+        effective_at = f"{file_date.isoformat()}T{effective_clock}{config.timezone_offset}"
+        available_at = f"{available_day.isoformat()}T{available_clock}{config.timezone_offset}"
+        if datetime.fromisoformat(available_at) < datetime.fromisoformat(effective_at):
+            raise QmtDataError("limit-event availability precedes effective time")
+        for instrument in wanted:
+            if instrument in present:
+                name, values = present[instrument]
+                payload = {"kpl_limit_up_flag": 1.0, **values}
+            else:
+                name = ""
+                payload = {field: 0.0 for field in SOURCE_FIELDS["limit_event"]}
+            observations.append(
+                AlternativeObservation(
+                    source_kind="limit_event",
+                    instrument=instrument,
+                    name=name,
+                    trade_date=file_date.isoformat(),
+                    effective_at=effective_at,
+                    available_at=available_at,
+                    ingested_at=config.ingested_at,
+                    values=tuple(sorted(payload.items())),
+                )
+            )
+    return QdAlternativeDataset(
+        observations=tuple(observations),
+        audit=QdAlternativeAudit(
+            adapter_version=QD_ALTERNATIVE_ADAPTER_VERSION,
+            source_kind="limit_event",
+            source_sha256=manifest.snapshot_sha256,
+            source_files=len(files),
+            rows=len(observations),
+            instruments=len(wanted),
+            start_date=date(
+                int(files[0].stem[:4]), int(files[0].stem[4:6]), int(files[0].stem[6:8])
+            ).isoformat(),
+            end_date=date(
+                int(files[-1].stem[:4]), int(files[-1].stem[4:6]), int(files[-1].stem[6:8])
+            ).isoformat(),
+            column_mapping={
+                **COMMON_COLUMNS,
+                "event_filter": "标签 contains 涨停",
+                "kpl_limit_up_flag": "derived: present after event filter",
+                **numeric_columns,
+            },
+            unit_scales={field: 1.0 for field in SOURCE_FIELDS["limit_event"]},
+            missing_values={key: value for key, value in missing_values.items() if value},
+            missing_names=missing_names,
+            availability_policy=(
+                f"user-declared effective={effective_clock}, available={available_clock}, "
+                f"lag_days={config.availability_lag_days}, timezone={config.timezone_offset}"
+            ),
+            warnings=(
+                "Non-events are deterministically densified to zero over the declared universe.",
+                "Present events with missing measurements retain nulls and fail closed per factor.",
+                f"Duplicate event rows aggregated deterministically: {duplicate_rows}.",
+                f"Decoded encodings: {','.join(sorted(encodings))}.",
+            ),
+        ),
+    )
+
+
 def load_qd_alternative_directory(
     source: str | Path, config: QdAlternativeConfig
 ) -> QdAlternativeDataset:
@@ -209,6 +367,8 @@ def load_qd_alternative_directory(
         raise QmtDataError(f"QD alternative source is not a directory: {root}")
     start, end = date.fromisoformat(config.start_date), date.fromisoformat(config.end_date)
     files = _selected_files(root, start, end)
+    if config.source_kind == "limit_event":
+        return _load_limit_event_directory(root, config, files)
     manifest = build_selected_files_snapshot_manifest(root, files)
     fields = SOURCE_FIELDS[config.source_kind]
     wanted = {instrument.upper() for instrument in config.instruments}

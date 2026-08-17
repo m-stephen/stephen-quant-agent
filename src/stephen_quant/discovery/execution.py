@@ -47,6 +47,8 @@ class DiscoveryExecutionConfig:
     min_dsr_probability: float = 0.95
     maximum_pbo: float = 0.20
     walk_forward_blocks: int = 6
+    minimum_annualized_sharpe: float | None = None
+    maximum_drawdown: float | None = None
 
     def validate(self) -> None:
         if self.top_k < 1:
@@ -63,6 +65,12 @@ class DiscoveryExecutionConfig:
             raise ValueError("maximum_pbo must be in [0, 1)")
         if self.walk_forward_blocks < 3:
             raise ValueError("walk_forward_blocks must be at least three")
+        if self.minimum_annualized_sharpe is not None and not math.isfinite(
+            self.minimum_annualized_sharpe
+        ):
+            raise ValueError("minimum_annualized_sharpe must be finite when configured")
+        if self.maximum_drawdown is not None and not 0 < self.maximum_drawdown < 1:
+            raise ValueError("maximum_drawdown must be in (0, 1) when configured")
         if any(
             not math.isfinite(value) or value < 0
             for value in (
@@ -190,10 +198,14 @@ def _training_rank_ic(
         cross_section = sorted(grouped[day], key=lambda row: row.instrument)
         if len(cross_section) < 3:
             continue
+        signals = [direction * row.signal for row in cross_section]
+        returns = [row.forward_return for row in cross_section]
+        if len(set(signals)) < 2 or len(set(returns)) < 2:
+            continue
         values.append(
             spearman_correlation(
-                [direction * row.signal for row in cross_section],
-                [row.forward_return for row in cross_section],
+                signals,
+                returns,
             )
         )
     if not values:
@@ -309,10 +321,13 @@ def run_discovery_execution(
     horizon_sessions: int,
     config: DiscoveryExecutionConfig,
     seed: int = 42,
+    prior_inferential_trials: int = 0,
 ) -> tuple[DiscoveryExecutionReport, dict[str, BaselineReport]]:
     """Run a bounded cost-aware execution tournament and the final Alpha Court."""
 
     config.validate()
+    if prior_inferential_trials < 0:
+        raise ValueError("prior_inferential_trials cannot be negative")
     if not cpcv.signal_gate_passed:
         raise ValueError("execution is forbidden before the CPCV signal gate passes")
     if campaign.spec.budget.execution < 2:
@@ -403,7 +418,7 @@ def run_discovery_execution(
 
     winner = max(scores, key=lambda item: (item.raw_net_sharpe, item.fingerprint))
     winner_schema = candidate_by_fingerprint[winner.fingerprint].schema
-    recorded_trials = registry.global_trial_count()
+    recorded_trials = prior_inferential_trials + registry.global_trial_count()
     dsr = deflated_sharpe_ratio(
         observed_sharpe=winner.raw_net_sharpe,
         trial_sharpes=[item.raw_net_sharpe for item in scores],
@@ -465,8 +480,23 @@ def run_discovery_execution(
         config=config,
     )
     reports["__walk_forward__"] = walk_forward_report
+    economic_quality_passed = (
+        (
+            config.minimum_annualized_sharpe is None
+            or (
+                winner.annualized_net_sharpe is not None
+                and winner.annualized_net_sharpe >= config.minimum_annualized_sharpe
+            )
+        )
+        and (
+            config.maximum_drawdown is None
+            or winner.max_drawdown >= -config.maximum_drawdown
+        )
+    )
     decision = (
         "PASS_ALPHA_COURT"
+        if alpha_court.decision.passed and walk_forward.passed and economic_quality_passed
+        else "REJECT_EXECUTION_QUALITY"
         if alpha_court.decision.passed and walk_forward.passed
         else "REJECT_WALK_FORWARD"
         if alpha_court.decision.passed
