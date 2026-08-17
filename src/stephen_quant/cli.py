@@ -58,6 +58,7 @@ from .workflows import (
     build_v26_validation_panel,
     load_automated_discovery_config,
     load_label_free_config,
+    load_pit_lite_config,
     load_v22_portfolio_breadth_config,
     load_v23_style_residualization_config,
     load_v24_temporal_stability_config,
@@ -73,6 +74,7 @@ from .workflows import (
     run_dynamic_stateful_backtest,
     run_fundamental_cpcv_research,
     run_label_free_benchmark,
+    run_pit_lite_research,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v21_real_research,
@@ -402,6 +404,12 @@ def build_parser() -> argparse.ArgumentParser:
     v27_risk.add_argument("--mode", choices=("audit", "replay", "kill"), default="audit")
     v27_risk.add_argument("--output", default="reports/v2.7-m2")
     v27_risk.add_argument("--replay-manifest")
+
+    pit_lite = sub.add_parser("pit-lite-research")
+    pit_lite.add_argument("--paths-config", required=True)
+    pit_lite.add_argument("--config", default="configs/v2.9-pit-lite-research.json")
+    pit_lite.add_argument("--ingested-at", required=True)
+    pit_lite.add_argument("--output", default="reports/v2.9-pit-lite")
 
     label_free = sub.add_parser("v2-label-free-search")
     label_free.add_argument(
@@ -1067,6 +1075,40 @@ def main() -> None:
                     "markdown_en_path": str(artifacts.markdown_en_path),
                     "markdown_zh_path": str(artifacts.markdown_zh_path),
                     "replay_manifest_path": str(artifacts.replay_manifest_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "pit-lite-research":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            required = {"qd_daily_dir", "qd_fundamental_dir", "qd_fund_flow_dir"}
+            missing = sorted(required - set(local_paths.paths))
+            if missing:
+                raise ValueError(f"missing required local data sources: {missing}")
+            load_pit_lite_config(args.config)
+            report, artifacts = run_pit_lite_research(
+                local_paths,
+                args.config,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, TypeError, ValueError) as exc:
+            raise SystemExit(f"pit-lite-research failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_path),
                 },
                 indent=2,
                 sort_keys=True,

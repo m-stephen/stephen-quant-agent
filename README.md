@@ -10,6 +10,17 @@ It reads only explicit 2022–2024 date partitions and emits a frozen manifest, 
 Markdown. See `docs/PIT_LITE_INDUSTRY_PROXY_AUDIT_EN.md` and the Chinese companion for the current
 evidence and usage restriction.
 
+The bounded V2.9 PIT-Lite research operation is replayed from a gitignored local path config:
+
+```powershell
+stephen-quant --db artifacts/issue-98-pit-lite.sqlite3 pit-lite-research `
+  --paths-config configs/qd-paths.local.json `
+  --config configs/v2.9-pit-lite-research.json `
+  --ingested-at 2025-01-02T00:00:00+08:00
+```
+
+Its current decision is `NO_ROBUST_ALPHA_POPULATION`; see the bilingual PIT-Lite research result.
+
 ## V2.8 point-in-time data-source upgrade
 
 V2.8 promotes the tested data-maintenance and point-in-time staging foundation from
