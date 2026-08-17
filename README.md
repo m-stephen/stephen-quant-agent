@@ -8,6 +8,23 @@ An **integrity-first** quantitative research system inspired by three research d
 
 The project deliberately started with **V1.0: Evaluation Integrity Foundation** before building alpha models. **V2.0** now adds a budgeted, auditable autonomous research loop in shadow mode; it does not promise profitable alpha or permit live autonomous trading.
 
+**V2.1** connects that loop to the real QD point-in-time dataset. It adds a fail-closed
+readiness gate, 13 mechanism-distinct factor families, a bounded 26-candidate search, reliability
+controls, offline replay, and bilingual reports while keeping 2025/2026 sealed.
+
+```powershell
+stephen-quant --db "artifacts\v2.1-real.sqlite3" v2-real-research `
+  --paths-config "configs\qd-paths.local.json" `
+  --config "configs\v2.1-real-research.json" `
+  --mode research `
+  --ingested-at "2026-08-17T00:00:00+08:00" `
+  --output "reports\v2.1-real-research"
+```
+
+Machine-local paths, raw data, generated reports, and registries remain ignored. See the
+[English V2.1 specification](docs/V2_1_SPEC_EN.md), [中文 V2.1 规格](docs/V2_1_SPEC_ZH.md),
+[English validation](docs/V2_1_RESULT_EN.md), and [中文验证结果](docs/V2_1_RESULT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
