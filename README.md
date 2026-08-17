@@ -1,5 +1,15 @@
 # Stephen Quant Agent
 
+## V2.7 integrity-first reset
+
+M0 records rejected factor families and seals research-window governance. M1 adds a source-specific point-in-time readiness audit without reading raw directories or observing returns:
+
+```powershell
+stephen-quant v2-pit-readiness --config configs/v2.7-m1-pit-readiness.json --output reports/v2.7-m1
+```
+
+The current M1 decision authorizes only price-derived M2 controls on the frozen 2022–2024 evidence. Stock-level industry membership, corporate-action events, expectation revisions, and unproven revision histories remain fail-closed.
+
 An **integrity-first** quantitative research system inspired by three research directions:
 
 1. LLM-assisted factor/state/reward design;
