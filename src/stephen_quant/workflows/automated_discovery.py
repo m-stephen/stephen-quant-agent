@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
@@ -99,6 +100,8 @@ class AutomatedDiscoveryConfig:
     stability_weight: float = 0.0
     turnover_penalty: float = 0.0
     capacity_stress_rates: tuple[float, ...] = ()
+    capacity_stress_navs: tuple[float, ...] = ()
+    capacity_reference_nav: float | None = None
     regime_lookback: int = 20
 
     def validate(self) -> None:
@@ -124,14 +127,28 @@ class AutomatedDiscoveryConfig:
             raise ValueError("execution_budget must be zero or at least two for DSR")
         if self.dynamic_universe_top_n < 3:
             raise ValueError("dynamic_universe_top_n must be at least three")
-        if self.search_profile not in {"v1.8.16", "v1.8.17", "v1.8.18"}:
-            raise ValueError("search_profile must be v1.8.16, v1.8.17 or v1.8.18")
+        if self.search_profile not in {"v1.8.16", "v1.8.17", "v1.8.18", "v1.8.19"}:
+            raise ValueError(
+                "search_profile must be v1.8.16, v1.8.17, v1.8.18 or v1.8.19"
+            )
         if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
             not 0 < rate <= 1 for rate in self.capacity_stress_rates
         ):
             raise ValueError("capacity_stress_rates must be unique values in (0, 1]")
         if self.search_profile == "v1.8.18" and len(self.capacity_stress_rates) != 3:
             raise ValueError("v1.8.18 requires exactly three capacity stress rates")
+        if len(set(self.capacity_stress_navs)) != len(self.capacity_stress_navs) or any(
+            not math.isfinite(nav) or nav <= 0 for nav in self.capacity_stress_navs
+        ):
+            raise ValueError("capacity_stress_navs must be unique positive values")
+        if self.search_profile == "v1.8.19":
+            expected_navs = (1_000_000.0, 3_000_000.0, 5_000_000.0, 10_000_000.0, 20_000_000.0)
+            if self.capacity_stress_navs != expected_navs:
+                raise ValueError("v1.8.19 requires the frozen CNY 1m/3m/5m/10m/20m NAV curve")
+            if self.capacity_stress_rates != (0.01, 0.05, 0.10):
+                raise ValueError("v1.8.19 requires 1%, 5% and 10% participation rates")
+            if self.capacity_reference_nav != 3_000_000.0:
+                raise ValueError("v1.8.19 capacity reference NAV must be CNY 3m")
         if self.regime_lookback < 5:
             raise ValueError("regime_lookback must be at least five")
         ScreeningConfig(
@@ -188,7 +205,11 @@ class AutomatedDiscoveryReport:
             raise ValueError("report language must be en or zh")
         zh = language == "zh"
         title = (
-            "# V1.8.18 资金背离稳定性与容量压力报告"
+            "# V1.8.19 资金容量曲线报告"
+            if zh and "1.8.19" in self.method_version
+            else "# V1.8.19 NAV Capacity Frontier"
+            if "1.8.19" in self.method_version
+            else "# V1.8.18 资金背离稳定性与容量压力报告"
             if zh and "1.8.18" in self.method_version
             else "# V1.8.18 Flow-divergence Stability and Capacity Stress"
             if "1.8.18" in self.method_version
@@ -324,6 +345,8 @@ def load_automated_discovery_config(source: str | Path) -> AutomatedDiscoveryCon
         payload["capacity_stress_rates"], list
     ):
         payload["capacity_stress_rates"] = tuple(payload["capacity_stress_rates"])
+    if "capacity_stress_navs" in payload and isinstance(payload["capacity_stress_navs"], list):
+        payload["capacity_stress_navs"] = tuple(payload["capacity_stress_navs"])
     try:
         config = AutomatedDiscoveryConfig(**payload)
     except TypeError as exc:
@@ -487,7 +510,7 @@ def run_automated_discovery(
     }
     plan_seed = (
         flow_stress_generation_plan()
-        if config.search_profile == "v1.8.18"
+        if config.search_profile in {"v1.8.18", "v1.8.19"}
         else normalized_generation_plan()
         if config.search_profile == "v1.8.17"
         else seed_generation_plan()
@@ -507,7 +530,9 @@ def run_automated_discovery(
     search_space = json.dumps(
         {
             "method_version": (
-                "v1.8.18-flow-stability-1.0.0"
+                "v1.8.19-nav-capacity-frontier-1.0.0"
+                if config.search_profile == "v1.8.19"
+                else "v1.8.18-flow-stability-1.0.0"
                 if config.search_profile == "v1.8.18"
                 else "v1.8.17-normalized-multisource-1.0.0"
                 if config.search_profile == "v1.8.17"
@@ -687,6 +712,7 @@ def run_automated_discovery(
                 experiment_id=campaign.spec.experiment_id,
                 window=window,
                 participation_rates=config.capacity_stress_rates,
+                initial_navs=config.capacity_stress_navs or (config.initial_nav,),
                 seed=config.seed,
             )
             if config.capacity_stress_rates
@@ -745,6 +771,7 @@ def run_automated_discovery(
                 horizon_sessions=HORIZON_SESSIONS[config.horizon],
                 regime_lookback=config.regime_lookback,
                 execution_config=execution_config,
+                capacity_reference_nav=config.capacity_reference_nav,
             )
     alternative_audits = tuple(
         dataset.audit for _, dataset in sorted(alternative_datasets.items())
@@ -758,7 +785,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v1.8.18-flow-stability-1.0.0"
+            "v1.8.19-nav-capacity-frontier-1.0.0"
+            if config.search_profile == "v1.8.19"
+            else "v1.8.18-flow-stability-1.0.0"
             if config.search_profile == "v1.8.18"
             else "v1.8.17-normalized-multisource-1.0.0"
             if config.search_profile == "v1.8.17"

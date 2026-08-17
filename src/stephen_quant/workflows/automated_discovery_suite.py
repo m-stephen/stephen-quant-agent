@@ -124,6 +124,7 @@ def run_automated_discovery_suite(
         + config.cpcv_budget
         + config.execution_budget
         + len(config.capacity_stress_rates)
+        * max(1, len(config.capacity_stress_navs))
         for config in configs
     )
     if maximum_requested > frozen_budget:

@@ -127,9 +127,21 @@ class WalkForwardSummary:
 
 
 def _non_overlapping(
-    observations: tuple[BaselineObservation, ...], horizon_sessions: int
+    observations: tuple[BaselineObservation, ...],
+    horizon_sessions: int,
+    minimum_eligible: int = 1,
 ) -> tuple[BaselineObservation, ...]:
-    dates = sorted({row.execution_at for row in observations})
+    eligible_by_date: dict[str, int] = defaultdict(int)
+    for row in observations:
+        if row.eligible:
+            eligible_by_date[row.execution_at] += 1
+    dates = sorted(
+        day for day, eligible in eligible_by_date.items() if eligible >= minimum_eligible
+    )
+    if not dates:
+        raise ValueError(
+            f"no execution cross-section has at least {minimum_eligible} eligible assets"
+        )
     selected = set(dates[::horizon_sessions])
     return tuple(row for row in observations if row.execution_at in selected)
 
@@ -253,7 +265,7 @@ def _walk_forward(
             and (row.execution_at, row.instrument) in common_keys
         )
     replay = run_momentum_topk(
-        _non_overlapping(tuple(deployment_rows), horizon_sessions),
+        _non_overlapping(tuple(deployment_rows), horizon_sessions, config.top_k),
         lineage,
         BaselineConfig(
             top_k=config.top_k,
@@ -344,7 +356,7 @@ def run_discovery_execution(
             )
         )
         execution_rows = _non_overlapping(
-            observations[schema.fingerprint], horizon_sessions
+            observations[schema.fingerprint], horizon_sessions, config.top_k
         )
         report = run_momentum_topk(
             execution_rows,
