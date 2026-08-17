@@ -46,21 +46,35 @@ The default contract sets `formal_research_eligible = false` for this complete s
 
 ## AlphaPai evidence and remaining gap
 
-`ALPHAPAI_API_KEY` and the configured base URL were verified with a minimal read-only 2025
-announcement probe for one security. The probe returned five records successfully. This is
-connectivity and schema evidence only: it is not full-market coverage, does not establish complete
-revision history, and does not promote any record into research. Transient AlphaPai announcement
-identifiers are excluded from durable staging identifiers; source-document and revision identifiers
-are deterministically derived from hashed content.
+The configured AlphaPai endpoint was used for read-only A-share financial-announcement metadata
+collection. Raw responses and normalized bundles remain in gitignored local artifacts.
 
-Full-market announcement retrieval, source-document collection, and complete revision-chain
-coverage remain outstanding. Missing credentials continue to produce an explicit
-`not_run_missing_credentials` Remote Retrieval Ledger record rather than fabricated data.
+- 2025: 5,871 normalized visibility rows; bundle SHA-256
+  `cc0d961ceb4585600917774177d48457176ea74fc642cabdbf323f71258295fe`.
+- 2026 through the conservative `2026-08-16` cutoff: 6,351 normalized visibility rows from 82
+  frozen source pages; bundle SHA-256
+  `60fc4b468e664c9a458138f09ee11c0a74c25293cc0c0cf7213906dc82d58814`.
+- Both batches have `inferential_trial_delta = 0` and `formal_research_eligible = false`.
+- A wider 2026 year-end query was rejected because its availability time exceeded ingestion time.
+- Long-window offset pagination exposed source drift and duplicate page boundaries. The accepted
+  2026 snapshot uses progressively narrowed month/week/day partitions and requires stable page
+  count, total size, continuous page numbers, zero duplicate revision keys, and deterministic replay.
+- Transient AlphaPai announcement IDs are excluded from durable records. Content-derived document
+  and revision IDs, source-page hashes, byte sizes, partitions, query bounds, parser version, and
+  fixed ingestion time are retained in the local evidence bundle.
+
+The repository command `scripts/build_alphapai_pit_bundle.py` rebuilds a candidate bundle from a
+gitignored local configuration containing explicit source pages and output location. Missing
+credentials still produce an explicit `not_run_missing_credentials` ledger state rather than
+fabricated data.
 
 ## Remaining promotion gates
 
-- acquire source-backed announcement metadata and revision chains where financial fields are needed;
+- download and hash source documents for records whose metadata alone is insufficient to prove a
+  financial value or revision;
 - acquire genuine historical stock-industry constituent intervals rather than infer them from index
   quotes;
+- populate corporate actions from authoritative documents; the contract, revision gates, and PIT
+  market-cap constructor are implemented, but no event is fabricated from adjustment factors;
 - rerun leakage/provenance gates on normalized local staging artifacts;
 - obtain core review and explicit promotion approval before changing Research or `main`.
