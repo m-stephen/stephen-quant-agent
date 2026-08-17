@@ -205,6 +205,11 @@ from .v27_pit_readiness import (
     run_v27_m1_pit_readiness,
     verify_v27_m1_replay,
 )
+from .v27_risk_controls import (
+    load_v27_m2_config,
+    run_v27_m2_engineering_audit,
+    verify_v27_m2_replay,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -343,6 +348,7 @@ __all__ = [
     "load_v26_validation_config",
     "load_v27_m0_config",
     "load_v27_m1_config",
+    "load_v27_m2_config",
     "raw_sharpe",
     "residualize_v23_style",
     "run_automated_discovery",
@@ -361,6 +367,7 @@ __all__ = [
     "run_v26_validation",
     "run_v27_m0_governance",
     "run_v27_m1_pit_readiness",
+    "run_v27_m2_engineering_audit",
     "sample_return_moments",
     "select_v22_breadth",
     "select_v25_policy",
@@ -377,5 +384,6 @@ __all__ = [
     "verify_v26_validation_replay",
     "verify_v27_m0_replay",
     "verify_v27_m1_replay",
+    "verify_v27_m2_replay",
     "write_factor_family_validation_report",
 ]

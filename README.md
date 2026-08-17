@@ -10,6 +10,14 @@ stephen-quant v2-pit-readiness --config configs/v2.7-m1-pit-readiness.json --out
 
 The current M1 decision authorizes only price-derived M2 controls on the frozen 2022–2024 evidence. Stock-level industry membership, corporate-action events, expectation revisions, and unproven revision histories remain fail-closed.
 
+M2 implements causal, fold-local price controls and deliberately reports a partial model:
+
+```powershell
+stephen-quant v2-risk-controls --config configs/v2.7-m2-price-risk.json --output reports/v2.7-m2
+```
+
+The M2 engineering gate does not observe candidate returns and does not make the partial model eligible for Alpha Court.
+
 An **integrity-first** quantitative research system inspired by three research directions:
 
 1. LLM-assisted factor/state/reward design;
