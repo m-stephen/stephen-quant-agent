@@ -48,6 +48,16 @@ SEED_FACTORS = (
     _definition("downside_vol_20", "Downside volatility", "risk", "downside_volatility20", ("close",), 20, 21, -1, "Root mean squared negative return."),
     _definition("max_drawdown_60", "Maximum drawdown", "risk", "max_drawdown60", ("close",), 60, 61, 1, "Worst peak-to-trough return in the window."),
     _definition("atr_20", "Normalized ATR", "risk", "atr20", ("high", "low", "close"), 20, 21, -1, "Average true range divided by latest close."),
+    _definition("mom_120_skip_20", "120-period momentum skipping 20", "momentum", "momentum120_skip20", ("close",), 120, 121, 1, "Long momentum measured through t-20 so the recent month cannot dominate."),
+    _definition("trend_efficiency_20", "20-period trend efficiency", "trend", "trend_efficiency20", ("close",), 20, 21, 1, "Absolute endpoint move divided by the total absolute return path."),
+    _definition("range_position_20", "20-period range position", "trend", "range_position20", ("high", "low", "close"), 20, 20, 1, "Latest close location inside the trailing high-low range."),
+    _definition("intraday_strength_20", "20-period intraday strength", "price_action", "intraday_strength20", ("open", "close"), 20, 20, 1, "Mean close-to-open return over the recent window."),
+    _definition("volume_surprise_5_20", "Volume surprise 5 / 20", "volume", "volume_surprise5_20", ("volume",), 20, 20, 1, "Recent five-period volume relative to its twenty-period baseline."),
+    _definition("signed_volume_mom_20", "Volume-confirmed 20-period momentum", "volume", "signed_volume_momentum20", ("close", "volume"), 20, 21, 1, "Twenty-period return scaled by recent relative volume."),
+    _definition("dollar_liquidity_20", "20-period dollar liquidity", "liquidity", "dollar_liquidity20", ("amount",), 20, 20, 1, "Log mean traded amount over the recent window."),
+    _definition("parkinson_vol_20", "20-period Parkinson volatility", "risk", "parkinson_volatility20", ("high", "low"), 20, 20, -1, "High-low range volatility using the Parkinson estimator."),
+    _definition("overnight_gap_reversal_20", "20-period overnight gap reversal", "microstructure", "overnight_gap20", ("open", "close"), 20, 21, -1, "Mean overnight gap, interpreted contrarian to capture opening-price overreaction."),
+    _definition("close_location_20", "20-period close location value", "microstructure", "close_location20", ("high", "low", "close"), 20, 20, 1, "Mean normalized close location inside each daily range as a price-pressure proxy."),
 )
 
 

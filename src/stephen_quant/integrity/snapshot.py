@@ -97,3 +97,71 @@ def build_file_snapshot_manifest(file: str | Path) -> SnapshotManifest:
         files=(SnapshotFile(path=relative, sha256=file_hash, size_bytes=size),),
         snapshot_sha256=snapshot_digest.hexdigest(),
     )
+
+
+def build_selected_files_snapshot_manifest(
+    root: str | Path,
+    files: Iterable[str | Path],
+) -> SnapshotManifest:
+    """Freeze an explicit file set without hashing unrelated sibling data."""
+
+    root_path = Path(root).expanduser().resolve()
+    if not root_path.exists() or not root_path.is_dir():
+        raise ValueError(f"Snapshot root is not a directory: {root_path}")
+    selected = sorted({Path(item).expanduser().resolve() for item in files})
+    if not selected:
+        raise ValueError("Snapshot file selection cannot be empty")
+
+    items: list[SnapshotFile] = []
+    snapshot_digest = hashlib.sha256()
+    for path in selected:
+        try:
+            relative = path.relative_to(root_path).as_posix()
+        except ValueError as exc:
+            raise ValueError(f"Snapshot file is outside root: {path}") from exc
+        if not path.is_file():
+            raise ValueError(f"Snapshot source is not a file: {path}")
+        file_hash = _sha256_file(path)
+        size = path.stat().st_size
+        items.append(SnapshotFile(path=relative, sha256=file_hash, size_bytes=size))
+        snapshot_digest.update(relative.encode("utf-8"))
+        snapshot_digest.update(b"\0")
+        snapshot_digest.update(file_hash.encode("ascii"))
+        snapshot_digest.update(b"\0")
+        snapshot_digest.update(str(size).encode("ascii"))
+        snapshot_digest.update(b"\n")
+    return SnapshotManifest(
+        root=str(root_path),
+        files=tuple(items),
+        snapshot_sha256=snapshot_digest.hexdigest(),
+    )
+
+
+def build_composite_snapshot_manifest(
+    components: dict[str, str],
+) -> SnapshotManifest:
+    """Freeze named child-manifest hashes as one experiment-level dataset identity."""
+
+    if not components:
+        raise ValueError("Composite snapshot components cannot be empty")
+    items: list[SnapshotFile] = []
+    digest = hashlib.sha256()
+    for name, component_hash in sorted(components.items()):
+        if not name or "/" in name or "\\" in name:
+            raise ValueError(f"Invalid composite snapshot component name: {name}")
+        if len(component_hash) != 64 or any(
+            character not in "0123456789abcdef" for character in component_hash.lower()
+        ):
+            raise ValueError(f"Invalid composite snapshot hash for {name}")
+        path = f"{name}.manifest.sha256"
+        normalized = component_hash.lower()
+        items.append(SnapshotFile(path=path, sha256=normalized, size_bytes=0))
+        digest.update(path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(normalized.encode("ascii"))
+        digest.update(b"\0\n")
+    return SnapshotManifest(
+        root="composite://v1",
+        files=tuple(items),
+        snapshot_sha256=digest.hexdigest(),
+    )

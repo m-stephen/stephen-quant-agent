@@ -11,11 +11,25 @@ from stephen_quant.cross_validation import (
     SampleInterval,
     SplitLineage,
     audit_manifest,
+    embargo_affects_any,
     fit_transform_fold,
     generate_cpcv_manifest,
+    interval_sets_overlap,
     purge_and_embargo,
     write_split_artifacts,
 )
+
+
+def test_indexed_interval_and_embargo_queries_match_closed_boundaries() -> None:
+    test = (_sample("test", date(2025, 1, 1), date(2025, 1, 10), date(2025, 1, 13)),)
+    overlap = (_sample("overlap", date(2025, 1, 1), date(2025, 1, 13), date(2025, 1, 14)),)
+    separate = (_sample("separate", date(2025, 1, 1), date(2025, 1, 14), date(2025, 1, 15)),)
+    embargoed = (_sample("embargoed", date(2025, 1, 15), date(2025, 1, 16), date(2025, 1, 17)),)
+
+    assert interval_sets_overlap(overlap, test)
+    assert not interval_sets_overlap(separate, test)
+    assert embargo_affects_any(embargoed, test, timedelta(days=2))
+    assert not embargo_affects_any(embargoed, test, timedelta(days=1))
 
 
 def _sample(
@@ -203,6 +217,20 @@ def test_fold_preprocessor_fits_on_train_ids_only() -> None:
     assert created[0].fit_ids == fold.train_ids
     assert not (set(created[0].fit_ids) & set(fold.test_ids))
     assert len(result.transformed_test) == len(fold.test_ids)
+
+
+def test_winsor_zscore_uses_only_training_distribution() -> None:
+    from stephen_quant.cross_validation import WinsorZScorePreprocessor
+
+    transformer = WinsorZScorePreprocessor(
+        {"train-a": 0.0, "train-b": 2.0, "test-outlier": 1_000_000.0},
+        lower_quantile=0.0,
+        upper_quantile=1.0,
+    )
+    transformer.fit(("train-a", "train-b"))
+
+    assert transformer.transform(("train-a", "train-b")) == pytest.approx((-1.0, 1.0))
+    assert transformer.transform(("test-outlier",)) == pytest.approx((1.0,))
 
 
 def test_invalid_samples_and_split_parameters_fail() -> None:

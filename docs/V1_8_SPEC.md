@@ -26,7 +26,7 @@ datadir/
   DividData/*.ldb                corporate-action LevelDB data
 ```
 
-These files are not decoded directly. V1.8.1 dynamically loads the installation's official
+V1.8.1 does not decode these files directly. It dynamically loads the installation's official
 Python-compatible `xtquant` package and calls `xtdata.get_local_data` with `period="1d"`,
 `fill_data=False`, and server reads disabled by that API. The QMT client must already be logged in
 and its quote/Python service must be running. The exporter never starts the client, downloads
@@ -38,6 +38,47 @@ only then atomically moves it to the destination. Existing destinations are refu
 operator explicitly supplies `--overwrite`. Empty instruments and partially corrupt bars fail;
 fully unavailable zero/NaN bars are omitted and counted so the later strict-panel backtest can
 reject non-executable windows rather than invent prices.
+
+### Direct daily DAT fallback
+
+V1.8.2 covers broker-wrapped terminals that cannot start the `xtquant` quote service. It reads only
+explicit A-share files under `SH/SZ/BJ/86400` and never writes to `datadir`. The parser is locked to
+a reverse-engineered 64-byte little-endian record schema:
+
+| Offset | Field | Stored form | Canonical form |
+| --- | --- | --- | --- |
+| 8 | time | Unix seconds | Asia/Shanghai trade date |
+| 12/16/20/24 | OHLC | unsigned integer / 1,000 | CNY price |
+| 32 | volume | unsigned integer lots | shares (x100) |
+| 40 | amount | unsigned 64-bit integer | CNY |
+| 60 | pre-close | unsigned integer / 1,000 | validation-only CNY price |
+
+Bytes whose meaning is not established are ignored rather than assigned speculative semantics.
+Files must consist of complete 64-byte records plus either no tail or the observed 8-byte partial
+tail. Every record must have a local-midnight timestamp, strictly increasing dates, valid OHLC,
+consistent zero volume/amount state, and a plausible amount-to-share ratio. Any mismatch fails the
+whole export.
+
+Direct export supports raw `none` data and point-in-time-safe `back_ratio` prices. The latter reads
+`DividData` through an optional read-only LevelDB parser, validates the observed 96-byte corporate
+action values, and applies each `dr` only on and after its ex-dividend date. It does not offer direct
+`front_ratio`, because normalizing history by actions that had not occurred yet weakens the
+point-in-time contract. Prices are adjusted; volume and amount retain their raw QMT units, matching
+the vendor's price-adjustment example.
+
+The exporter requires an explicit instrument list, validates the result through the canonical CSV
+adapter, and writes a deterministic adjacent provenance manifest. That manifest contains relative
+raw-file paths, raw SHA-256 values, record/tail counts, field units, parser and schema versions,
+requested dates, the final CSV hash, and—when adjusted—the complete LevelDB source-file snapshot.
+It never stores the local QMT installation path.
+
+The locked field map was independently checked against local Guojin samples and the community
+[`qmt-parser` daily parser](https://github.com/sunnysab/qmt-parser/blob/main/src/day.rs)
+implementation. No code or dependency is
+copied from that GPL-3.0 project. Canonical field names follow the vendor's
+[`XtQuant.XtData` documentation](https://dict.thinktrader.net/nativeApi/xtdata.html), while the
+brokerage-terminal volume unit follows the vendor's data dictionary. These references are evidence,
+not a guarantee that a future QMT storage version will keep the same byte layout.
 
 ## Input contract
 
@@ -106,10 +147,16 @@ and Markdown report are hash-linked through the registry.
 
 - Universe membership is user-supplied and may contain survivorship bias.
 - V1.8 does not reconstruct historical index constituents, ST status, listings, or delistings.
-- Limit-up/limit-down execution, lot size, minimum commission, dividends, and corporate-action
-  verification are not modeled.
+- Limit-up/limit-down execution, lot size, and minimum commission are not modeled.
+- Corporate-action byte semantics are version-locked and independently checked, but remain based
+  on observed QMT storage rather than a vendor-supported binary contract.
 - A single sell-tax rate applies to the whole run; historical tax changes require separate windows.
 - QMT adjustment semantics are declared by the operator and are not independently verified.
+- The direct DAT format is reverse engineered rather than a vendor-supported storage contract; a
+  schema or semantic mismatch fails closed and requires a new parser version.
+- `none` exports remain unsuitable for long-horizon return claims across corporate actions.
+- `back_ratio` removes the unadjusted-price blocker, but does not remove current-universe or
+  delisting survivorship bias.
 - The CLI evaluates a locked test window; it must not be repeatedly tuned against that window.
 
 ## Acceptance target

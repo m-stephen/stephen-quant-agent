@@ -10,6 +10,7 @@ from .models import (
     GroupSummary,
     MetricSummary,
 )
+from .regression import ols_residuals
 
 __all__ = [
     "AlphaCard",
@@ -22,6 +23,7 @@ __all__ = [
     "MetricSummary",
     "average_ranks",
     "evaluate_alpha",
+    "ols_residuals",
     "pearson_correlation",
     "spearman_correlation",
     "write_alpha_card",

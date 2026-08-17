@@ -35,6 +35,97 @@ def _period_return(data: Mapping[str, list[float]]) -> float:
     return close[-1] / close[0] - 1.0
 
 
+def _momentum120_skip20(data: Mapping[str, list[float]]) -> float:
+    close = data["close"]
+    return close[-21] / close[0] - 1.0
+
+
+def _trend_efficiency20(data: Mapping[str, list[float]]) -> float:
+    close = data["close"]
+    path = sum(abs(close[index] - close[index - 1]) for index in range(1, len(close)))
+    if path == 0:
+        return 0.0
+    return abs(close[-1] - close[0]) / path
+
+
+def _range_position20(data: Mapping[str, list[float]]) -> float:
+    upper = max(data["high"][-20:])
+    lower = min(data["low"][-20:])
+    if upper <= lower:
+        raise MissingDataError("high-low range must be positive")
+    return (data["close"][-1] - lower) / (upper - lower)
+
+
+def _intraday_strength20(data: Mapping[str, list[float]]) -> float:
+    opens = data["open"][-20:]
+    closes = data["close"][-20:]
+    if any(value <= 0 for value in opens):
+        raise MissingDataError("open must be positive for intraday strength")
+    return _mean(
+        [close / opening - 1.0 for opening, close in zip(opens, closes, strict=True)]
+    )
+
+
+def _volume_surprise5_20(data: Mapping[str, list[float]]) -> float:
+    volume = data["volume"][-20:]
+    baseline = _mean(volume)
+    if baseline <= 0:
+        raise MissingDataError("mean volume must be positive")
+    return _mean(volume[-5:]) / baseline - 1.0
+
+
+def _signed_volume_momentum20(data: Mapping[str, list[float]]) -> float:
+    volume = data["volume"][-20:]
+    baseline = _mean(volume)
+    if baseline <= 0:
+        raise MissingDataError("mean volume must be positive")
+    momentum = data["close"][-1] / data["close"][0] - 1.0
+    return momentum * (_mean(volume[-5:]) / baseline)
+
+
+def _dollar_liquidity20(data: Mapping[str, list[float]]) -> float:
+    amount = data["amount"][-20:]
+    average = _mean(amount)
+    if average <= 0:
+        raise MissingDataError("mean amount must be positive")
+    return math.log(average)
+
+
+def _parkinson_volatility20(data: Mapping[str, list[float]]) -> float:
+    high = data["high"][-20:]
+    low = data["low"][-20:]
+    if any(upper <= 0 or lower <= 0 or upper < lower for upper, lower in zip(high, low)):
+        raise MissingDataError("high and low must be positive and ordered")
+    squared_ranges = [
+        math.log(upper / lower) ** 2 for upper, lower in zip(high, low, strict=True)
+    ]
+    return math.sqrt(_mean(squared_ranges) / (4 * math.log(2)))
+
+
+def _overnight_gap20(data: Mapping[str, list[float]]) -> float:
+    opening = data["open"]
+    close = data["close"]
+    if any(value <= 0 for value in close[:-1]):
+        raise MissingDataError("previous close must be positive for overnight gap")
+    gaps = [
+        opening[index] / close[index - 1] - 1.0
+        for index in range(1, len(close))
+    ]
+    return _mean(gaps[-20:])
+
+
+def _close_location20(data: Mapping[str, list[float]]) -> float:
+    values: list[float] = []
+    for upper, lower, close in zip(
+        data["high"][-20:], data["low"][-20:], data["close"][-20:], strict=True
+    ):
+        if upper < lower or close < lower or close > upper:
+            raise MissingDataError("close location requires ordered OHLC values")
+        width = upper - lower
+        values.append(0.0 if width == 0 else (2 * close - upper - lower) / width)
+    return _mean(values)
+
+
 def _ma20_60_ratio(data: Mapping[str, list[float]]) -> float:
     close = data["close"]
     return _mean(close[-20:]) / _mean(close[-60:]) - 1.0
@@ -106,6 +197,16 @@ def _atr20(data: Mapping[str, list[float]]) -> float:
 
 FORMULAS: dict[str, Formula] = {
     "period_return": _period_return,
+    "momentum120_skip20": _momentum120_skip20,
+    "trend_efficiency20": _trend_efficiency20,
+    "range_position20": _range_position20,
+    "intraday_strength20": _intraday_strength20,
+    "volume_surprise5_20": _volume_surprise5_20,
+    "signed_volume_momentum20": _signed_volume_momentum20,
+    "dollar_liquidity20": _dollar_liquidity20,
+    "parkinson_volatility20": _parkinson_volatility20,
+    "overnight_gap20": _overnight_gap20,
+    "close_location20": _close_location20,
     "ma20_60_ratio": _ma20_60_ratio,
     "price_ma120": _price_ma120,
     "trend_slope20": _trend_slope20,
@@ -159,11 +260,32 @@ def compute_factor(
             raise MissingDataError(f"{field} contains missing or non-finite data")
         window[field] = [float(value) for value in raw_values if value is not None]
 
-    try:
-        formula = FORMULAS[definition.formula]
-    except KeyError as exc:
-        raise FactorError(f"unknown formula: {definition.formula}") from exc
-    value = formula(window)
+    formula = FORMULAS.get(definition.formula)
+    if formula is not None:
+        value = formula(window)
+    else:
+        # V1.8.16 schemas compile to the existing FactorDefinition contract while
+        # retaining the safe, audited research-agent DSL.
+        from stephen_quant.research_agent.dsl import FormulaInput, evaluate_formula
+
+        try:
+            value = evaluate_formula(
+                definition.formula,
+                {
+                    field: FormulaInput(
+                        values=tuple(data[field][start : as_of_index + 1]),
+                        available_at=tuple(
+                            available_at[field][start : as_of_index + 1]
+                        ),
+                    )
+                    for field in definition.required_fields
+                },
+                decision_at=decision_at,
+            )
+        except FactorError:
+            raise
+        except Exception as exc:
+            raise FactorError(f"invalid safe DSL formula: {definition.formula}") from exc
     if not math.isfinite(value):
         raise MissingDataError(f"{definition.key} produced a non-finite value")
 

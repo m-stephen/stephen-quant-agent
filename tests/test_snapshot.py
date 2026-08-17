@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from stephen_quant.integrity.snapshot import build_file_snapshot_manifest, build_snapshot_manifest
+from stephen_quant.integrity.snapshot import (
+    build_composite_snapshot_manifest,
+    build_file_snapshot_manifest,
+    build_snapshot_manifest,
+)
 
 
 def test_snapshot_hash_is_deterministic(tmp_path: Path) -> None:
@@ -30,3 +34,17 @@ def test_file_snapshot_ignores_unrelated_sibling_files(tmp_path: Path) -> None:
 
     assert first.snapshot_sha256 == second.snapshot_sha256
     assert [item.path for item in first.files] == ["qmt.csv"]
+
+
+def test_composite_snapshot_freezes_all_named_source_manifests() -> None:
+    first = build_composite_snapshot_manifest({"daily": "a" * 64, "fund_flow": "b" * 64})
+    reordered = build_composite_snapshot_manifest(
+        {"fund_flow": "b" * 64, "daily": "a" * 64}
+    )
+    changed = build_composite_snapshot_manifest({"daily": "a" * 64, "fund_flow": "c" * 64})
+    assert first.snapshot_sha256 == reordered.snapshot_sha256
+    assert first.snapshot_sha256 != changed.snapshot_sha256
+    assert [item.path for item in first.files] == [
+        "daily.manifest.sha256",
+        "fund_flow.manifest.sha256",
+    ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 
-METHOD_VERSION = "momentum-topk-baseline-1.0.0"
+METHOD_VERSION = "momentum-topk-baseline-1.1.0"
 COST_MODEL_VERSION = "linear-plus-sqrt-impact-1.1.0"
 
 
@@ -20,6 +20,10 @@ class BaselineObservation:
     execution_at: str
     return_end_at: str
     forward_return: float
+    can_buy_open: bool = True
+    can_sell_open: bool = True
+    tradability_reason: str = "unrestricted"
+    eligible: bool = True
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,10 @@ class BaselineConfig:
     max_participation_rate: float = 0.05
     periods_per_year: int = 252
     cost_model_version: str = COST_MODEL_VERSION
+    missing_holding_policy: str = "error"
+    ranking_policy: str = "top_k"
+    selection_fraction: float = 0.0
+    bottom_underweight: float = 0.25
 
 
 @dataclass(frozen=True)
@@ -66,6 +74,10 @@ class OrderExecution:
     slippage_cost: float
     market_impact_cost: float
     total_cost: float
+    can_buy_open: bool
+    can_sell_open: bool
+    tradability_reason: str
+    tradability_clipped_notional: float
 
 
 @dataclass(frozen=True)
@@ -101,6 +113,8 @@ class BaselineMetrics:
     total_cost: float
     capacity_clipped_notional: float
     funding_clipped_notional: float
+    tradability_clipped_notional: float
+    tradability_blocked_orders: int
     clipped_orders: int
 
 
@@ -142,6 +156,7 @@ class BaselineReport:
             f"- Slippage: {self.config.slippage_bps:.4f} bps",
             f"- Impact coefficient: {self.config.impact_coefficient_bps:.4f} bps",
             f"- Maximum ADV participation: {self.config.max_participation_rate:.2%}",
+            f"- Missing holding policy: `{self.config.missing_holding_policy}`",
             "",
             "## Net-of-cost results",
             "",
@@ -153,6 +168,8 @@ class BaselineReport:
             f"- Annualized net volatility: {self._optional(metrics.annualized_net_volatility)}",
             f"- Net Sharpe: {self._optional(metrics.net_sharpe)}",
             f"- Maximum drawdown: {metrics.max_drawdown:.6%}",
+            f"- Tradability-blocked notional: {metrics.tradability_clipped_notional:.2f}",
+            f"- Tradability-blocked orders: {metrics.tradability_blocked_orders}",
             f"- Total cost: {metrics.total_cost:.6f}",
             f"- Total turnover: {metrics.total_turnover:.6f}",
             f"- Capacity-clipped notional: {metrics.capacity_clipped_notional:.6f}",

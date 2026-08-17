@@ -34,6 +34,19 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - V1.7 LLM factor research agent
 - V1.8 QMT data adapter + end-to-end out-of-sample backtest
 - V1.8.1 official xtquant local-cache exporter (no binary reverse engineering)
+- V1.8.2 version-locked, read-only QMT daily DAT adapter for terminals without xtquant service
+- V1.8.3 one-command DAT engineering backtest validation on the long-lived data-test branch
+- V1.8.4 read-only DividData corporate actions + point-in-time back-ratio adjustment
+- V1.8.5 QD date-partitioned CSV adapter + historical daily backtest validation
+- V1.8.6 training-only QD universe + benchmark comparison + placebo audit
+- V1.8.7 validation-only diagnostics + conservative open-limit execution constraints
+- V1.8.8 predeclared factor catalog + training-only redundancy screen
+- V1.8.9 shared-experiment five-factor validation + family-level DSR decision
+- V1.8.10 post-validation composite exploration + fold-local CPCV weights
+- V1.8.11 point-in-time dynamic universe + survivorship-bias audit
+- V1.8.12 stateful sparse-panel execution + suspension/delisting accounting
+- V1.8.13 dynamic-universe QD bridge + 2022-2024 stateful engineering backtest
+- V1.8.14 predeclared microstructure candidates + dynamic-universe CPCV/falsification gate
 
 ## Engineering style
 - Python >= 3.10.
@@ -41,3 +54,11 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - Add tests for every leakage or provenance rule.
 - Store machine-generated artifacts outside git unless they are tiny fixtures.
 - Make all experiments reproducible from a command plus a config and snapshot ID.
+
+## GitHub access in Codex Desktop
+- Prefer the connected GitHub app for Issue, comment, and pull-request API operations.
+- Use the repository SSH remote for fetch and push; GitHub CLI authentication is separate from SSH.
+- Codex's offline sandbox may report a false `gh auth status` failure because it cannot access the
+  network or the interactive user's keyring. Before asking the user to authenticate again, rerun
+  the read-only authentication/API check in the approved host-network context.
+- Never copy GitHub tokens into repository files, environment manifests, command output, or chat.

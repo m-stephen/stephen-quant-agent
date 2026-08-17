@@ -1,6 +1,12 @@
 from .artifacts import SplitArtifacts, write_split_artifacts
 from .audit import audit_fold, audit_manifest
-from .engine import generate_cpcv_manifest, intervals_overlap, purge_and_embargo
+from .engine import (
+    embargo_affects_any,
+    generate_cpcv_manifest,
+    interval_sets_overlap,
+    intervals_overlap,
+    purge_and_embargo,
+)
 from .models import (
     CrossValidationError,
     FoldManifest,
@@ -10,7 +16,12 @@ from .models import (
     SplitLineage,
     SplitManifest,
 )
-from .preprocessing import FoldPreprocessor, FoldTransformResult, fit_transform_fold
+from .preprocessing import (
+    FoldPreprocessor,
+    FoldTransformResult,
+    WinsorZScorePreprocessor,
+    fit_transform_fold,
+)
 
 __all__ = [
     "CrossValidationError",
@@ -23,10 +34,13 @@ __all__ = [
     "SplitArtifacts",
     "SplitLineage",
     "SplitManifest",
+    "WinsorZScorePreprocessor",
     "audit_fold",
     "audit_manifest",
+    "embargo_affects_any",
     "fit_transform_fold",
     "generate_cpcv_manifest",
+    "interval_sets_overlap",
     "intervals_overlap",
     "purge_and_embargo",
     "write_split_artifacts",

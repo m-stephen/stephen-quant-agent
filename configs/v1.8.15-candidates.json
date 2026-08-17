@@ -1,0 +1,51 @@
+{
+  "manifest_version": "v1.8.15-candidate-manifest-1.0.0",
+  "research_window": {
+    "data_start": "2021-07-01",
+    "research_start": "2022-01-04",
+    "research_end": "2024-12-31",
+    "validation_start": "2025-01-03",
+    "validation_end": "2025-12-31",
+    "test_start": "2026-01-05",
+    "test_end": "2026-08-14"
+  },
+  "universe": {
+    "membership_sha256": "29dd231b8bc6a56bb9e3fd140f331fa1676a96384416d740c3c8f2d7d65c4061",
+    "top_n": 300
+  },
+  "fundamentals": {
+    "confirmation_sessions": 2,
+    "warmup_sessions": 20,
+    "minimum_industry_members": 5,
+    "winsor_tail": 0.01
+  },
+  "cpcv": {
+    "groups": 6,
+    "test_groups": 3,
+    "embargo_days": 5,
+    "purge": "closed_next_open_label_intervals"
+  },
+  "candidates": [
+    {"candidate_id": "book_to_price_single", "components": ["book_to_price"], "weighting": "single"},
+    {"candidate_id": "earnings_yield_single", "components": ["earnings_yield"], "weighting": "single"},
+    {"candidate_id": "profitability_single", "components": ["profitability"], "weighting": "single"},
+    {"candidate_id": "net_margin_single", "components": ["net_margin"], "weighting": "single"},
+    {
+      "candidate_id": "value_quality_equal",
+      "components": ["book_to_price", "earnings_yield", "profitability", "net_margin"],
+      "weighting": "equal_rank"
+    },
+    {
+      "candidate_id": "value_quality_train_ic",
+      "components": ["book_to_price", "earnings_yield", "profitability", "net_margin"],
+      "weighting": "fold_local_positive_rank_ic"
+    }
+  ],
+  "research_gates": {
+    "minimum_mean_path_rank_ic": 0.02,
+    "minimum_positive_paths": 8,
+    "maximum_pbo": 0.2,
+    "minimum_dsr_probability": 0.95,
+    "maximum_placebo_p_value": 0.05
+  }
+}

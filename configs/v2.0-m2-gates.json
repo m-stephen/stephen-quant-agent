@@ -1,0 +1,26 @@
+{
+  "version": "v2.0-m2-1.0.0",
+  "novelty": {
+    "numerical_rank_threshold": 0.995,
+    "numerical_pearson_threshold": 0.995,
+    "residual_threshold": 0.98,
+    "exposure_cosine_threshold": 0.98
+  },
+  "diagnostics": {
+    "minimum_coverage": 0.8,
+    "maximum_missingness": 0.2,
+    "maximum_stale_fraction": 0.2,
+    "maximum_turnover": 0.8,
+    "maximum_date_concentration": 0.6,
+    "maximum_regime_concentration": 0.8,
+    "cost_bps": 10.0
+  },
+  "benchmark": {
+    "minimum_exact_duplicate_recall": 1.0,
+    "minimum_empirical_precision": 0.95,
+    "minimum_empirical_recall": 0.95,
+    "minimum_workload_reduction": 0.5,
+    "minimum_known_valid_fixture_recall": 1.0
+  },
+  "sealed_windows": ["2025-validation", "2026-final-test"]
+}

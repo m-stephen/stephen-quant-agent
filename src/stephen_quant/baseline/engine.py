@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import datetime
 from itertools import pairwise
 from statistics import stdev
@@ -52,6 +53,20 @@ def _validate_config(config: BaselineConfig) -> None:
         raise BaselineError("cost assumptions must be finite and non-negative")
     if not config.cost_model_version:
         raise BaselineError("cost_model_version cannot be empty")
+    if config.missing_holding_policy not in {"error", "stale_zero_return"}:
+        raise BaselineError("unsupported missing_holding_policy")
+    if config.ranking_policy not in {
+        "top_k",
+        "all_eligible",
+        "top_fraction",
+        "exclude_bottom_fraction",
+        "bottom_fraction_underweight",
+    }:
+        raise BaselineError("unsupported ranking_policy")
+    if config.ranking_policy not in {"top_k", "all_eligible"} and not 0 < config.selection_fraction < 1:
+        raise BaselineError("fractional ranking policies require selection_fraction in (0, 1)")
+    if not 0 <= config.bottom_underweight <= 1:
+        raise BaselineError("bottom_underweight must be in [0, 1]")
 
 
 def _validate_lineage(lineage: BaselineLineage) -> None:
@@ -114,15 +129,47 @@ def _group_observations(
 def _target_weights(
     rows: Sequence[BaselineObservation], config: BaselineConfig
 ) -> tuple[tuple[str, ...], dict[str, float]]:
-    if len(rows) < config.top_k:
+    eligible = [row for row in rows if row.eligible]
+    if config.ranking_policy == "top_k" and len(eligible) < config.top_k:
         raise BaselineError(
-            f"cross-section has {len(rows)} assets but top_k requires {config.top_k}"
+            f"cross-section has {len(eligible)} eligible assets but top_k requires {config.top_k}"
         )
-    ranked = sorted(rows, key=lambda row: (-config.direction * row.signal, row.instrument))
-    selected = tuple(row.instrument for row in ranked[: config.top_k])
-    equal_weight = (1 - config.cash_reserve) / config.top_k
-    weight = min(equal_weight, config.max_position_weight)
-    return selected, {instrument: weight for instrument in selected}
+    if not eligible:
+        raise BaselineError("cross-section has no eligible assets")
+    ranked = sorted(
+        eligible, key=lambda row: (-config.direction * row.signal, row.instrument)
+    )
+    if config.ranking_policy == "top_k":
+        selected_rows = ranked[: config.top_k]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "all_eligible":
+        selected_rows = ranked
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "top_fraction":
+        count = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        selected_rows = ranked[:count]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    elif config.ranking_policy == "exclude_bottom_fraction":
+        excluded = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        selected_rows = ranked[: max(1, len(ranked) - excluded)]
+        raw_weights = {row.instrument: 1.0 for row in selected_rows}
+    else:
+        bottom_count = max(1, math.ceil(len(ranked) * config.selection_fraction))
+        bottom = {row.instrument for row in ranked[-bottom_count:]}
+        selected_rows = ranked
+        raw_weights = {
+            row.instrument: config.bottom_underweight if row.instrument in bottom else 1.0
+            for row in selected_rows
+        }
+    selected = tuple(row.instrument for row in selected_rows)
+    total_raw = sum(raw_weights.values())
+    if total_raw <= 0:
+        raise BaselineError("ranking policy produced zero portfolio weight")
+    investable = 1 - config.cash_reserve
+    return selected, {
+        instrument: min(investable * raw / total_raw, config.max_position_weight)
+        for instrument, raw in raw_weights.items()
+    }
 
 
 def _costs(
@@ -183,6 +230,15 @@ def _execute_rebalance(
         instrument: targets.get(instrument, 0.0) * nav - holdings.get(instrument, 0.0)
         for instrument in universe
     }
+    tradable_desired = {
+        instrument: (
+            0.0
+            if (notional > 0 and not by_instrument[instrument].can_buy_open)
+            or (notional < 0 and not by_instrument[instrument].can_sell_open)
+            else notional
+        )
+        for instrument, notional in desired.items()
+    }
     capacity = {
         instrument: by_instrument[instrument].average_daily_value
         * config.max_participation_rate
@@ -192,7 +248,7 @@ def _execute_rebalance(
         instrument: math.copysign(min(abs(notional), capacity[instrument]), notional)
         if notional
         else 0.0
-        for instrument, notional in desired.items()
+        for instrument, notional in tradable_desired.items()
     }
     sells = {item: value for item, value in capacity_executions.items() if value < 0}
     buys = {item: value for item, value in capacity_executions.items() if value > 0}
@@ -228,7 +284,9 @@ def _execute_rebalance(
                 executed_notional=trade,
                 participation_rate=abs(trade) / row.average_daily_value,
                 capacity_clipped_notional=max(
-                    abs(desired[instrument]) - abs(capacity_executions[instrument]), 0.0
+                    abs(tradable_desired[instrument])
+                    - abs(capacity_executions[instrument]),
+                    0.0,
                 ),
                 funding_clipped_notional=max(
                     abs(capacity_executions[instrument]) - abs(trade), 0.0
@@ -238,6 +296,12 @@ def _execute_rebalance(
                 slippage_cost=slippage,
                 market_impact_cost=impact,
                 total_cost=cost,
+                can_buy_open=row.can_buy_open,
+                can_sell_open=row.can_sell_open,
+                tradability_reason=row.tradability_reason,
+                tradability_clipped_notional=max(
+                    abs(desired[instrument]) - abs(tradable_desired[instrument]), 0.0
+                ),
             )
         )
 
@@ -292,8 +356,16 @@ def _metrics(
         total_cost=sum(period.total_cost for period in periods),
         capacity_clipped_notional=sum(order.capacity_clipped_notional for order in orders),
         funding_clipped_notional=sum(order.funding_clipped_notional for order in orders),
+        tradability_clipped_notional=sum(
+            order.tradability_clipped_notional for order in orders
+        ),
+        tradability_blocked_orders=sum(
+            order.tradability_clipped_notional > 1e-9 for order in orders
+        ),
         clipped_orders=sum(
-            order.capacity_clipped_notional > 1e-9 or order.funding_clipped_notional > 1e-9
+            order.capacity_clipped_notional > 1e-9
+            or order.funding_clipped_notional > 1e-9
+            or order.tradability_clipped_notional > 1e-9
             for order in orders
         ),
     )
@@ -314,9 +386,32 @@ def run_momentum_topk(
         raise BaselineError("initial_nav must be finite and positive")
     grouped = _group_observations(observations)
     holdings: dict[str, float] = {}
+    last_seen: dict[str, BaselineObservation] = {}
     cash = float(initial_nav)
     periods: list[BacktestPeriod] = []
     for period_index, (execution_at, rows) in enumerate(grouped):
+        observed_rows = rows
+        missing = sorted(set(holdings) - {row.instrument for row in rows})
+        if missing and config.missing_holding_policy == "stale_zero_return":
+            template = rows[0]
+            stale_rows = tuple(
+                replace(
+                    last_seen[instrument],
+                    signal=0.0,
+                    execution_at=execution_at,
+                    return_end_at=template.return_end_at,
+                    forward_return=0.0,
+                    can_buy_open=False,
+                    can_sell_open=False,
+                    tradability_reason="missing_bar_stale_zero_return",
+                    eligible=False,
+                )
+                for instrument in missing
+                if instrument in last_seen
+            )
+            rows = tuple(sorted((*rows, *stale_rows), key=lambda row: row.instrument))
+        for row in observed_rows:
+            last_seen[row.instrument] = row
         start_nav = cash + sum(holdings.values())
         rebalanced = period_index % config.rebalance_every == 0
         selected: tuple[str, ...] = ()

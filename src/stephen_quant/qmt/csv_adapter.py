@@ -99,6 +99,8 @@ def _validate_bar(bar: QmtDailyBar, *, row_number: int) -> None:
         raise QmtDataError(f"row {row_number}: high is below low")
     if bar.volume < 0 or bar.amount < 0:
         raise QmtDataError(f"row {row_number}: volume and amount cannot be negative")
+    if not math.isfinite(bar.adjustment_factor) or bar.adjustment_factor <= 0:
+        raise QmtDataError(f"row {row_number}: adjustment_factor must be positive and finite")
 
 
 def load_qmt_daily_csv(
