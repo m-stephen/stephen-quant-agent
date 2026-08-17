@@ -21,6 +21,15 @@ def main() -> None:
     if "document_hashes" in config:
         raise ValueError("document_hashes is forbidden; provide document_files for byte verification")
     document_files = config.get("document_files", {})
+    def validate_transient_hash(value: str) -> str:
+        normalized = str(value).lower()
+        if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
+            raise ValueError("transient-ID hash must be 64 hexadecimal characters")
+        return normalized
+
+    document_files = {
+        validate_transient_hash(key): value for key, value in document_files.items()
+    }
     document_hashes = {}
     document_evidence = []
     for transient_hash, document_path in document_files.items():
@@ -31,7 +40,10 @@ def main() -> None:
             "transient_id_hash": transient_hash, "size": len(raw),
             "sha256": document_hashes[transient_hash],
         })
-    quarantined_ids = set(config.get("quarantined_transient_id_hashes", []))
+    quarantined_ids = {
+        validate_transient_hash(value)
+        for value in config.get("quarantined_transient_id_hashes", [])
+    }
     output_root = Path(config["output_dir"]).resolve()
     operation_id = str(config["operation_id"]).strip()
     if not operation_id or operation_id in {".", ".."} or Path(operation_id).name != operation_id:
@@ -86,6 +98,7 @@ def main() -> None:
         tuple(partitions), query_start=config["query_start"], query_end=config["query_end"],
         ingested_at=config["ingested_at"],
     )
+    complete_quarantine_ids = quarantined_ids | set(ledger.quarantined_transient_id_hashes)
     operation_dir = output_root / operation_id
     operation_dir.mkdir(parents=True, exist_ok=False)
     bundle_hash = write_pit_bundle(
@@ -106,9 +119,9 @@ def main() -> None:
         "inferential_trial_delta": 0,
         "formal_research_eligible": False,
         "quarantined_source_records": ledger.quarantined_source_records,
-        "quarantined_transient_id_hashes": sorted(quarantined_ids),
+        "quarantined_transient_id_hashes": sorted(complete_quarantine_ids),
         "quarantine_set_sha256": hashlib.sha256(
-            json.dumps(sorted(quarantined_ids), separators=(",", ":")).encode()
+            json.dumps(sorted(complete_quarantine_ids), separators=(",", ":")).encode()
         ).hexdigest(),
         "document_evidence": sorted(
             document_evidence, key=lambda row: row["transient_id_hash"]

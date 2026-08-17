@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -330,6 +331,10 @@ def test_different_ids_with_same_unhashed_metadata_are_automatically_quarantined
     )
     assert rows == ()
     assert ledger.quarantined_source_records == 2
+    assert ledger.quarantined_transient_id_hashes == tuple(sorted((
+        hashlib.sha256(b"first-id").hexdigest(),
+        hashlib.sha256(b"second-id").hexdigest(),
+    )))
 
 
 def test_alphapai_pagination_fails_closed_and_bundle_replays(tmp_path: Path) -> None:

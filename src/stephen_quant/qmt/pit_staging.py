@@ -185,6 +185,7 @@ class RemoteRetrievalLedger:
     records_with_conservative_delay: int = 0
     duplicate_source_records_removed: int = 0
     quarantined_source_records: int = 0
+    quarantined_transient_id_hashes: tuple[str, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, indent=2, sort_keys=True)
@@ -513,21 +514,26 @@ def ingest_alphapai_announcement_response(
     seen_transient_ids: set[str] = set()
     seen_source_hashes: set[str] = set()
     documented_metadata: set[str] = set()
-    unhashed_metadata_sources: dict[str, str] = {}
+    unhashed_metadata_sources: dict[str, tuple[str, str]] = {}
     auto_quarantined_metadata: set[str] = set()
     duplicate_source_records_removed = 0
     quarantined_source_records = 0
+    quarantined_transient_id_hashes: set[str] = set()
     for item in envelope["data"]:
         if not isinstance(item, dict):
             raise QmtDataError("AlphaPai announcement item must be an object")
         transient_id = str(item.get("announcementId") or "")
+        transient_id_hash = hashlib.sha256(transient_id.encode()).hexdigest() if transient_id else ""
         if transient_id and transient_id in seen_transient_ids:
             duplicate_source_records_removed += 1
             continue
         if transient_id:
             seen_transient_ids.add(transient_id)
         if item.get("_pitQuarantined") is True:
+            if not transient_id_hash:
+                raise QmtDataError("quarantined AlphaPai record requires announcementId")
             quarantined_source_records += 1
+            quarantined_transient_id_hashes.add(transient_id_hash)
             continue
         title = str(item.get("title") or "")
         report_type = str(item.get("announcementTypeCode") or item.get("announcementType") or "")
@@ -573,23 +579,31 @@ def ingest_alphapai_announcement_response(
         if document_hash is None:
             if metadata_hash in documented_metadata or metadata_hash in auto_quarantined_metadata:
                 quarantined_source_records += 1
+                if transient_id_hash:
+                    quarantined_transient_id_hashes.add(transient_id_hash)
                 continue
-            previous_source_hash = unhashed_metadata_sources.get(metadata_hash)
-            if previous_source_hash is not None:
+            previous = unhashed_metadata_sources.get(metadata_hash)
+            if previous is not None:
+                previous_source_hash, previous_transient_hash = previous
                 rows = [row for row in rows if row.source_hash != previous_source_hash]
                 del unhashed_metadata_sources[metadata_hash]
                 auto_quarantined_metadata.add(metadata_hash)
                 quarantined_source_records += 2
+                quarantined_transient_id_hashes.update(
+                    (previous_transient_hash, transient_id_hash)
+                )
                 continue
         if document_hash is not None:
             stable_metadata["sourceDocumentHash"] = _sha256(
                 str(document_hash), "AlphaPai sourceDocumentHash"
             )
             documented_metadata.add(metadata_hash)
-            previous_source_hash = unhashed_metadata_sources.pop(metadata_hash, None)
-            if previous_source_hash is not None:
+            previous = unhashed_metadata_sources.pop(metadata_hash, None)
+            if previous is not None:
+                previous_source_hash, previous_transient_hash = previous
                 rows = [row for row in rows if row.source_hash != previous_source_hash]
                 quarantined_source_records += 1
+                quarantined_transient_id_hashes.add(previous_transient_hash)
         source_hash = hashlib.sha256(json.dumps(
             stable_metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")).hexdigest()
@@ -598,7 +612,7 @@ def ingest_alphapai_announcement_response(
             continue
         seen_source_hashes.add(source_hash)
         if document_hash is None:
-            unhashed_metadata_sources[metadata_hash] = source_hash
+            unhashed_metadata_sources[metadata_hash] = (source_hash, transient_id_hash)
         source_document_id = hashlib.sha256(
             f"alphapai-announcement|{source_hash}".encode()
         ).hexdigest()
@@ -654,6 +668,7 @@ def ingest_alphapai_announcement_response(
         ),
         duplicate_source_records_removed=duplicate_source_records_removed,
         quarantined_source_records=quarantined_source_records,
+        quarantined_transient_id_hashes=tuple(sorted(quarantined_transient_id_hashes)),
     )
     return validated, ledger
 

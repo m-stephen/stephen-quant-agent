@@ -16,6 +16,13 @@ Each year was rebuilt under a second unique operation ID from the same frozen so
 configuration, parser, and ingestion time. The replay hashes matched exactly. Every operation has
 `inferential_trial_delta = 0` and remains `formal_research_eligible = false` pending Gate 5.
 
+The v3 operation also replayed the complete quarantine identity set. The 2022 empty-set hash is
+`4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`; the four 2023 identities
+produce `5ad23209989b4612b242b99fc1ac9d8f9bc2f1750e0842b263230e63810aba38`; and the four 2024
+identities produce `8f10fd128175b6219290d5438ad0de0d0f247690f3af56911101b510ee185bad`.
+Configured and runtime-auto quarantine identities are merged before hashing, and every identity is
+validated as a 64-character hexadecimal SHA-256 rather than accepted as a raw provider ID.
+
 ## Evidence rules added
 
 - The exact AlphaPai empty-partition envelope (`pageNum=1`, `totalPageNum=0`, `totalSize=0`, empty
