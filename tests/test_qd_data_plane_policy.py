@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -23,15 +25,35 @@ from stephen_quant.qmt.models import QmtDataError
 APPROVAL = "https://github.com/m-stephen/stephen-quant-agent/issues/85#issuecomment-100"
 _APPROVED_RECORD: dict[str, object] = {}
 _AUTHOR_ASSOCIATION = "OWNER"
+_AUTHOR_LOGIN = "m-stephen"
+_LEDGER_DIR = Path("unused")
+
+
+def _manifest_bytes(year: int) -> bytes:
+    state = CONSUMED_MAINTENANCE if year == 2025 else SEALED_MAINTENANCE
+    return json.dumps({
+        "version": 1,
+        "plane": "data_maintenance",
+        "state": state,
+        "year": year,
+        "source_type": "local+alphapai",
+        "files": [{
+            "path": f"year={year}/announcements.jsonl",
+            "partition": f"{year}-08",
+        }],
+    }, sort_keys=True).encode("utf-8")
 
 
 @pytest.fixture(autouse=True)
-def _github_api_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+def _github_api_comment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    global _LEDGER_DIR
+    _LEDGER_DIR = tmp_path / "operations-ledger"
     def fake_comment(reference: str, token: str | None, pattern: object) -> dict[str, object]:
         return {
             "html_url": reference,
             "author_association": _AUTHOR_ASSOCIATION,
-            "user": {"login": "m-stephen"},
+            "user": {"login": _AUTHOR_LOGIN},
+            "id": 100,
             "updated_at": "2026-08-17T19:00:00+08:00",
             "body": "QD_MAINTENANCE_APPROVAL_V1 " + json.dumps(_APPROVED_RECORD),
         }
@@ -40,6 +62,7 @@ def _github_api_comment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _authorization(year: int = 2026) -> dict[str, object]:
+    manifest_sha = hashlib.sha256(_manifest_bytes(year)).hexdigest()
     return {
         "plane": "data_maintenance",
         "state": CONSUMED_MAINTENANCE if year == 2025 else SEALED_MAINTENANCE,
@@ -52,30 +75,40 @@ def _authorization(year: int = 2026) -> dict[str, object]:
         "expires_at": "2026-08-17T20:00:00+08:00",
         "purpose": "pit_alignment",
         "source_files": [f"year={year}/announcements.jsonl"],
-        "source_manifest_sha256": "a" * 64,
+        "source_manifest_sha256": manifest_sha,
         "code_commit": "b" * 40,
         "parser_version": "parser-v1",
         "schema_version": "schema-v1",
         "requested_outputs": ["manifest", "provenance", "quality_failures"],
+        "operation_id": "operation-20260817-0001",
+        "source_type": "local+alphapai",
     }
 
 
 def _context(year: int = 2026) -> MaintenanceExecutionContext:
+    manifest = _manifest_bytes(year)
     return MaintenanceExecutionContext(
         access_subject="isolated-data-maintainer",
         current_time="2026-08-17T19:00:00+08:00",
-        source_manifest_sha256="a" * 64,
+        source_manifest_sha256=hashlib.sha256(manifest).hexdigest(),
         source_files=(f"year={year}/announcements.jsonl",),
         code_commit="b" * 40,
+        source_manifest_bytes=manifest,
     )
 
 
 def _validate(payload: dict[str, object], year: int = 2026):
+    _set_approved(_authorization(year))
+    return validate_data_maintenance_authorization(
+        payload, context=_context(year), operations_ledger_dir=_LEDGER_DIR
+    )
+
+
+def _set_approved(baseline: dict[str, object]) -> None:
     global _APPROVED_RECORD
-    baseline = _authorization(year)
     _APPROVED_RECORD = {
         "approved": True,
-        "year": year,
+        "year": baseline["year"],
         "source_files": baseline["source_files"],
         "purpose": baseline["purpose"],
         "source_manifest_sha256": baseline["source_manifest_sha256"],
@@ -83,10 +116,9 @@ def _validate(payload: dict[str, object], year: int = 2026):
         "parser_version": baseline["parser_version"],
         "schema_version": baseline["schema_version"],
         "requested_outputs": baseline["requested_outputs"],
+        "operation_id": baseline["operation_id"],
+        "source_type": baseline["source_type"],
     }
-    return validate_data_maintenance_authorization(
-        payload, context=_context(year)
-    )
 
 
 def test_research_plane_rejects_restricted_states() -> None:
@@ -130,18 +162,73 @@ def test_maintenance_rejects_scope_hash_commit_identity_and_time_mismatch() -> N
 
 
 def test_github_comment_scope_and_repository_role_are_bound() -> None:
-    global _AUTHOR_ASSOCIATION, _APPROVED_RECORD
+    global _AUTHOR_ASSOCIATION, _AUTHOR_LOGIN, _APPROVED_RECORD
     payload = _authorization()
     _ = _validate(payload)
     _APPROVED_RECORD = {**_APPROVED_RECORD, "purpose": "collection"}
     with pytest.raises(QmtDataError, match="verification failed"):
-        validate_data_maintenance_authorization(payload, context=_context())
+        validate_data_maintenance_authorization(
+            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+        )
     _AUTHOR_ASSOCIATION = "NONE"
     try:
         with pytest.raises(QmtDataError, match="identity or repository role"):
-            validate_data_maintenance_authorization(payload, context=_context())
+            validate_data_maintenance_authorization(
+                payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+            )
     finally:
         _AUTHOR_ASSOCIATION = "OWNER"
+    _AUTHOR_LOGIN = "attacker"
+    try:
+        with pytest.raises(QmtDataError, match="identity or repository role"):
+            validate_data_maintenance_authorization(
+                payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+            )
+    finally:
+        _AUTHOR_LOGIN = "m-stephen"
+
+
+def test_manifest_partition_year_is_semantically_bound_to_authorization() -> None:
+    payload = _authorization(2025)
+    malicious_manifest = json.dumps({
+        "version": 1,
+        "plane": "data_maintenance",
+        "state": CONSUMED_MAINTENANCE,
+        "year": 2025,
+        "source_type": "local+alphapai",
+        "files": [{
+            "path": "year=2025/announcements.jsonl",
+            "partition": "2026-01",
+        }],
+    }, sort_keys=True).encode("utf-8")
+    malicious_hash = hashlib.sha256(malicious_manifest).hexdigest()
+    payload["source_manifest_sha256"] = malicious_hash
+    _set_approved(payload)
+    context = replace(
+        _context(2025),
+        source_manifest_sha256=malicious_hash,
+        source_manifest_bytes=malicious_manifest,
+    )
+    with pytest.raises(QmtDataError, match="partition does not match"):
+        validate_data_maintenance_authorization(
+            payload, context=context, operations_ledger_dir=_LEDGER_DIR
+        )
+
+
+def test_operation_id_is_consumed_atomically_and_cannot_be_replayed() -> None:
+    payload = _authorization(2026)
+    _ = _validate(payload)
+    _set_approved(payload)
+    with pytest.raises(QmtDataError, match="already been consumed"):
+        validate_data_maintenance_authorization(
+            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+        )
+    records = list(_LEDGER_DIR.glob("authorization-consumption-*.json"))
+    assert len(records) == 1
+    record = json.loads(records[0].read_text(encoding="utf-8"))
+    assert record["approval_comment_id"] == 100
+    assert record["approval_comment_updated_at"]
+    assert len(record["approval_payload_sha256"]) == 64
 
 
 @pytest.mark.parametrize(
@@ -155,6 +242,8 @@ def test_github_comment_scope_and_repository_role_are_bound() -> None:
         ("parser_version", "parser-v2"),
         ("schema_version", "schema-v2"),
         ("requested_outputs", ["manifest"]),
+        ("operation_id", "operation-20260817-other"),
+        ("source_type", "alphapai"),
     ],
 )
 def test_every_github_approved_scope_field_must_match(field_name: str, value: object) -> None:
@@ -163,7 +252,9 @@ def test_every_github_approved_scope_field_must_match(field_name: str, value: ob
     _ = _validate(payload)
     _APPROVED_RECORD = {**_APPROVED_RECORD, field_name: value}
     with pytest.raises(QmtDataError, match="verification failed"):
-        validate_data_maintenance_authorization(payload, context=_context())
+        validate_data_maintenance_authorization(
+            payload, context=_context(), operations_ledger_dir=_LEDGER_DIR
+        )
 
 
 def test_storage_roots_and_research_environment_are_physically_isolated(tmp_path: Path) -> None:

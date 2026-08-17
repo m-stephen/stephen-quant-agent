@@ -32,6 +32,7 @@ def _verified_isolation_comment(monkeypatch: pytest.MonkeyPatch) -> None:
         return {
             "html_url": reference,
             "author_association": "OWNER",
+            "user": {"login": "m-stephen"},
             "body": "QD_ISOLATION_PROOF_V1 " + json.dumps(record),
         }
 

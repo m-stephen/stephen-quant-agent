@@ -55,6 +55,11 @@ class VerifiedGitHubApproval:
     parser_version: str
     schema_version: str
     requested_outputs: tuple[str, ...]
+    operation_id: str
+    source_type: str
+    comment_id: int
+    comment_updated_at: str
+    comment_payload_sha256: str
 
 
 @dataclass(frozen=True)
@@ -64,6 +69,7 @@ class MaintenanceExecutionContext:
     source_manifest_sha256: str
     source_files: tuple[str, ...]
     code_commit: str
+    source_manifest_bytes: bytes
 
 
 @dataclass(frozen=True)
@@ -85,6 +91,11 @@ class DataMaintenanceAuthorization:
     requested_outputs: tuple[str, ...]
     approval_verified_at: str
     approval_verifier: str
+    operation_id: str
+    source_type: str
+    approval_comment_id: int
+    approval_comment_updated_at: str
+    approval_payload_sha256: str
 
 
 def _timestamp(value: str, field: str) -> datetime:
@@ -125,6 +136,72 @@ def _safe_files(value: object) -> tuple[str, ...]:
     if len(set(result)) != len(result):
         raise QmtDataError("source_files contains duplicates")
     return tuple(sorted(result))
+
+
+def _operation_id(value: object) -> str:
+    normalized = str(value).strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{15,63}", normalized):
+        raise QmtDataError("operation_id must be a unique 16-64 character nonce")
+    return normalized
+
+
+def _validate_source_manifest(
+    raw: bytes, *, state: str, year: int, source_type: str, source_files: tuple[str, ...],
+) -> str:
+    try:
+        manifest = json.loads(raw.decode("utf-8"), object_pairs_hook=_strict_pairs)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QmtDataError("maintenance source manifest must be UTF-8 JSON") from exc
+    if not isinstance(manifest, dict) or manifest.get("version") != 1:
+        raise QmtDataError("maintenance source manifest must use version 1")
+    if (
+        manifest.get("plane") != "data_maintenance"
+        or manifest.get("state") != state
+        or manifest.get("year") != year
+        or manifest.get("source_type") != source_type
+    ):
+        raise QmtDataError("maintenance source manifest scope does not match authorization")
+    entries = manifest.get("files")
+    if not isinstance(entries, list) or not entries:
+        raise QmtDataError("maintenance source manifest requires files")
+    manifest_files: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise QmtDataError("maintenance source manifest file entry must be an object")
+        paths = _safe_files([entry.get("path")])
+        partition = str(entry.get("partition", ""))
+        match = re.fullmatch(r"(\d{4})(?:-\d{2}(?:-\d{2})?)?", partition)
+        if match is None or int(match.group(1)) != year:
+            raise QmtDataError("maintenance source partition does not match authorized year")
+        manifest_files.extend(paths)
+    if tuple(sorted(manifest_files)) != source_files:
+        raise QmtDataError("maintenance manifest files do not match authorized source files")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _consume_operation(
+    authorization: DataMaintenanceAuthorization, ledger_dir: str | Path,
+) -> None:
+    directory = Path(ledger_dir).expanduser().resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    record = {
+        "ledger": "data_operations_authorization_consumption",
+        "operation_id": authorization.operation_id,
+        "year": authorization.year,
+        "state": authorization.state,
+        "source_manifest_sha256": authorization.source_manifest_sha256,
+        "approval_reference": authorization.approval_reference,
+        "approval_comment_id": authorization.approval_comment_id,
+        "approval_comment_updated_at": authorization.approval_comment_updated_at,
+        "approval_payload_sha256": authorization.approval_payload_sha256,
+        "consumed_at": authorization.approval_verified_at,
+    }
+    target = directory / f"authorization-consumption-{authorization.operation_id}.json"
+    try:
+        with target.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+    except FileExistsError as exc:
+        raise QmtDataError("maintenance operation_id has already been consumed") from exc
 
 
 def validate_research_manifest_control(payload: dict[str, object]) -> None:
@@ -215,13 +292,14 @@ def verify_github_maintenance_approval(
     reference: str, *, github_token: str | None = None,
 ) -> VerifiedGitHubApproval:
     comment = _github_issue_comment(reference, github_token, _APPROVAL_PATTERN)
-    if comment.get("html_url") != reference or comment.get("author_association") not in {
-        "OWNER", "MEMBER", "COLLABORATOR",
-    }:
-        raise QmtDataError("GitHub approval identity or repository role is invalid")
     user = comment.get("user")
-    if not isinstance(user, dict) or not isinstance(user.get("login"), str):
-        raise QmtDataError("GitHub approval author is invalid")
+    if (
+        comment.get("html_url") != reference
+        or comment.get("author_association") != "OWNER"
+        or not isinstance(user, dict)
+        or user.get("login") != "m-stephen"
+    ):
+        raise QmtDataError("GitHub approval identity or repository role is invalid")
     record = _machine_payload(comment.get("body"), _APPROVAL_MARKER)
     source_files = _safe_files(record.get("source_files"))
     outputs_raw = record.get("requested_outputs")
@@ -231,6 +309,12 @@ def verify_github_maintenance_approval(
     year = record.get("year")
     if not isinstance(year, int):
         raise QmtDataError("GitHub approval requires integer year")
+    comment_id = comment.get("id")
+    if not isinstance(comment_id, int):
+        raise QmtDataError("GitHub approval comment id is invalid")
+    comment_updated_at = _timestamp(
+        str(comment.get("updated_at", "")), "approval comment updated_at"
+    ).isoformat()
     return VerifiedGitHubApproval(
         reference=reference,
         approver_login=str(user["login"]),
@@ -246,6 +330,13 @@ def verify_github_maintenance_approval(
         parser_version=str(record.get("parser_version", "")),
         schema_version=str(record.get("schema_version", "")),
         requested_outputs=outputs,
+        operation_id=_operation_id(record.get("operation_id")),
+        source_type=str(record.get("source_type", "")),
+        comment_id=comment_id,
+        comment_updated_at=comment_updated_at,
+        comment_payload_sha256=hashlib.sha256(json.dumps(
+            record, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")).hexdigest(),
     )
 
 
@@ -259,9 +350,13 @@ def verify_github_isolation_proof(
     github_token: str | None = None,
 ) -> None:
     comment = _github_issue_comment(reference, github_token, _ISOLATION_PATTERN)
-    if comment.get("html_url") != reference or comment.get("author_association") not in {
-        "OWNER", "MEMBER", "COLLABORATOR",
-    }:
+    user = comment.get("user")
+    if (
+        comment.get("html_url") != reference
+        or comment.get("author_association") != "OWNER"
+        or not isinstance(user, dict)
+        or user.get("login") != "m-stephen"
+    ):
         raise QmtDataError("GitHub isolation proof identity or role is invalid")
     record = _machine_payload(comment.get("body"), _ISOLATION_MARKER)
     if (
@@ -279,6 +374,7 @@ def validate_data_maintenance_authorization(
     payload: dict[str, object],
     *,
     context: MaintenanceExecutionContext,
+    operations_ledger_dir: str | Path,
     github_token: str | None = None,
 ) -> DataMaintenanceAuthorization:
     if payload.get("plane") != "data_maintenance":
@@ -301,7 +397,7 @@ def validate_data_maintenance_authorization(
     required = (
         "access_subject", "approved_by", "approver_role", "approval_reference",
         "authorized_at", "expires_at", "source_manifest_sha256", "code_commit",
-        "parser_version", "schema_version",
+        "parser_version", "schema_version", "operation_id", "source_type",
     )
     values = {field: str(payload.get(field, "")).strip() for field in required}
     if any(not value for value in values.values()):
@@ -320,6 +416,15 @@ def validate_data_maintenance_authorization(
     if source_files != actual_files:
         raise QmtDataError("actual source files do not match authorized source scope")
     manifest_sha = _sha256(values["source_manifest_sha256"], "source_manifest_sha256")
+    actual_manifest_sha = _validate_source_manifest(
+        context.source_manifest_bytes,
+        state=state,
+        year=year,
+        source_type=values["source_type"],
+        source_files=source_files,
+    )
+    if actual_manifest_sha != manifest_sha:
+        raise QmtDataError("actual maintenance manifest hash does not match authorization")
     if manifest_sha != _sha256(context.source_manifest_sha256, "context source_manifest_sha256"):
         raise QmtDataError("source manifest hash does not match authorization")
     code_commit = _commit(values["code_commit"])
@@ -341,11 +446,13 @@ def validate_data_maintenance_authorization(
         or verified.parser_version != values["parser_version"]
         or verified.schema_version != values["schema_version"]
         or verified.requested_outputs != requested_outputs
+        or verified.operation_id != _operation_id(values["operation_id"])
+        or verified.source_type != values["source_type"]
     ):
         raise QmtDataError("GitHub approval verification failed")
     if values["approved_by"] == values["access_subject"]:
         raise QmtDataError("maintenance access cannot be self-approved")
-    return DataMaintenanceAuthorization(
+    authorization = DataMaintenanceAuthorization(
         state=state,
         year=year,
         access_subject=values["access_subject"],
@@ -363,7 +470,14 @@ def validate_data_maintenance_authorization(
         requested_outputs=requested_outputs,
         approval_verified_at=_timestamp(verified.verified_at, "approval_verified_at").isoformat(),
         approval_verifier=verified.verifier,
+        operation_id=verified.operation_id,
+        source_type=verified.source_type,
+        approval_comment_id=verified.comment_id,
+        approval_comment_updated_at=verified.comment_updated_at,
+        approval_payload_sha256=verified.comment_payload_sha256,
     )
+    _consume_operation(authorization, operations_ledger_dir)
+    return authorization
 
 
 def data_operations_ledger_record(
