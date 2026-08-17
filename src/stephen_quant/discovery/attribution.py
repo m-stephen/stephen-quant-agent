@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 
 from stephen_quant.baseline import BaselineObservation
-from stephen_quant.evaluation import EvaluationError, spearman_correlation
+from stephen_quant.evaluation import EvaluationError, ols_residuals, spearman_correlation
 from stephen_quant.integrity.models import TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 
@@ -169,42 +169,6 @@ def _visible(row: BaselineObservation) -> bool:
     return signal < execution and liquidity < execution
 
 
-def _solve(matrix: list[list[float]], vector: list[float]) -> list[float]:
-    size = len(vector)
-    augmented = [matrix[index][:] + [vector[index]] for index in range(size)]
-    for column in range(size):
-        pivot = max(range(column, size), key=lambda row: abs(augmented[row][column]))
-        if abs(augmented[pivot][column]) < 1e-12:
-            raise ValueError("attribution controls are singular within a decision cross-section")
-        augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = augmented[column][column]
-        augmented[column] = [value / divisor for value in augmented[column]]
-        for row in range(size):
-            if row == column:
-                continue
-            multiplier = augmented[row][column]
-            augmented[row] = [
-                value - multiplier * pivot_value
-                for value, pivot_value in zip(augmented[row], augmented[column], strict=True)
-            ]
-    return [augmented[index][-1] for index in range(size)]
-
-
-def _residuals(target: list[float], controls: list[list[float]]) -> list[float]:
-    design = [[1.0, *row] for row in controls]
-    width = len(design[0])
-    gram = [
-        [sum(row[left] * row[right] for row in design) for right in range(width)]
-        for left in range(width)
-    ]
-    moment = [sum(row[index] * value for row, value in zip(design, target, strict=True)) for index in range(width)]
-    coefficients = _solve(gram, moment)
-    return [
-        value - sum(weight * coefficient for weight, coefficient in zip(row, coefficients, strict=True))
-        for row, value in zip(design, target, strict=True)
-    ]
-
-
 def _mean_rank_ic(signal_and_return: Sequence[tuple[list[float], list[float]]]) -> float:
     values = []
     for signals, returns in signal_and_return:
@@ -277,7 +241,7 @@ def run_factor_attribution(
             control_values.append(values)
             if any(panel[key].forward_return != row.forward_return for _, panel in control_maps):
                 raise ValueError("control and target panels have inconsistent forward returns")
-        residual = _residuals(oriented, control_values)
+        residual = ols_residuals(oriented, control_values)
         raw_panels.append((oriented, returns))
         residual_panels.append((residual, returns))
 

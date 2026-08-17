@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import math
-from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from statistics import stdev
 
 from stephen_quant.baseline import (
     BaselineConfig,
     BaselineLineage,
-    BaselineObservation,
     BaselineReport,
     run_momentum_topk,
 )
 from stephen_quant.discovery import v21_mechanism_generation_plan
-from stephen_quant.evaluation import EvaluationObservation
 from stephen_quant.falsification import (
     DeflatedSharpeResult,
     PlaceboResult,
@@ -41,25 +36,19 @@ from stephen_quant.v2.real_qd import (
     run_v21_readiness,
 )
 
+from .research_epoch import (
+    canonical_json,
+    evaluation_rows,
+    execution_memberships,
+    raw_sharpe,
+    sha256_bytes,
+    sha256_file,
+    shared_non_overlapping,
+)
+
 V22_CONFIG_VERSION = "2.2.0"
 V22_METHOD_VERSION = "v2.2-frozen-signal-portfolio-breadth-1.0.0"
 V22_REPLAY_VERSION = "v2.2-portfolio-breadth-replay-1.0.0"
-
-
-def _canonical(value: object) -> str:
-    return json.dumps(value, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
-
-
-def _sha_bytes(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
-
-
-def _sha_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -112,7 +101,7 @@ class V22PortfolioBreadthConfig:
 
     @property
     def calculated_evidence_sha256(self) -> str:
-        return _sha_bytes(_canonical(self.evidence_payload()).encode())
+        return sha256_bytes(canonical_json(self.evidence_payload()).encode())
 
     def validate(self) -> None:
         if self.top_ks != (5, 10, 15, 20):
@@ -289,60 +278,6 @@ def load_v22_portfolio_breadth_config(source: str | Path) -> V22PortfolioBreadth
     return config
 
 
-def _execution_memberships(
-    memberships: dict[str, tuple[str, ...]], execution_dates: list[str]
-) -> dict[str, tuple[str, ...]]:
-    ordered = sorted(memberships)
-    result: dict[str, tuple[str, ...]] = {}
-    offset = 0
-    latest: tuple[str, ...] = ()
-    for execution_day in sorted(execution_dates):
-        while offset < len(ordered) and ordered[offset] < execution_day:
-            latest = memberships[ordered[offset]]
-            offset += 1
-        result[execution_day] = latest
-    return result
-
-
-def _shared_non_overlapping(
-    rows: tuple[BaselineObservation, ...], horizon: int, minimum_eligible: int
-) -> tuple[BaselineObservation, ...]:
-    counts: dict[str, int] = defaultdict(int)
-    for row in rows:
-        if row.eligible:
-            counts[row.execution_at] += 1
-    dates = sorted(day for day, count in counts.items() if count >= minimum_eligible)
-    selected = set(dates[::horizon])
-    if len(selected) < 2:
-        raise ValueError("V2.2 has insufficient shared non-overlapping periods")
-    return tuple(row for row in rows if row.execution_at in selected)
-
-
-def _raw_sharpe(report: BaselineReport) -> float:
-    values = [item.net_return for item in report.periods]
-    dispersion = stdev(values)
-    return 0.0 if dispersion == 0 else (sum(values) / len(values)) / dispersion
-
-
-def _evaluation_rows(rows: tuple[BaselineObservation, ...]) -> tuple[EvaluationObservation, ...]:
-    return tuple(
-        EvaluationObservation(
-            instrument=row.instrument,
-            timestamp=row.execution_at,
-            factor_value=row.signal,
-            forward_return=row.forward_return,
-            factor_available_at=row.signal_available_at,
-            label_start_at=row.execution_at,
-            label_end_at=row.return_end_at,
-            horizon="20d",
-            subperiod="research",
-            regime="unspecified",
-        )
-        for row in rows
-        if row.eligible
-    )
-
-
 def _score(
     report: BaselineReport,
     *,
@@ -357,7 +292,7 @@ def _score(
         local_trial_number,
         prior_trial_count + local_trial_number,
         report.metrics.periods,
-        _raw_sharpe(report),
+        raw_sharpe(report),
         report.metrics.net_sharpe,
         report.metrics.net_total_return,
         report.metrics.max_drawdown,
@@ -429,7 +364,7 @@ def run_v22_portfolio_breadth(
             hypothesis="Increasing breadth improves the V2.1 flow-confirmation portfolio.",
             dataset_snapshot_id=snapshot_id,
             code_version=code_version,
-            search_space=_canonical(asdict(config)),
+            search_space=canonical_json(asdict(config)),
         )
     )
 
@@ -441,7 +376,7 @@ def run_v22_portfolio_breadth(
     execution_dates = sorted(
         {bar.trade_date for bar in daily.bars if discovery.research_start <= bar.trade_date <= discovery.research_end}
     )
-    eligibility = _execution_memberships(memberships, execution_dates)
+    eligibility = execution_memberships(memberships, execution_dates)
     anchors = build_qmt_factor_observations(
         daily.bars,
         anchor_schema.compile(),
@@ -456,7 +391,7 @@ def run_v22_portfolio_breadth(
         target.compile(),
         anchors,
     )
-    execution_rows = _shared_non_overlapping(
+    execution_rows = shared_non_overlapping(
         target_rows, config.horizon_sessions, max(config.top_ks)
     )
     baseline_config = {
@@ -476,7 +411,7 @@ def run_v22_portfolio_breadth(
                 experiment_id=experiment_id,
                 model_name="v2.2_frozen_signal_portfolio_breadth",
                 factor_set=target.schema_id,
-                hyperparams=_canonical({"top_k": top_k, "frozen_config": asdict(config)}),
+                hyperparams=canonical_json({"top_k": top_k, "frozen_config": asdict(config)}),
                 seed=config.seed,
                 train_start=discovery.research_start,
                 train_end=discovery.research_end,
@@ -501,7 +436,7 @@ def run_v22_portfolio_breadth(
             local_trial_number=trial_number,
             prior_trial_count=config.prior_trial_count,
         )
-        registry.record_trial_result(trial_id, _canonical(asdict(item)))
+        registry.record_trial_result(trial_id, canonical_json(asdict(item)))
         scores.append(item)
 
     selected = select_v22_breadth(tuple(scores))
@@ -518,7 +453,9 @@ def run_v22_portfolio_breadth(
             experiment_id=experiment_id,
             model_name="v2.2_reversed_ranking_negative_control",
             factor_set=target.schema_id,
-            hyperparams=_canonical({"top_k": selected.top_k, "direction": -target.direction}),
+            hyperparams=canonical_json(
+                {"top_k": selected.top_k, "direction": -target.direction}
+            ),
             seed=config.seed,
             train_start=discovery.research_start,
             train_end=discovery.research_end,
@@ -550,7 +487,7 @@ def run_v22_portfolio_breadth(
         negative_report.metrics.net_total_return,
         negative_report.metrics.net_sharpe is not None and negative_report.metrics.net_sharpe <= 0,
     )
-    registry.record_trial_result(negative_trial_id, _canonical(asdict(negative)))
+    registry.record_trial_result(negative_trial_id, canonical_json(asdict(negative)))
     cumulative = cumulative_v22_trial_count(config, registry.global_trial_count())
     dsr = deflated_sharpe_ratio(
         observed_sharpe=selected.raw_net_sharpe,
@@ -558,7 +495,7 @@ def run_v22_portfolio_breadth(
         recorded_trial_count=cumulative,
         observations=selected.periods,
     )
-    evaluation = _evaluation_rows(target_rows)
+    evaluation = evaluation_rows(target_rows, horizon="20d")
     signal_placebo = run_placebo(
         evaluation,
         horizon="20d",
@@ -643,7 +580,7 @@ def run_v22_portfolio_breadth(
         "cumulative_trial_count": report.cumulative_trial_count,
         "validation_window_opened": False,
         "test_window_opened": False,
-        "artifacts": {name: _sha_file(path) for name, path in sorted(artifacts.items())},
+        "artifacts": {name: sha256_file(path) for name, path in sorted(artifacts.items())},
     }
     replay_path = output / "v2.2-replay-manifest.json"
     replay_path.write_text(
@@ -672,6 +609,6 @@ def verify_v22_portfolio_breadth_replay(source: str | Path) -> V22ReplayVerifica
     mismatches = tuple(
         name
         for name, artifact in mapping.items()
-        if not artifact.is_file() or expected.get(name) != _sha_file(artifact)
+        if not artifact.is_file() or expected.get(name) != sha256_file(artifact)
     )
     return V22ReplayVerification(not mismatches, len(mapping), mismatches)

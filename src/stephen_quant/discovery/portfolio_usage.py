@@ -14,10 +14,10 @@ from stephen_quant.baseline import (
     BaselineObservation,
     run_momentum_topk,
 )
+from stephen_quant.evaluation import ols_residuals
 from stephen_quant.integrity.models import TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 
-from .attribution import _residuals
 from .models import FactorSchema
 from .screening import ScreeningWindow
 
@@ -310,7 +310,7 @@ def _residualized_rows(
             ]
             for instrument, row in ordered
         ]
-        residuals = _residuals(values, design)
+        residuals = ols_residuals(values, design)
         replacements.update(
             ((execution_at, instrument), value)
             for (instrument, _), value in zip(ordered, residuals, strict=True)
