@@ -17,14 +17,18 @@ from .path_config import PathConfigError, load_local_path_config
 from .qmt import (
     DatExportConfig,
     DynamicUniverseConfig,
+    QmtDataError,
     QmtDatError,
     XtquantExportConfig,
     XtquantExportError,
     build_dynamic_universe,
+    create_local_unlock,
     data_search_ledger_record,
     export_qmt_daily_csv,
     export_qmt_dat_daily_csv,
+    inventory_local_data,
     load_qd_daily_directory,
+    maintain_local_data,
     read_stock_file,
     run_qd_data_audit,
     screen_factor_redundancy,
@@ -190,6 +194,24 @@ def build_parser() -> argparse.ArgumentParser:
     qd_data_audit.add_argument("--allowlist-manifest")
     qd_data_audit.add_argument("--paths-config")
     qd_data_audit.add_argument("--output-dir")
+
+    data_inventory = sub.add_parser("data-inventory")
+    data_inventory.add_argument("--paths-config", required=True)
+    data_inventory.add_argument("--year", type=int, required=True)
+    data_inventory.add_argument("--source-type", default="local")
+
+    data_unlock = sub.add_parser("data-unlock")
+    data_unlock.add_argument("--paths-config", required=True)
+    data_unlock.add_argument("--manifest", required=True)
+    data_unlock.add_argument("--year", type=int, required=True)
+    data_unlock.add_argument("--purpose", required=True)
+    data_unlock.add_argument("--expires-seconds", type=int, default=7200)
+    data_unlock.add_argument("--allow-sealed-2026", action="store_true")
+
+    data_maintain = sub.add_parser("data-maintain")
+    data_maintain.add_argument("--paths-config", required=True)
+    data_maintain.add_argument("--manifest", required=True)
+    data_maintain.add_argument("--operation-id", required=True)
 
     factor_screen = sub.add_parser("qd-factor-screen")
     factor_screen.add_argument("--daily-dir", required=True)
@@ -1152,6 +1174,53 @@ def main() -> None:
             print(report.to_json())
         if not report.gate_pass:
             raise SystemExit(2)
+        return
+
+    if args.command in {"data-inventory", "data-unlock", "data-maintain"}:
+        local_paths = load_local_path_config(args.paths_config)
+        required_keys = {"qd_single_user_ledger_dir"}
+        if args.command in {"data-inventory", "data-maintain"}:
+            required_keys.add("qd_single_user_data_root")
+        if args.command == "data-inventory":
+            required_keys.add("qd_single_user_manifest_dir")
+        missing = sorted(required_keys - set(local_paths.paths))
+        if missing:
+            raise SystemExit(f"single-user data config missing keys: {missing}")
+        ledger_dir = local_paths.paths["qd_single_user_ledger_dir"]
+        try:
+            if args.command == "data-inventory":
+                result, manifest_path = inventory_local_data(
+                    local_paths.paths["qd_single_user_data_root"],
+                    local_paths.paths["qd_single_user_manifest_dir"],
+                    ledger_dir,
+                    year=args.year,
+                    source_type=args.source_type,
+                    code_commit=_git_head(),
+                )
+                payload = {**asdict(result), "manifest_file": manifest_path.name}
+            elif args.command == "data-unlock":
+                result = create_local_unlock(
+                    args.manifest,
+                    ledger_dir,
+                    year=args.year,
+                    purpose=args.purpose,
+                    expires_in_seconds=args.expires_seconds,
+                    code_commit=_git_head(),
+                    allow_sealed_2026=args.allow_sealed_2026,
+                )
+                payload = asdict(result)
+            else:
+                result = maintain_local_data(
+                    local_paths.paths["qd_single_user_data_root"],
+                    args.manifest,
+                    ledger_dir,
+                    operation_id=args.operation_id,
+                    code_commit=_git_head(),
+                )
+                payload = asdict(result)
+        except (QmtDataError, PathConfigError) as exc:
+            raise SystemExit(f"{args.command} failed: {exc}") from exc
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
 
     if args.command == "qd-factor-screen":
