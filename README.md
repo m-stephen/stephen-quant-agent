@@ -1,5 +1,21 @@
 # Stephen Quant Agent
 
+## V2.8 point-in-time data-source upgrade
+
+V2.8 promotes the tested data-maintenance and point-in-time staging foundation from
+`data-test` into the main release line. It adds deterministic raw-byte inventory and manifests,
+single-user local unlock and append-only operation ledgers, QD/AlphaPai PIT staging, finance
+revision chains, industry and corporate-action contracts, authoritative announcement-document
+binding, and source-completion reporting.
+
+The 2022–2024 announcement-document quarantine is resolved with byte-verified source files and
+deterministic replay. The release still fails closed for missing authoritative historical
+stock-level industry membership and complete corporate-action/share-capital source staging.
+Consequently, Gate 5 remains blocked and the 2025/2026 research restrictions remain unchanged.
+
+See the [English V2.8 release audit](docs/V2_8_RELEASE_AUDIT_EN.md) and
+[中文 V2.8 发布审计](docs/V2_8_RELEASE_AUDIT_ZH.md).
+
 ## V2.7 integrity-first reset
 
 M0 records rejected factor families and seals research-window governance. M1 adds a source-specific point-in-time readiness audit without reading raw directories or observing returns:
