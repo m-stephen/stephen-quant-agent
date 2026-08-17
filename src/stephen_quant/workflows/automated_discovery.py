@@ -23,6 +23,7 @@ from stephen_quant.discovery import (
     build_alpha_card,
     build_research_memory,
     generate_candidates,
+    normalized_generation_plan,
     run_discovery_cpcv,
     run_discovery_execution,
     run_training_screen,
@@ -40,9 +41,11 @@ from stephen_quant.qmt import (
     QdAlternativeConfig,
     QdAlternativeDataset,
     build_alternative_factor_observations,
+    build_multisource_factor_observations,
     build_qmt_factor_observations,
     load_qd_alternative_directory,
     load_qd_daily_directory,
+    normalize_cross_sectional_observations,
     select_qd_daily_files,
 )
 
@@ -85,6 +88,12 @@ class AutomatedDiscoveryConfig:
     min_dsr_probability: float = 0.95
     dynamic_universe_top_n: int = 50
     seed: int = 42
+    search_profile: str = "v1.8.16"
+    family_budgets: tuple[tuple[str, int], ...] = ()
+    minimum_positive_year_fraction: float = 0.0
+    maximum_rank_turnover: float = 1.0
+    stability_weight: float = 0.0
+    turnover_penalty: float = 0.0
 
     def validate(self) -> None:
         window = ScreeningWindow(
@@ -109,6 +118,18 @@ class AutomatedDiscoveryConfig:
             raise ValueError("execution_budget must be zero or at least two for DSR")
         if self.dynamic_universe_top_n < 3:
             raise ValueError("dynamic_universe_top_n must be at least three")
+        if self.search_profile not in {"v1.8.16", "v1.8.17"}:
+            raise ValueError("search_profile must be v1.8.16 or v1.8.17")
+        ScreeningConfig(
+            minimum_coverage=self.minimum_coverage,
+            minimum_mean_rank_ic=self.screen_minimum_mean_rank_ic,
+            maximum_peer_rank_correlation=self.maximum_peer_rank_correlation,
+            family_budgets=self.family_budgets,
+            minimum_positive_year_fraction=self.minimum_positive_year_fraction,
+            maximum_rank_turnover=self.maximum_rank_turnover,
+            stability_weight=self.stability_weight,
+            turnover_penalty=self.turnover_penalty,
+        ).validate()
         DiscoveryExecutionConfig(
             top_k=self.execution_top_k,
             initial_nav=self.initial_nav,
@@ -151,7 +172,15 @@ class AutomatedDiscoveryReport:
         if language not in {"en", "zh"}:
             raise ValueError("report language must be en or zh")
         zh = language == "zh"
-        title = "# V1.8.16 自动因子发现与回测报告" if zh else "# V1.8.16 Automated Factor Discovery and Backtest"
+        title = (
+            "# V1.8.17 标准化多源因子发现与回测报告"
+            if zh and "1.8.17" in self.method_version
+            else "# V1.8.17 Normalized Multi-source Factor Discovery and Backtest"
+            if "1.8.17" in self.method_version
+            else "# V1.8.16 自动因子发现与回测报告"
+            if zh
+            else "# V1.8.16 Automated Factor Discovery and Backtest"
+        )
         decision_label = "结论" if zh else "Decision"
         generated_label = "生成候选" if zh else "Generated candidates"
         shortlist_label = "CPCV 入围" if zh else "CPCV shortlist"
@@ -176,14 +205,22 @@ class AutomatedDiscoveryReport:
             "",
             "## Screening / 筛选",
             "",
-            "| Trial | Schema | Coverage | Mean RankIC | Decision |",
-            "|---:|---|---:|---:|---|",
+            "| Trial | Family | Schema | Coverage | Mean RankIC | Stable years | Turnover | Objective | Decision |",
+            "|---:|---|---|---:|---:|---:|---:|---:|---|",
         ]
         for score in self.screening.scores:
             rank_ic = "N/A" if score.mean_rank_ic is None else f"{score.mean_rank_ic:.6f}"
+            stability = (
+                "N/A"
+                if score.positive_year_fraction is None
+                else f"{score.positive_year_fraction:.2%}"
+            )
+            turnover = "N/A" if score.rank_turnover is None else f"{score.rank_turnover:.4f}"
+            objective = "N/A" if score.objective_score is None else f"{score.objective_score:.6f}"
             lines.append(
-                f"| {score.trial_number} | `{score.schema_id}` | {score.coverage:.2%} | "
-                f"{rank_ic} | {score.decision} |"
+                f"| {score.trial_number} | `{score.family}` | `{score.schema_id}` | "
+                f"{score.coverage:.2%} | {rank_ic} | {stability} | {turnover} | "
+                f"{objective} | {score.decision} |"
             )
         if self.cpcv is not None:
             lines.extend(["", self.cpcv.to_markdown(language=language).strip(), ""])
@@ -258,6 +295,10 @@ def load_automated_discovery_config(source: str | Path) -> AutomatedDiscoveryCon
         raise ValueError("automated-discovery manifest_version must be 1.0.0")
     if "windows" in payload and isinstance(payload["windows"], list):
         payload["windows"] = tuple(payload["windows"])
+    if "family_budgets" in payload and isinstance(payload["family_budgets"], list):
+        payload["family_budgets"] = tuple(
+            tuple(item) for item in payload["family_budgets"]
+        )
     try:
         config = AutomatedDiscoveryConfig(**payload)
     except TypeError as exc:
@@ -312,6 +353,18 @@ def _execution_memberships(
             offset += 1
         result[execution_day] = latest
     return result
+
+
+def _trim_leading_warmup(
+    rows: tuple,
+) -> tuple:
+    """Drop only leading dates before a factor has any eligible cross-section."""
+
+    eligible_dates = {row.execution_at for row in rows if row.eligible}
+    first_usable = min(eligible_dates) if eligible_dates else None
+    if first_usable is None:
+        return rows
+    return tuple(row for row in rows if row.execution_at >= first_usable)
 
 
 def _alternative_datasets(
@@ -407,7 +460,11 @@ def run_automated_discovery(
     available_sources = {"qd_daily"} | {
         source for key, source in source_keys.items() if key in alternative_paths
     }
-    plan_seed = seed_generation_plan()
+    plan_seed = (
+        normalized_generation_plan()
+        if config.search_profile == "v1.8.17"
+        else seed_generation_plan()
+    )
     plan = GenerationPlan(
         templates=tuple(
             template
@@ -422,7 +479,11 @@ def run_automated_discovery(
         raise ValueError("generation plan exceeds the frozen schema budget")
     search_space = json.dumps(
         {
-            "method_version": AUTOMATED_DISCOVERY_VERSION,
+            "method_version": (
+                "v1.8.17-normalized-multisource-1.0.0"
+                if config.search_profile == "v1.8.17"
+                else AUTOMATED_DISCOVERY_VERSION
+            ),
             "config": asdict(config),
             "planned_candidates": planned_count,
         },
@@ -431,7 +492,7 @@ def run_automated_discovery(
     )
     experiment_id = registry.create_experiment(
         ExperimentSpec(
-            name="v1.8.16_automated_factor_discovery",
+            name=f"{config.search_profile}_automated_factor_discovery",
             hypothesis="A bounded structured search can identify stable factor candidates.",
             dataset_snapshot_id=snapshot_id,
             code_version=code_version,
@@ -441,7 +502,7 @@ def run_automated_discovery(
     campaign = SearchCampaign(
         registry,
         CampaignSpec(
-            name="v1.8.16 structured search",
+            name=f"{config.search_profile} structured search",
             experiment_id=experiment_id,
             budget=CampaignBudget(
                 config.schema_budget, config.cpcv_budget, config.execution_budget
@@ -490,14 +551,32 @@ def run_automated_discovery(
     for item in candidates:
         if not item.unique or item.schema.data_sources == ("qd_daily",):
             continue
-        if len(item.schema.data_sources) != 1:
-            raise ValueError("V1.8.16 seed factors must use exactly one data source")
-        source = item.schema.data_sources[0]
-        observations[item.schema.fingerprint] = build_alternative_factor_observations(
-            alternative_datasets[source].observations,
-            item.schema.compile(),
-            anchor,
-        )
+        if len(item.schema.data_sources) == 1:
+            source = item.schema.data_sources[0]
+            observations[item.schema.fingerprint] = build_alternative_factor_observations(
+                alternative_datasets[source].observations,
+                item.schema.compile(),
+                anchor,
+            )
+        else:
+            sources = {
+                source: alternative_datasets[source].observations
+                for source in item.schema.data_sources
+                if source != "qd_daily"
+            }
+            observations[item.schema.fingerprint] = build_multisource_factor_observations(
+                dataset.bars,
+                sources,
+                item.schema.compile(),
+                anchor,
+            )
+    if config.search_profile == "v1.8.17":
+        observations = {
+            fingerprint: _trim_leading_warmup(
+                normalize_cross_sectional_observations(rows)
+            )
+            for fingerprint, rows in observations.items()
+        }
     window = ScreeningWindow(
         config.research_start,
         config.research_end,
@@ -516,6 +595,11 @@ def run_automated_discovery(
             minimum_coverage=config.minimum_coverage,
             minimum_mean_rank_ic=config.screen_minimum_mean_rank_ic,
             maximum_peer_rank_correlation=config.maximum_peer_rank_correlation,
+            family_budgets=config.family_budgets,
+            minimum_positive_year_fraction=config.minimum_positive_year_fraction,
+            maximum_rank_turnover=config.maximum_rank_turnover,
+            stability_weight=config.stability_weight,
+            turnover_penalty=config.turnover_penalty,
         ),
         seed=config.seed,
     )
@@ -603,7 +687,11 @@ def run_automated_discovery(
         else "REJECT_SCREEN_INSUFFICIENT_CPCV_CANDIDATES"
     )
     report = AutomatedDiscoveryReport(
-        method_version=AUTOMATED_DISCOVERY_VERSION,
+        method_version=(
+            "v1.8.17-normalized-multisource-1.0.0"
+            if config.search_profile == "v1.8.17"
+            else AUTOMATED_DISCOVERY_VERSION
+        ),
         experiment_id=experiment_id,
         campaign_id=campaign.campaign_id,
         snapshot_id=snapshot_id,

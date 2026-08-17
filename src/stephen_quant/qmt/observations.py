@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date
 
 from stephen_quant.baseline import BaselineObservation
@@ -22,6 +24,14 @@ def _date(value: str, field: str) -> date:
         return date.fromisoformat(value)
     except ValueError as exc:
         raise QmtDataError(f"{field} must be an ISO date") from exc
+
+
+def _quantile(values: list[float], probability: float) -> float:
+    position = probability * (len(values) - 1)
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(values) - 1)
+    weight = position - lower_index
+    return values[lower_index] * (1 - weight) + values[upper_index] * weight
 
 
 def build_qmt_factor_observations(
@@ -293,3 +303,54 @@ def combine_qmt_factor_observations(
             )
         )
     return tuple(combined)
+
+
+def normalize_cross_sectional_observations(
+    observations: Sequence[BaselineObservation],
+    *,
+    winsor_fraction: float = 0.01,
+    groups: dict[str, str] | None = None,
+) -> tuple[BaselineObservation, ...]:
+    """Same-decision-time winsorization, optional group neutralization and z-score."""
+
+    if not 0 <= winsor_fraction < 0.5:
+        raise QmtDataError("winsor_fraction must be in [0, 0.5)")
+    by_date: dict[str, list[BaselineObservation]] = defaultdict(list)
+    for row in observations:
+        by_date[row.execution_at].append(row)
+    normalized: list[BaselineObservation] = []
+    for execution_at in sorted(by_date):
+        rows = sorted(by_date[execution_at], key=lambda row: row.instrument)
+        eligible = [row for row in rows if row.eligible and math.isfinite(row.signal)]
+        if len(eligible) < 3:
+            normalized.extend(rows)
+            continue
+        ordered = sorted(row.signal for row in eligible)
+        lower = _quantile(ordered, winsor_fraction)
+        upper = _quantile(ordered, 1 - winsor_fraction)
+        clipped = {row.instrument: min(max(row.signal, lower), upper) for row in eligible}
+        if groups:
+            grouped: dict[str, list[float]] = defaultdict(list)
+            for instrument, value in clipped.items():
+                grouped[groups.get(instrument, "__market__")].append(value)
+            centers = {key: sum(values) / len(values) for key, values in grouped.items()}
+            clipped = {
+                instrument: value - centers[groups.get(instrument, "__market__")]
+                for instrument, value in clipped.items()
+            }
+        else:
+            center = sum(clipped.values()) / len(clipped)
+            clipped = {instrument: value - center for instrument, value in clipped.items()}
+        scale = math.sqrt(sum(value**2 for value in clipped.values()) / len(clipped))
+        values = {
+            instrument: (value / scale if scale else 0.0)
+            for instrument, value in clipped.items()
+        }
+        normalized.extend(
+            replace(row, signal=values[row.instrument])
+            if row.instrument in values
+            else row
+            for row in rows
+        )
+    normalized.sort(key=lambda row: (row.execution_at, row.instrument))
+    return tuple(normalized)

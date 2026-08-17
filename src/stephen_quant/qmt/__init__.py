@@ -38,7 +38,11 @@ from .factor_screen import (
     write_factor_redundancy_screen,
 )
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
-from .observations import build_qmt_factor_observations, combine_qmt_factor_observations
+from .observations import (
+    build_qmt_factor_observations,
+    combine_qmt_factor_observations,
+    normalize_cross_sectional_observations,
+)
 from .qd_alternative import (
     DEFAULT_CLOCKS,
     QD_ALTERNATIVE_ADAPTER_VERSION,
@@ -49,7 +53,10 @@ from .qd_alternative import (
     QdAlternativeDataset,
     load_qd_alternative_directory,
 )
-from .qd_alternative_factors import build_alternative_factor_observations
+from .qd_alternative_factors import (
+    build_alternative_factor_observations,
+    build_multisource_factor_observations,
+)
 from .qd_csv_adapter import (
     AMOUNT_THOUSAND_CNY_TO_CNY,
     QD_ADAPTER_VERSION,
@@ -183,6 +190,7 @@ __all__ = [
     "build_alternative_factor_observations",
     "build_dynamic_universe",
     "build_fundamental_factor_observations",
+    "build_multisource_factor_observations",
     "build_qmt_factor_observations",
     "combine_qmt_factor_observations",
     "compare_to_benchmark",
@@ -196,6 +204,7 @@ __all__ = [
     "load_qmt_daily_csv",
     "load_qmt_dividend_records",
     "load_xtdata",
+    "normalize_cross_sectional_observations",
     "normalize_stocks",
     "parse_qmt_daily_dat",
     "parse_qmt_dividend_value",

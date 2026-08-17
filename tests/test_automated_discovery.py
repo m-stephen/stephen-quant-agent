@@ -12,6 +12,7 @@ from stephen_quant.workflows import (
     run_automated_discovery,
     run_automated_discovery_suite,
 )
+from stephen_quant.workflows.automated_discovery import _trim_leading_warmup
 
 
 def _sessions(count: int = 100) -> list[date]:
@@ -140,6 +141,23 @@ def test_manifest_loader_is_strict_and_normalizes_windows(tmp_path: Path) -> Non
         raise AssertionError("unknown manifest field was accepted")
 
 
+def test_manifest_loader_normalizes_family_budgets(tmp_path: Path) -> None:
+    sessions = _sessions()
+    payload = {
+        "manifest_version": "1.0.0",
+        **_config(sessions).__dict__,
+        "search_profile": "v1.8.17",
+        "family_budgets": [["price_momentum", 1]],
+    }
+    payload["windows"] = list(payload["windows"])
+    path = tmp_path / "manifest-v17.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_automated_discovery_config(path)
+
+    assert loaded.family_budgets == (("price_momentum", 1),)
+
+
 def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
     tmp_path: Path,
 ) -> None:
@@ -184,3 +202,27 @@ def test_multi_horizon_suite_uses_independent_experiments_and_global_ledger(
     assert run.report.validation_window_opened is False
     assert run.report.test_window_opened is False
     assert run.json_path.is_file()
+
+
+def test_warmup_trim_removes_only_leading_empty_dates() -> None:
+    def row(day: str, eligible: bool) -> object:
+        from stephen_quant.baseline import BaselineObservation
+
+        return BaselineObservation(
+            instrument="000001.SZ",
+            signal=1.0,
+            signal_at=f"{day}T00:00:00+08:00",
+            signal_available_at=f"{day}T00:00:00+08:00",
+            average_daily_value=1.0,
+            liquidity_available_at=f"{day}T00:00:00+08:00",
+            execution_at=f"{day}T09:30:00+08:00",
+            return_end_at=f"{day}T10:00:00+08:00",
+            forward_return=0.0,
+            eligible=eligible,
+        )
+
+    rows = (row("2024-01-01", False), row("2024-01-02", True), row("2024-01-03", False))
+
+    trimmed = _trim_leading_warmup(rows)
+
+    assert [item.execution_at[:10] for item in trimmed] == ["2024-01-02", "2024-01-03"]

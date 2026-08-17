@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from itertools import pairwise
 
 from stephen_quant.baseline import BaselineObservation
-from stephen_quant.evaluation import EvaluationObservation
-from stephen_quant.evaluation.metrics import peer_rank_correlation, summarize_horizon
+from stephen_quant.evaluation import EvaluationObservation, average_ranks
+from stephen_quant.evaluation.metrics import (
+    peer_rank_correlation,
+    spearman_correlation,
+    summarize_horizon,
+)
 from stephen_quant.integrity.models import TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 
@@ -38,6 +44,11 @@ class ScreeningConfig:
     minimum_mean_rank_ic: float = 0.0
     maximum_peer_rank_correlation: float = 0.80
     minimum_cross_section: int = 3
+    family_budgets: tuple[tuple[str, int], ...] = ()
+    minimum_positive_year_fraction: float = 0.0
+    maximum_rank_turnover: float = 1.0
+    stability_weight: float = 0.0
+    turnover_penalty: float = 0.0
 
     def validate(self) -> None:
         if not 0 < self.minimum_coverage <= 1:
@@ -46,6 +57,16 @@ class ScreeningConfig:
             raise ValueError("maximum_peer_rank_correlation must be in [0, 1]")
         if self.minimum_cross_section < 3:
             raise ValueError("minimum_cross_section must be at least three")
+        if len({family for family, _ in self.family_budgets}) != len(self.family_budgets):
+            raise ValueError("family_budgets must contain unique families")
+        if any(not family or budget < 1 for family, budget in self.family_budgets):
+            raise ValueError("family budgets require names and positive limits")
+        if not 0 <= self.minimum_positive_year_fraction <= 1:
+            raise ValueError("minimum_positive_year_fraction must be in [0, 1]")
+        if not 0 <= self.maximum_rank_turnover <= 1:
+            raise ValueError("maximum_rank_turnover must be in [0, 1]")
+        if self.stability_weight < 0 or self.turnover_penalty < 0:
+            raise ValueError("screening objective weights cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -62,6 +83,10 @@ class CandidateScreenScore:
     maximum_selected_correlation: float | None
     decision: str
     reason: str
+    family: str = "unspecified"
+    positive_year_fraction: float | None = None
+    rank_turnover: float | None = None
+    objective_score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -109,6 +134,54 @@ def _peer_values(
     return {
         (row.timestamp, row.instrument): direction * row.factor_value for row in rows
     }
+
+
+def _family(schema_id: str) -> str:
+    return re.sub(r"_\d+_(?:next_open|1d|5d|20d)$", "", schema_id)
+
+
+def _stability_and_turnover(
+    rows: tuple[EvaluationObservation, ...], direction: int, minimum_cross_section: int
+) -> tuple[float | None, float | None]:
+    grouped: dict[str, list[EvaluationObservation]] = {}
+    for row in rows:
+        grouped.setdefault(row.timestamp, []).append(row)
+    daily_ic: list[tuple[str, float]] = []
+    ranks: dict[str, dict[str, float]] = {}
+    for timestamp, cross_section in sorted(grouped.items()):
+        ordered = sorted(cross_section, key=lambda item: item.instrument)
+        if len(ordered) < minimum_cross_section:
+            continue
+        daily_ic.append(
+            (
+                timestamp[:4],
+                spearman_correlation(
+                    [direction * row.factor_value for row in ordered],
+                    [row.forward_return for row in ordered],
+                ),
+            )
+        )
+        ranked = average_ranks([direction * row.factor_value for row in ordered])
+        denominator = max(len(ordered) - 1, 1)
+        ranks[timestamp] = {
+            row.instrument: (rank - 1) / denominator
+            for row, rank in zip(ordered, ranked, strict=True)
+        }
+    if not daily_ic:
+        return None, None
+    by_year: dict[str, list[float]] = {}
+    for year, value in daily_ic:
+        by_year.setdefault(year, []).append(value)
+    positive_year_fraction = sum(
+        sum(values) / len(values) > 0 for values in by_year.values()
+    ) / len(by_year)
+    changes: list[float] = []
+    ordered_dates = sorted(ranks)
+    for previous, current in pairwise(ordered_dates):
+        common = set(ranks[previous]) & set(ranks[current])
+        if common:
+            changes.extend(abs(ranks[current][key] - ranks[previous][key]) for key in common)
+    return positive_year_fraction, (sum(changes) / len(changes) if changes else 0.0)
 
 
 def run_training_screen(
@@ -161,7 +234,17 @@ def run_training_screen(
             )
         )
 
-    raw: list[tuple[GeneratedCandidate, tuple[EvaluationObservation, ...], float, float | None]] = []
+    raw: list[
+        tuple[
+            GeneratedCandidate,
+            tuple[EvaluationObservation, ...],
+            float,
+            float | None,
+            float | None,
+            float | None,
+            float | None,
+        ]
+    ] = []
     for item in unique:
         rows = observations[item.schema.fingerprint]
         evaluation = _evaluation(rows, item.schema.horizon)
@@ -175,17 +258,28 @@ def run_training_screen(
                 direction=item.schema.direction,
                 min_cross_section=config.minimum_cross_section,
             ).mean_rank_ic
-        raw.append((item, evaluation, coverage, rank_ic))
+        stability, turnover = _stability_and_turnover(
+            evaluation, item.schema.direction, config.minimum_cross_section
+        )
+        objective = (
+            None
+            if rank_ic is None or stability is None or turnover is None
+            else rank_ic + config.stability_weight * stability - config.turnover_penalty * turnover
+        )
+        raw.append((item, evaluation, coverage, rank_ic, stability, turnover, objective))
 
     raw.sort(
         key=lambda row: (
-            -(row[3] if row[3] is not None else float("-inf")),
+            -(row[6] if row[6] is not None else float("-inf")),
             row[0].schema.fingerprint,
         )
     )
     selected: list[tuple[GeneratedCandidate, tuple[EvaluationObservation, ...]]] = []
+    selected_families: dict[str, int] = {}
+    family_budgets = dict(config.family_budgets)
     scores: list[CandidateScreenScore] = []
-    for item, evaluation, coverage, rank_ic in raw:
+    for item, evaluation, coverage, rank_ic, stability, turnover, objective in raw:
+        family = _family(item.schema.schema_id)
         correlations: list[float] = []
         for peer_item, peer_rows in selected:
             correlation, _ = peer_rank_correlation(
@@ -200,6 +294,10 @@ def run_training_screen(
             decision, reason = "screened_out", "insufficient coverage"
         elif rank_ic is None or rank_ic < config.minimum_mean_rank_ic:
             decision, reason = "screened_out", "training RankIC below frozen threshold"
+        elif stability is None or stability < config.minimum_positive_year_fraction:
+            decision, reason = "screened_out", "insufficient positive-year stability"
+        elif turnover is None or turnover > config.maximum_rank_turnover:
+            decision, reason = "screened_out", "rank turnover exceeds frozen cost proxy"
         elif (
             maximum_correlation is not None
             and maximum_correlation > config.maximum_peer_rank_correlation
@@ -207,9 +305,12 @@ def run_training_screen(
             decision, reason = "screened_out", "redundant with a stronger selected candidate"
         elif len(selected) >= campaign.spec.budget.cpcv:
             decision, reason = "screened_out", "frozen CPCV shortlist budget exhausted"
+        elif family in family_budgets and selected_families.get(family, 0) >= family_budgets[family]:
+            decision, reason = "screened_out", "frozen factor-family budget exhausted"
         else:
             decision, reason = "shortlisted", "passed frozen training-only screen"
             selected.append((item, evaluation))
+            selected_families[family] = selected_families.get(family, 0) + 1
         trial_id, trial_number = registered[item.schema.fingerprint]
         score = CandidateScreenScore(
             schema_id=item.schema.schema_id,
@@ -224,6 +325,10 @@ def run_training_screen(
             maximum_selected_correlation=maximum_correlation,
             decision=decision,
             reason=reason,
+            family=family,
+            positive_year_fraction=stability,
+            rank_turnover=turnover,
+            objective_score=objective,
         )
         registry.record_trial_result(trial_id, json.dumps(asdict(score), sort_keys=True))
         registry.transition_campaign_proposal(

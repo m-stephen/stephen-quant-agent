@@ -18,6 +18,7 @@ from .generator import (
     GeneratedCandidate,
     GenerationPlan,
     generate_candidates,
+    normalized_generation_plan,
     seed_generation_plan,
 )
 from .memory import (
@@ -78,6 +79,7 @@ __all__ = [
     "build_research_memory",
     "generate_candidates",
     "mutate_schema",
+    "normalized_generation_plan",
     "run_discovery_cpcv",
     "run_discovery_execution",
     "run_training_screen",
