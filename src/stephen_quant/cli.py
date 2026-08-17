@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+from dataclasses import asdict, replace
 
 from .baseline import BaselineConfig
 from .factors import build_factor_catalog, write_factor_catalog
@@ -27,6 +28,13 @@ from .qmt import (
     write_dynamic_universe,
     write_factor_redundancy_screen,
     write_qd_universe,
+)
+from .v2 import (
+    ShadowBudgetError,
+    ShadowLoopStopped,
+    load_shadow_loop_config,
+    run_shadow_validation,
+    verify_shadow_replay,
 )
 from .workflows import (
     CompositeCpcvConfig,
@@ -235,6 +243,13 @@ def build_parser() -> argparse.ArgumentParser:
     auto_suite.add_argument("--ingested-at", required=True)
     auto_suite.add_argument("--output", default="reports/qd-v1.8.16-suite")
 
+    v2_shadow = sub.add_parser("v2-shadow-validate")
+    v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
+    v2_shadow.add_argument("--output", default="reports/v2.0-shadow")
+    v2_shadow.add_argument("--dry-run", action="store_true")
+    v2_shadow.add_argument("--kill-switch", action="store_true")
+    v2_shadow.add_argument("--replay-manifest")
+
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
     export.add_argument("--output-csv", required=True)
@@ -345,6 +360,43 @@ def main() -> None:
             flag = "PASS" if finding.passed else "FAIL"
             print(f"[{flag}] {finding.check}: {finding.detail}")
         raise SystemExit(0 if all(x.passed for x in findings) else 1)
+
+    if args.command == "v2-shadow-validate":
+        try:
+            if args.replay_manifest:
+                verification = verify_shadow_replay(args.replay_manifest)
+                print(json.dumps(asdict(verification), indent=2, sort_keys=True))
+                return
+            config = load_shadow_loop_config(args.config)
+            config = replace(
+                config,
+                dry_run=config.dry_run or args.dry_run,
+                kill_switch=config.kill_switch or args.kill_switch,
+            )
+            report, artifacts = run_shadow_validation(
+                registry, args.output, code_version=_git_head(), config=config
+            )
+        except (ValueError, ShadowBudgetError, ShadowLoopStopped) as exc:
+            raise SystemExit(f"v2-shadow-validate failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "zh_markdown_path": str(artifacts.zh_markdown_path),
+                    "en_markdown_path": str(artifacts.en_markdown_path),
+                    "replay_manifest_path": (
+                        None
+                        if artifacts.replay_manifest_path is None
+                        else str(artifacts.replay_manifest_path)
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
 
     if args.command == "factor-catalog":
         catalog = build_factor_catalog()
@@ -623,9 +675,7 @@ def main() -> None:
             membership_path = local_paths.paths.get("dynamic_membership_jsonl")
             stock_file = None
             if membership_path is None:
-                stock_file = local_paths.choose(
-                    "discovery_stock_file", None, "--stock-file"
-                )
+                stock_file = local_paths.choose("discovery_stock_file", None, "--stock-file")
             alternative_paths = {
                 key: str(path)
                 for key, path in local_paths.paths.items()

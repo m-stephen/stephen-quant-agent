@@ -1,0 +1,16 @@
+{
+  "version": "v2.0-shadow-1.0.0",
+  "seed": 42,
+  "shadow_mode": true,
+  "dry_run": false,
+  "kill_switch": false,
+  "budgets": {
+    "candidate": 6,
+    "compute": 4,
+    "token": 1000,
+    "statistical_trial": 4
+  },
+  "sealed_windows": ["2025-validation", "2026-final-test"],
+  "live_execution": false,
+  "model_request_during_replay": false
+}
