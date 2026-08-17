@@ -1,0 +1,20 @@
+{
+  "config_version": "2.7-m2.1",
+  "issue_number": 74,
+  "parent_issue_number": 67,
+  "m1_config": "v2.7-m1-pit-readiness.json",
+  "expected_m1_config_sha256": "6de41f773cd79f23c1b9b24ffd9b20d8b006c2373698d869bd913d756eedb13c",
+  "prior_inferential_trials": 48,
+  "source_snapshot_sha256": "99b037baf97721ab438c54392b419ea96c994b68ef616a20b5fa234223928b23",
+  "risk": {
+    "beta_window": 60,
+    "volatility_window": 20,
+    "adv_window": 20,
+    "reversal_window": 5,
+    "momentum_window": 120,
+    "momentum_skip": 20,
+    "winsor_lower_quantile": 0.01,
+    "winsor_upper_quantile": 0.99,
+    "ridge": 1e-08
+  }
+}
