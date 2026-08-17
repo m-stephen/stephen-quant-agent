@@ -1,0 +1,27 @@
+{
+  "version": "v4.0-single-user-ohlcv-platform-1.0.0",
+  "windows": {
+    "discovery": 2022,
+    "confirmation": 2023,
+    "retrospective_shadow": 2024,
+    "sealed": [2025, 2026]
+  },
+  "raw_candidates": 990,
+  "cluster_correlation": 0.85,
+  "family_quota": 4,
+  "shortlist_limit": 60,
+  "court_limit": 10,
+  "portfolio_top_k": [5, 10, 20, 30],
+  "portfolio_weights": ["equal", "rank", "clipped_z"],
+  "portfolio_buffers": [0, 5],
+  "capacity_nav_cny": [1000000, 3000000, 5000000, 10000000, 20000000],
+  "primary_nav_cny": 3000000,
+  "court": {
+    "minimum_dsr": 0.95,
+    "maximum_placebo_p": 0.05,
+    "maximum_pbo": 0.20,
+    "minimum_net_excess_sharpe": 0.50,
+    "maximum_drawdown": 0.25
+  },
+  "deep_models": "gated_off_by_default"
+}

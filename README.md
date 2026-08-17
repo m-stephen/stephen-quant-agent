@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+V4.0 completes the single-user OHLCV research and historical paper-trading platform. It expands
+the frozen grammar to 990 candidates, reduces them to 218 effective mechanism clusters, applies
+family quotas and decision-local residualization, searches cost-aware portfolio conversion on
+2023 only, shadows the frozen choice on 2024, records 1,239 Trials, and emits a sealed release
+manifest plus 990 research-memory nodes. The honest decision is `NO_DEPLOYABLE_ALPHA`: the
+120-session reversal candidate confirms strongly in 2023 but produces negative excess performance
+in 2024. A 222-period aggregate paper-broker ledger records cash, orders, fills and NAV without
+submitting live orders. The 2025/2026 windows remain sealed.
+
+```powershell
+stephen-quant --db artifacts/v4.0-ohlcv-platform/registry.sqlite3 v4-ohlcv-platform `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.0-ohlcv-platform
+```
+
+See the [English V4.0 technical report](docs/V4_0_TECHNICAL_REPORT_EN.md) and
+[V4.0 中文技术报告](docs/V4_0_TECHNICAL_REPORT_ZH.md).
+
 V3.1 adds a predeclared 630-candidate OHLCV discovery grammar and a layered Alpha Court. It
 separates factor efficacy from long-only feasibility, freezes a Top 60 on 2022, confirms only that
 shortlist on 2023/2024, supports a single survivor, audits purged/embargoed CPCV, and reports DSR,

@@ -55,6 +55,7 @@ from .workflows import (
     PriceDiscoveryConfig,
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
+    V4Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -79,6 +80,7 @@ from .workflows import (
     run_price_discovery_lab,
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
+    run_v4_platform,
     run_v21_real_research,
     run_v22_portfolio_breadth,
     run_v23_style_residualization,
@@ -322,6 +324,10 @@ def build_parser() -> argparse.ArgumentParser:
     price_discovery = sub.add_parser("v3-price-discovery")
     price_discovery.add_argument("--paths-config", required=True)
     price_discovery.add_argument("--output", default="reports/v3.1-price-discovery")
+
+    v4_platform = sub.add_parser("v4-ohlcv-platform")
+    v4_platform.add_argument("--paths-config", required=True)
+    v4_platform.add_argument("--output", default="reports/v4.0-ohlcv-platform")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1569,6 +1575,55 @@ def main() -> None:
                     "generated_candidates": report.generated_candidates,
                     "selected_candidate": report.court.selected_candidate_id,
                     "decision": report.court.decision,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v4-ohlcv-platform":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.choose(
+                "dynamic_membership_jsonl", None, "--membership-jsonl"
+            )
+            optional_paths = {
+                key: str(path)
+                for key, path in local_paths.paths.items()
+                if key
+                in {
+                    "qd_fund_flow_dir",
+                    "qd_auction_dir",
+                    "qd_margin_dir",
+                    "qd_industry_dir",
+                    "qd_chip_dir",
+                    "qd_limit_event_dir",
+                }
+            }
+            report = run_v4_platform(
+                daily_dir,
+                membership_path,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                optional_paths=optional_paths,
+                config=V4Config(),
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v4-ohlcv-platform failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "experiment_id": report.experiment_id,
+                    "snapshot_sha256": report.snapshot_sha256,
+                    "raw_candidates": report.raw_candidates,
+                    "effective_hypotheses": report.effective_hypotheses,
+                    "selected_candidate": report.selected_candidate_id,
+                    "decision": report.decision,
+                    "sealed_state": report.sealed_release.state,
                     "output": str(Path(args.output).resolve()),
                 },
                 indent=2,
