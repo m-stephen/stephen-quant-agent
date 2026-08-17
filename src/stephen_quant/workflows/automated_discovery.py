@@ -19,13 +19,17 @@ from stephen_quant.discovery import (
     ScreeningReport,
     ScreeningWindow,
     SearchCampaign,
+    StabilityDiagnosticsReport,
     authorize_portfolio_signal,
     build_alpha_card,
     build_research_memory,
+    flow_stress_generation_plan,
     generate_candidates,
     normalized_generation_plan,
+    register_capacity_stress_trials,
     run_discovery_cpcv,
     run_discovery_execution,
+    run_stability_diagnostics,
     run_training_screen,
     seed_generation_plan,
 )
@@ -94,6 +98,8 @@ class AutomatedDiscoveryConfig:
     maximum_rank_turnover: float = 1.0
     stability_weight: float = 0.0
     turnover_penalty: float = 0.0
+    capacity_stress_rates: tuple[float, ...] = ()
+    regime_lookback: int = 20
 
     def validate(self) -> None:
         window = ScreeningWindow(
@@ -118,8 +124,16 @@ class AutomatedDiscoveryConfig:
             raise ValueError("execution_budget must be zero or at least two for DSR")
         if self.dynamic_universe_top_n < 3:
             raise ValueError("dynamic_universe_top_n must be at least three")
-        if self.search_profile not in {"v1.8.16", "v1.8.17"}:
-            raise ValueError("search_profile must be v1.8.16 or v1.8.17")
+        if self.search_profile not in {"v1.8.16", "v1.8.17", "v1.8.18"}:
+            raise ValueError("search_profile must be v1.8.16, v1.8.17 or v1.8.18")
+        if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
+            not 0 < rate <= 1 for rate in self.capacity_stress_rates
+        ):
+            raise ValueError("capacity_stress_rates must be unique values in (0, 1]")
+        if self.search_profile == "v1.8.18" and len(self.capacity_stress_rates) != 3:
+            raise ValueError("v1.8.18 requires exactly three capacity stress rates")
+        if self.regime_lookback < 5:
+            raise ValueError("regime_lookback must be at least five")
         ScreeningConfig(
             minimum_coverage=self.minimum_coverage,
             minimum_mean_rank_ic=self.screen_minimum_mean_rank_ic,
@@ -157,6 +171,7 @@ class AutomatedDiscoveryReport:
     screening: ScreeningReport
     cpcv: DiscoveryCpcvReport | None
     execution: DiscoveryExecutionReport | None
+    stability_diagnostics: StabilityDiagnosticsReport | None
     alternative_audits: tuple[QdAlternativeAudit, ...]
     dynamic_universe_sha256: str | None
     dynamic_universe_unique_members: int | None
@@ -173,7 +188,11 @@ class AutomatedDiscoveryReport:
             raise ValueError("report language must be en or zh")
         zh = language == "zh"
         title = (
-            "# V1.8.17 标准化多源因子发现与回测报告"
+            "# V1.8.18 资金背离稳定性与容量压力报告"
+            if zh and "1.8.18" in self.method_version
+            else "# V1.8.18 Flow-divergence Stability and Capacity Stress"
+            if "1.8.18" in self.method_version
+            else "# V1.8.17 标准化多源因子发现与回测报告"
             if zh and "1.8.17" in self.method_version
             else "# V1.8.17 Normalized Multi-source Factor Discovery and Backtest"
             if "1.8.17" in self.method_version
@@ -271,6 +290,8 @@ class AutomatedDiscoveryReport:
                 f"{audit.instruments} | `{audit.source_sha256}` |"
                 for audit in self.alternative_audits
             )
+        if self.stability_diagnostics is not None:
+            lines.extend(["", self.stability_diagnostics.to_markdown(language).strip(), ""])
         return "\n".join(lines) + "\n"
 
 
@@ -299,6 +320,10 @@ def load_automated_discovery_config(source: str | Path) -> AutomatedDiscoveryCon
         payload["family_budgets"] = tuple(
             tuple(item) for item in payload["family_budgets"]
         )
+    if "capacity_stress_rates" in payload and isinstance(
+        payload["capacity_stress_rates"], list
+    ):
+        payload["capacity_stress_rates"] = tuple(payload["capacity_stress_rates"])
     try:
         config = AutomatedDiscoveryConfig(**payload)
     except TypeError as exc:
@@ -461,7 +486,9 @@ def run_automated_discovery(
         source for key, source in source_keys.items() if key in alternative_paths
     }
     plan_seed = (
-        normalized_generation_plan()
+        flow_stress_generation_plan()
+        if config.search_profile == "v1.8.18"
+        else normalized_generation_plan()
         if config.search_profile == "v1.8.17"
         else seed_generation_plan()
     )
@@ -480,7 +507,9 @@ def run_automated_discovery(
     search_space = json.dumps(
         {
             "method_version": (
-                "v1.8.17-normalized-multisource-1.0.0"
+                "v1.8.18-flow-stability-1.0.0"
+                if config.search_profile == "v1.8.18"
+                else "v1.8.17-normalized-multisource-1.0.0"
                 if config.search_profile == "v1.8.17"
                 else AUTOMATED_DISCOVERY_VERSION
             ),
@@ -570,7 +599,7 @@ def run_automated_discovery(
                 item.schema.compile(),
                 anchor,
             )
-    if config.search_profile == "v1.8.17":
+    if config.search_profile in {"v1.8.17", "v1.8.18"}:
         observations = {
             fingerprint: _trim_leading_warmup(
                 normalize_cross_sectional_observations(rows)
@@ -649,8 +678,33 @@ def run_automated_discovery(
             seed=config.seed,
         )
     execution: DiscoveryExecutionReport | None = None
+    stability_diagnostics: StabilityDiagnosticsReport | None = None
     execution_reports = {}
     if cpcv is not None and cpcv.signal_gate_passed and config.execution_budget >= 2:
+        stress_registrations = (
+            register_capacity_stress_trials(
+                registry,
+                experiment_id=campaign.spec.experiment_id,
+                window=window,
+                participation_rates=config.capacity_stress_rates,
+                seed=config.seed,
+            )
+            if config.capacity_stress_rates
+            else ()
+        )
+        execution_config = DiscoveryExecutionConfig(
+            top_k=min(config.execution_top_k, len(instruments)),
+            initial_nav=config.initial_nav,
+            commission_bps=config.commission_bps,
+            sell_tax_bps=config.sell_tax_bps,
+            slippage_bps=config.slippage_bps,
+            impact_coefficient_bps=config.impact_coefficient_bps,
+            max_participation_rate=config.max_participation_rate,
+            placebo_repetitions=config.placebo_repetitions,
+            max_placebo_p_value=config.max_placebo_p_value,
+            min_dsr_probability=config.min_dsr_probability,
+            maximum_pbo=config.maximum_pbo,
+        )
         execution, execution_reports = run_discovery_execution(
             registry,
             campaign,
@@ -661,21 +715,37 @@ def run_automated_discovery(
             code_version=code_version,
             window=window,
             horizon_sessions=HORIZON_SESSIONS[config.horizon],
-            config=DiscoveryExecutionConfig(
-                top_k=min(config.execution_top_k, len(instruments)),
-                initial_nav=config.initial_nav,
-                commission_bps=config.commission_bps,
-                sell_tax_bps=config.sell_tax_bps,
-                slippage_bps=config.slippage_bps,
-                impact_coefficient_bps=config.impact_coefficient_bps,
-                max_participation_rate=config.max_participation_rate,
-                placebo_repetitions=config.placebo_repetitions,
-                max_placebo_p_value=config.max_placebo_p_value,
-                min_dsr_probability=config.min_dsr_probability,
-                maximum_pbo=config.maximum_pbo,
-            ),
+            config=execution_config,
             seed=config.seed,
         )
+        if stress_registrations:
+            candidate_by_fingerprint = {
+                item.schema.fingerprint: item for item in candidates if item.unique
+            }
+            executed = {item.fingerprint for item in execution.configurations}
+            preferred = next(
+                (
+                    item.schema.fingerprint
+                    for item in candidates
+                    if item.schema.schema_id.startswith("flow_price_divergence_parent")
+                    and item.schema.fingerprint in executed
+                ),
+                execution.selected_fingerprint,
+            )
+            target = candidate_by_fingerprint[preferred]
+            stability_diagnostics = run_stability_diagnostics(
+                registry,
+                schema=target.schema,
+                rows=observations[preferred],
+                bars=dataset.bars,
+                registrations=stress_registrations,
+                snapshot_id=snapshot_id,
+                experiment_id=experiment_id,
+                code_version=code_version,
+                horizon_sessions=HORIZON_SESSIONS[config.horizon],
+                regime_lookback=config.regime_lookback,
+                execution_config=execution_config,
+            )
     alternative_audits = tuple(
         dataset.audit for _, dataset in sorted(alternative_datasets.items())
     )
@@ -688,7 +758,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v1.8.17-normalized-multisource-1.0.0"
+            "v1.8.18-flow-stability-1.0.0"
+            if config.search_profile == "v1.8.18"
+            else "v1.8.17-normalized-multisource-1.0.0"
             if config.search_profile == "v1.8.17"
             else AUTOMATED_DISCOVERY_VERSION
         ),
@@ -701,6 +773,7 @@ def run_automated_discovery(
         screening=screening,
         cpcv=cpcv,
         execution=execution,
+        stability_diagnostics=stability_diagnostics,
         alternative_audits=alternative_audits,
         dynamic_universe_sha256=dynamic_sha256,
         dynamic_universe_unique_members=(len(instruments) if dynamic_memberships else None),
@@ -725,6 +798,9 @@ def run_automated_discovery(
     memory_json_path = output / "research-memory.json"
     memory_en_path = output / "research-memory.en.md"
     memory_zh_path = output / "research-memory.zh.md"
+    stability_json_path = output / "stability-diagnostics.json"
+    stability_en_path = output / "stability-diagnostics.en.md"
+    stability_zh_path = output / "stability-diagnostics.zh.md"
     json_sha = _write(json_path, report.to_json() + "\n")
     en_sha = _write(markdown_en_path, report.to_markdown("en"))
     zh_sha = _write(markdown_zh_path, report.to_markdown("zh"))
@@ -741,6 +817,25 @@ def run_automated_discovery(
     memory_json_sha = _write(memory_json_path, research_memory.to_json() + "\n")
     memory_en_sha = _write(memory_en_path, research_memory.to_markdown("en"))
     memory_zh_sha = _write(memory_zh_path, research_memory.to_markdown("zh"))
+    stability_artifacts: tuple[tuple[str, Path, str], ...] = ()
+    if stability_diagnostics is not None:
+        stability_artifacts = (
+            (
+                "stability_diagnostics_json",
+                stability_json_path,
+                _write(stability_json_path, stability_diagnostics.to_json() + "\n"),
+            ),
+            (
+                "stability_diagnostics_markdown_en",
+                stability_en_path,
+                _write(stability_en_path, stability_diagnostics.to_markdown("en")),
+            ),
+            (
+                "stability_diagnostics_markdown_zh",
+                stability_zh_path,
+                _write(stability_zh_path, stability_diagnostics.to_markdown("zh")),
+            ),
+        )
     first_trial = screening.scores[0].trial_id
     for fingerprint, baseline_report in execution_reports.items():
         artifacts = write_baseline_report(baseline_report, output / "execution")
@@ -837,6 +932,7 @@ def run_automated_discovery(
         ("research_memory_json", memory_json_path, memory_json_sha),
         ("research_memory_markdown_en", memory_en_path, memory_en_sha),
         ("research_memory_markdown_zh", memory_zh_path, memory_zh_sha),
+        *stability_artifacts,
     ):
         registry.register_artifact(trial_id=first_trial, kind=kind, path=str(path), sha256=digest)
     return AutomatedDiscoveryRun(

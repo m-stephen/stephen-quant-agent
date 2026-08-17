@@ -120,7 +120,10 @@ def run_automated_discovery_suite(
     manifests, frozen_budget = _suite_spec(suite_manifest)
     configs = tuple(load_automated_discovery_config(manifest) for manifest in manifests)
     maximum_requested = sum(
-        config.schema_budget + config.cpcv_budget + config.execution_budget
+        config.schema_budget
+        + config.cpcv_budget
+        + config.execution_budget
+        + len(config.capacity_stress_rates)
         for config in configs
     )
     if maximum_requested > frozen_budget:
