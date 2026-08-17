@@ -39,3 +39,23 @@ outside Git. A successful candidate bundle is still subject to core review and I
 industry or corporate-action evidence is absent, provenance is broken, or restricted-year state is
 incorrect. A passing report proves source completeness only; it deliberately does not set formal
 Research eligibility, which remains an explicit Issue #84 Gate 5 decision.
+
+## Local maintenance evidence (2026-08-18)
+
+The previously quarantined 2023-2024 AlphaPai identities were re-queried with live provider IDs.
+Eight PDF responses were requested and seven provider downloads succeeded; the failed provider
+download returned HTML and was rejected before persistence. The corresponding duplicate identity
+was bound to the byte-verified PDF returned for the same title, stock, report period and disclosure
+date. Two visually similar Rabbit Baby disclosures had different PDF hashes and were retained as
+distinct source versions rather than deduplicated. The two Tongxiang duplicate pairs were byte
+identical within each pair.
+
+| Partition | Accepted rows | Verified document identities | Quarantine | Bundle SHA-256 |
+|---|---:|---:|---:|---|
+| 2023 | 6,211 | 4 | 0 | `63e9096cbbc3f8fa67c05ff3f3b54970ab946308881b28ff4dfe395bee14b03b` |
+| 2024 | 5,858 | 4 | 0 | `57f0a09e20b98038968af4e2d426d577589aa44c0dbabdcb320377b8fb629a55` |
+
+Each partition was rebuilt under a separate replay operation and produced the identical bundle
+SHA-256. Original PDFs, provider IDs, local paths, configurations and generated bundles remain in
+the gitignored Data Maintenance area. These results close the eight-record document ambiguity but
+do not claim authoritative historical industry-membership or full corporate-action coverage.
