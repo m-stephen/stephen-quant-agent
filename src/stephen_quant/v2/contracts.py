@@ -107,6 +107,8 @@ class V2FactorContract:
         legacy = self.to_v1()
         if legacy.fingerprint != self.legacy_fingerprint:
             raise ValueError("V2 migration does not preserve the V1 fingerprint")
+        if analyze_formula(legacy.formula).canonical_ast != self.canonical_ast:
+            raise ValueError("V2 expression differs from embedded legacy provenance")
 
     @property
     def ids(self) -> HierarchicalIds:
