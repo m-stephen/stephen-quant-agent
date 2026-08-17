@@ -109,6 +109,18 @@ See the [English V2.5 specification](docs/V2_5_SPEC_EN.md),
 [中文结果](docs/V2_5_RESULT_ZH.md), and the
 [release audit](docs/V2_5_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_5_RELEASE_AUDIT_ZH.md).
 
+**V2.6** performs the preregistered, one-shot 2025 validation of V2.5's frozen
+`risk_off_cash` policy. The data-readiness gate passed and exactly one inferential trial was
+registered, but the policy lost 11.87%, produced a -0.1854 annualized net Sharpe and a
+-25.05% drawdown. The decision is therefore `VALIDATION_FAIL_STOP`: the candidate is
+rejected, retries are blocked, and the 2026 final-test window remains sealed.
+
+See the [English V2.6 specification](docs/V2_6_SPEC_EN.md),
+[中文 V2.6 规格](docs/V2_6_SPEC_ZH.md),
+[English result](docs/V2_6_RESULT_EN.md),
+[中文结果](docs/V2_6_RESULT_ZH.md), and the
+[release audit](docs/V2_6_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_6_RELEASE_AUDIT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.

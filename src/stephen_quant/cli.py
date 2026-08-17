@@ -45,11 +45,13 @@ from .workflows import (
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     build_factor_family_validation_report,
+    build_v26_validation_panel,
     load_automated_discovery_config,
     load_v22_portfolio_breadth_config,
     load_v23_style_residualization_config,
     load_v24_temporal_stability_config,
     load_v25_regime_portfolio_config,
+    load_v26_validation_config,
     run_automated_discovery,
     run_automated_discovery_suite,
     run_composite_cpcv_research,
@@ -63,11 +65,13 @@ from .workflows import (
     run_v23_style_residualization,
     run_v24_temporal_stability,
     run_v25_regime_portfolio,
+    run_v26_validation,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
     verify_v23_style_residualization_replay,
     verify_v24_temporal_stability_replay,
     verify_v25_regime_portfolio_replay,
+    verify_v26_validation_replay,
     write_factor_family_validation_report,
 )
 
@@ -316,6 +320,16 @@ def build_parser() -> argparse.ArgumentParser:
     v25_regime.add_argument("--ingested-at")
     v25_regime.add_argument("--output", default="reports/v2.5-regime-portfolio")
     v25_regime.add_argument("--replay-manifest")
+
+    v26_validation = sub.add_parser("v2-validate-2025")
+    v26_validation.add_argument("--paths-config")
+    v26_validation.add_argument("--config", default="configs/v2.6-validation-2025.json")
+    v26_validation.add_argument(
+        "--mode", choices=("readiness", "validate", "replay", "kill"), default="validate"
+    )
+    v26_validation.add_argument("--ingested-at")
+    v26_validation.add_argument("--output", default="reports/v2.6-validation-2025")
+    v26_validation.add_argument("--replay-manifest")
 
     export = sub.add_parser("qmt-export")
     export.add_argument("--qmt-home", required=True)
@@ -771,6 +785,68 @@ def main() -> None:
             json.dumps(
                 {
                     "report": report.to_dict(),
+                    "json_path": str(artifacts.json_path),
+                    "markdown_en_path": str(artifacts.markdown_en_path),
+                    "markdown_zh_path": str(artifacts.markdown_zh_path),
+                    "replay_manifest_path": str(artifacts.replay_manifest_path),
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v2-validate-2025":
+        if args.mode == "kill":
+            raise SystemExit(
+                "v2-validate-2025 stopped by kill switch before data or registry access"
+            )
+        try:
+            if args.mode == "replay":
+                if not args.replay_manifest:
+                    raise ValueError("--replay-manifest is required in replay mode")
+                print(
+                    json.dumps(
+                        asdict(verify_v26_validation_replay(args.replay_manifest)),
+                        indent=2,
+                    )
+                )
+                return
+            if not args.paths_config:
+                raise ValueError("--paths-config is required outside replay and kill modes")
+            if not args.ingested_at:
+                raise ValueError("--ingested-at with timezone is required")
+            local_paths = load_local_path_config(args.paths_config)
+            config = load_v26_validation_config(args.config)
+            required = {"qd_daily_dir", "qd_fundamental_dir", "qd_fund_flow_dir"}
+            missing = sorted(required - set(local_paths.paths))
+            if missing:
+                raise ValueError(f"missing required local data sources: {missing}")
+            if args.mode == "readiness":
+                panel = build_v26_validation_panel(
+                    local_paths,
+                    args.config,
+                    output_dir=args.output,
+                    ingested_at=args.ingested_at,
+                )
+                print(json.dumps(panel.readiness.to_dict(), indent=2, sort_keys=True))
+                return
+            report, artifacts = run_v26_validation(
+                local_paths,
+                args.config,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                ingested_at=args.ingested_at,
+            )
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v2-validate-2025 failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "report": report.to_dict(),
+                    "readiness_json_path": str(artifacts.readiness_json_path),
                     "json_path": str(artifacts.json_path),
                     "markdown_en_path": str(artifacts.markdown_en_path),
                     "markdown_zh_path": str(artifacts.markdown_zh_path),
