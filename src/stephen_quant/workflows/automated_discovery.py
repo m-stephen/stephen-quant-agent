@@ -19,6 +19,8 @@ from stephen_quant.discovery import (
     DiscoveryExecutionReport,
     FactorAttributionReport,
     GenerationPlan,
+    PortfolioUsageRegistration,
+    PortfolioUsageReport,
     ScreeningConfig,
     ScreeningReport,
     ScreeningWindow,
@@ -28,13 +30,16 @@ from stephen_quant.discovery import (
     build_alpha_card,
     build_research_memory,
     flow_stress_generation_plan,
+    frozen_portfolio_usage_config,
     generate_candidates,
     normalized_generation_plan,
     register_attribution_trial,
     register_capacity_stress_trials,
+    register_portfolio_usage_trials,
     run_discovery_cpcv,
     run_discovery_execution,
     run_factor_attribution,
+    run_portfolio_usage,
     run_stability_diagnostics,
     run_training_screen,
     seed_generation_plan,
@@ -143,9 +148,10 @@ class AutomatedDiscoveryConfig:
             "v1.8.18",
             "v1.8.19",
             "v1.8.20",
+            "v1.8.21",
         }:
             raise ValueError(
-                "search_profile must be v1.8.16 through v1.8.20"
+                "search_profile must be v1.8.16 through v1.8.21"
             )
         if len(set(self.capacity_stress_rates)) != len(self.capacity_stress_rates) or any(
             not 0 < rate <= 1 for rate in self.capacity_stress_rates
@@ -173,7 +179,7 @@ class AutomatedDiscoveryConfig:
             maximum_drawdown=self.attribution_maximum_drawdown,
         )
         attribution_thresholds.validate()
-        if self.search_profile == "v1.8.20":
+        if self.search_profile in {"v1.8.20", "v1.8.21"}:
             if self.capacity_stress_rates or self.capacity_stress_navs:
                 raise ValueError("v1.8.20 does not repeat the capacity search")
             if attribution_thresholds != AttributionThresholds():
@@ -219,6 +225,7 @@ class AutomatedDiscoveryReport:
     execution: DiscoveryExecutionReport | None
     stability_diagnostics: StabilityDiagnosticsReport | None
     factor_attribution: FactorAttributionReport | None
+    portfolio_usage: PortfolioUsageReport | None
     alternative_audits: tuple[QdAlternativeAudit, ...]
     dynamic_universe_sha256: str | None
     dynamic_universe_unique_members: int | None
@@ -349,6 +356,8 @@ class AutomatedDiscoveryReport:
             lines.extend(["", self.stability_diagnostics.to_markdown(language).strip(), ""])
         if self.factor_attribution is not None:
             lines.extend(["", self.factor_attribution.to_markdown(language).strip(), ""])
+        if self.portfolio_usage is not None:
+            lines.extend(["", self.portfolio_usage.to_markdown(language).strip(), ""])
         return "\n".join(lines) + "\n"
 
 
@@ -546,7 +555,7 @@ def run_automated_discovery(
     }
     plan_seed = (
         flow_stress_generation_plan()
-        if config.search_profile in {"v1.8.18", "v1.8.19", "v1.8.20"}
+        if config.search_profile in {"v1.8.18", "v1.8.19", "v1.8.20", "v1.8.21"}
         else normalized_generation_plan()
         if config.search_profile == "v1.8.17"
         else seed_generation_plan()
@@ -566,7 +575,9 @@ def run_automated_discovery(
     search_space = json.dumps(
         {
             "method_version": (
-                "v1.8.20-factor-attribution-1.0.0"
+                "v1.8.21-preregistered-portfolio-usage-1.0.0"
+                if config.search_profile == "v1.8.21"
+                else "v1.8.20-factor-attribution-1.0.0"
                 if config.search_profile == "v1.8.20"
                 else "v1.8.19-nav-capacity-frontier-1.0.0"
                 if config.search_profile == "v1.8.19"
@@ -743,9 +754,11 @@ def run_automated_discovery(
     execution: DiscoveryExecutionReport | None = None
     stability_diagnostics: StabilityDiagnosticsReport | None = None
     factor_attribution: FactorAttributionReport | None = None
+    portfolio_usage: PortfolioUsageReport | None = None
     execution_reports = {}
     if cpcv is not None and cpcv.signal_gate_passed and config.execution_budget >= 2:
         attribution_registration: AttributionRegistration | None = None
+        portfolio_registrations: tuple[PortfolioUsageRegistration, ...] = ()
         attribution_target = None
         attribution_controls = ()
         attribution_thresholds = AttributionThresholds(
@@ -755,7 +768,7 @@ def run_automated_discovery(
             minimum_execution_sharpe=config.attribution_minimum_execution_sharpe,
             maximum_drawdown=config.attribution_maximum_drawdown,
         )
-        if config.search_profile == "v1.8.20":
+        if config.search_profile in {"v1.8.20", "v1.8.21"}:
             candidate_by_schema_id = {
                 item.schema.schema_id: item for item in candidates if item.unique
             }
@@ -779,6 +792,15 @@ def run_automated_discovery(
                 thresholds=attribution_thresholds,
                 seed=config.seed,
             )
+            if config.search_profile == "v1.8.21":
+                portfolio_registrations = register_portfolio_usage_trials(
+                    registry,
+                    experiment_id=campaign.spec.experiment_id,
+                    window=window,
+                    target=attribution_target.schema,
+                    config=frozen_portfolio_usage_config(),
+                    seed=config.seed,
+                )
         stress_registrations = (
             register_capacity_stress_trials(
                 registry,
@@ -842,6 +864,22 @@ def run_automated_discovery(
                 execution_sharpe=target_score.annualized_net_sharpe,
                 execution_max_drawdown=target_score.max_drawdown,
             )
+            if portfolio_registrations:
+                portfolio_usage = run_portfolio_usage(
+                    registry,
+                    registrations=portfolio_registrations,
+                    target_schema=attribution_target.schema,
+                    target_rows=observations[attribution_target.schema.fingerprint],
+                    control_schemas=tuple(item.schema for item in attribution_controls),
+                    control_rows=tuple(
+                        observations[item.schema.fingerprint]
+                        for item in attribution_controls
+                    ),
+                    snapshot_id=snapshot_id,
+                    experiment_id=experiment_id,
+                    code_version=code_version,
+                    config=frozen_portfolio_usage_config(),
+                )
         if stress_registrations:
             candidate_by_fingerprint = {
                 item.schema.fingerprint: item for item in candidates if item.unique
@@ -883,7 +921,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v1.8.20-factor-attribution-1.0.0"
+            "v1.8.21-preregistered-portfolio-usage-1.0.0"
+            if config.search_profile == "v1.8.21"
+            else "v1.8.20-factor-attribution-1.0.0"
             if config.search_profile == "v1.8.20"
             else "v1.8.19-nav-capacity-frontier-1.0.0"
             if config.search_profile == "v1.8.19"
@@ -904,6 +944,7 @@ def run_automated_discovery(
         execution=execution,
         stability_diagnostics=stability_diagnostics,
         factor_attribution=factor_attribution,
+        portfolio_usage=portfolio_usage,
         alternative_audits=alternative_audits,
         dynamic_universe_sha256=dynamic_sha256,
         dynamic_universe_unique_members=(len(instruments) if dynamic_memberships else None),
@@ -934,6 +975,9 @@ def run_automated_discovery(
     attribution_json_path = output / "factor-attribution.json"
     attribution_en_path = output / "factor-attribution.en.md"
     attribution_zh_path = output / "factor-attribution.zh.md"
+    portfolio_usage_json_path = output / "portfolio-usage.json"
+    portfolio_usage_en_path = output / "portfolio-usage.en.md"
+    portfolio_usage_zh_path = output / "portfolio-usage.zh.md"
     json_sha = _write(json_path, report.to_json() + "\n")
     en_sha = _write(markdown_en_path, report.to_markdown("en"))
     zh_sha = _write(markdown_zh_path, report.to_markdown("zh"))
@@ -990,6 +1034,37 @@ def run_automated_discovery(
         for kind, path, digest in attribution_artifacts:
             registry.register_artifact(
                 trial_id=factor_attribution.trial_id,
+                kind=kind,
+                path=str(path),
+                sha256=digest,
+            )
+    if portfolio_usage is not None:
+        portfolio_artifacts = (
+            (
+                "portfolio_usage_json",
+                portfolio_usage_json_path,
+                _write(portfolio_usage_json_path, portfolio_usage.to_json() + "\n"),
+            ),
+            (
+                "portfolio_usage_markdown_en",
+                portfolio_usage_en_path,
+                _write(portfolio_usage_en_path, portfolio_usage.to_markdown("en")),
+            ),
+            (
+                "portfolio_usage_markdown_zh",
+                portfolio_usage_zh_path,
+                _write(portfolio_usage_zh_path, portfolio_usage.to_markdown("zh")),
+            ),
+        )
+        reference_trial = next(
+            item.trial_id
+            for item in portfolio_usage.scores
+            if item.mapping_name == portfolio_usage.reference_portfolio.mapping_name
+            and item.initial_nav == portfolio_usage.reference_portfolio.initial_nav
+        )
+        for kind, path, digest in portfolio_artifacts:
+            registry.register_artifact(
+                trial_id=reference_trial,
                 kind=kind,
                 path=str(path),
                 sha256=digest,

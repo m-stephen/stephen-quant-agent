@@ -51,6 +51,9 @@ class BaselineConfig:
     periods_per_year: int = 252
     cost_model_version: str = COST_MODEL_VERSION
     missing_holding_policy: str = "error"
+    ranking_policy: str = "top_k"
+    selection_fraction: float = 0.0
+    bottom_underweight: float = 0.25
 
 
 @dataclass(frozen=True)

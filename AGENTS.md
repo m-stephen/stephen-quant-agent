@@ -54,3 +54,11 @@ Build an integrity-first quantitative research system. A result is not an alpha 
 - Add tests for every leakage or provenance rule.
 - Store machine-generated artifacts outside git unless they are tiny fixtures.
 - Make all experiments reproducible from a command plus a config and snapshot ID.
+
+## GitHub access in Codex Desktop
+- Prefer the connected GitHub app for Issue, comment, and pull-request API operations.
+- Use the repository SSH remote for fetch and push; GitHub CLI authentication is separate from SSH.
+- Codex's offline sandbox may report a false `gh auth status` failure because it cannot access the
+  network or the interactive user's keyring. Before asking the user to authenticate again, rerun
+  the read-only authentication/API check in the approved host-network context.
+- Never copy GitHub tokens into repository files, environment manifests, command output, or chat.

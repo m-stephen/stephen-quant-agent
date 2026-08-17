@@ -440,6 +440,26 @@ See the [English design](docs/V1_8_17_SPEC_EN.md) and
 in [English](docs/V1_8_17_RESULT_EN.md) and [中文](docs/V1_8_17_RESULT_ZH.md). Local data paths and
 generated reports remain Git-ignored.
 
+## V1.8.21 preregistered portfolio usage
+
+V1.8.21 compares six frozen signal-to-portfolio definitions at CNY
+1m/3m/5m/10m/20m, registers every mapping/NAV pair as an inferential Trial, and preserves 2025/2026
+as sealed windows. The output is research-only and supplies the first versioned reference portfolio
+for V2.0; it is not fresh out-of-sample evidence.
+
+```powershell
+stephen-quant --db "artifacts\qd-v1.8.21.sqlite3" qd-auto-discover `
+  --paths-config "configs\qd-paths.local.json" `
+  --manifest "configs\v1.8.21-search.json" `
+  --ingested-at "2026-08-17T12:45:00+08:00" `
+  --output "reports\qd-v1.8.21"
+```
+
+See the [English specification](docs/V1_8_21_SPEC_EN.md),
+[中文设计](docs/V1_8_21_SPEC_ZH.md),
+[English result](docs/V1_8_21_RESULT_EN.md), and
+[中文结果](docs/V1_8_21_RESULT_ZH.md).
+
 ## Quick start
 
 ```bash
