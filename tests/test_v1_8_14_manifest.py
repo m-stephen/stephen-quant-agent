@@ -16,7 +16,8 @@ def test_v1_8_14_candidate_manifest_is_frozen_and_registry_backed() -> None:
     candidate_ids = [item["candidate_id"] for item in candidates]
     registry = build_seed_registry()
 
-    assert hashlib.sha256(raw).hexdigest() == (
+    normalized = raw.replace(b"\r\n", b"\n")
+    assert hashlib.sha256(normalized).hexdigest() == (
         "b11a97334b3eee5500b83c9a6178990c198287c5fc7f49d3e586c833ba115b3c"
     )
     assert payload["research_window"]["research_end"] < payload["research_window"][

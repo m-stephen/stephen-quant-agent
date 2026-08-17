@@ -88,6 +88,27 @@ See the [English V2.4 specification](docs/V2_4_SPEC_EN.md),
 [中文结果](docs/V2_4_RESULT_ZH.md), and the
 [release audit](docs/V2_4_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_4_RELEASE_AUDIT_ZH.md).
 
+**V2.5** preregisters a zero-threshold market-regime definition and exactly two portfolio-use
+policies on the consumed 2022–2024 research data. `risk_off_cash` improves net Sharpe to
+0.8537 and drawdown to -8.87%, while momentum fallback fails. The result remains research-only:
+strategy-family PBO is 46.83%, DSR is 66.72%, and the top 10% of absolute period returns
+contribute 69.98%.
+
+```powershell
+stephen-quant --db "artifacts\v2.5-regime.sqlite3" v2-regime-portfolio `
+  --paths-config "configs\qd-paths.local.json" `
+  --config "configs\v2.5-regime-portfolio.json" `
+  --mode research `
+  --ingested-at "2026-08-17T16:30:00+08:00" `
+  --output "reports\v2.5-regime-portfolio"
+```
+
+See the [English V2.5 specification](docs/V2_5_SPEC_EN.md),
+[中文 V2.5 规格](docs/V2_5_SPEC_ZH.md),
+[English result](docs/V2_5_RESULT_EN.md),
+[中文结果](docs/V2_5_RESULT_ZH.md), and the
+[release audit](docs/V2_5_RELEASE_AUDIT_EN.md) / [发布审计](docs/V2_5_RELEASE_AUDIT_ZH.md).
+
 ## V2.0 shadow-mode validation
 
 V2.0 connects falsifiable hypotheses, a typed safe-DSL compiler, duplicate and cheap-diagnostic gates, marginal portfolio-value ranking, structured failure learning, frozen research epochs, dual ledgers and offline replay.
