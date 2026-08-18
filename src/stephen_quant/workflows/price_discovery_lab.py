@@ -459,6 +459,56 @@ def _signal(candidate: PriceCandidate, history: list[QmtDailyBar]) -> float | No
             )
         elif family == "price_level":
             value = math.log(window[-1].close) if window[-1].close > 0 else None
+        elif family == "t1_delayed_feedback":
+            last_return = daily_returns[-1]
+            prior_amounts = [bar.amount for bar in window[1:-1] if bar.amount > 0]
+            amount_base = mean(prior_amounts) if prior_amounts else None
+            abnormal_amount = (
+                window[-1].amount / amount_base if amount_base and window[-1].amount > 0 else None
+            )
+            value = (
+                min(last_return, 0.0) * abnormal_amount
+                if abnormal_amount is not None
+                else None
+            )
+        elif family == "negative_return_asymmetry":
+            negative = [min(item, 0.0) for item in daily_returns]
+            positive = [max(item, 0.0) for item in daily_returns]
+            value = mean(negative) - mean(positive)
+        elif family == "overnight_intraday_divergence":
+            overnight = [
+                bar.open / previous.close - 1
+                for previous, bar in pairwise(window)
+                if previous.close > 0
+            ]
+            intraday = [bar.close / bar.open - 1 for bar in window[1:] if bar.open > 0]
+            value = (
+                mean(overnight) - mean(intraday)
+                if len(overnight) == len(intraday) == candidate.lookback
+                else None
+            )
+        elif family == "gap_fill_pressure":
+            interactions = [
+                -(bar.open / previous.close - 1) * (bar.close / bar.open - 1)
+                for previous, bar in pairwise(window)
+                if previous.close > 0 and bar.open > 0
+            ]
+            value = mean(interactions) if interactions else None
+        elif family in {"limit_proximity", "limit_exhaustion"}:
+            ratios: list[float] = []
+            for previous, bar in pairwise(window):
+                if previous.close <= 0 or bar.open <= 0:
+                    continue
+                code = bar.instrument.split(".", 1)[0]
+                limit = 0.20 if code.startswith(("300", "688")) else 0.10
+                close_move = bar.close / previous.close - 1
+                proximity = close_move / limit
+                if family == "limit_proximity":
+                    ratios.append(proximity)
+                else:
+                    intraday = bar.close / bar.open - 1
+                    ratios.append(max(proximity, 0.0) * -intraday)
+            value = mean(ratios) if ratios else None
         else:
             raise ValueError(f"unknown price candidate family: {family}")
     return value if value is not None and math.isfinite(value) else None

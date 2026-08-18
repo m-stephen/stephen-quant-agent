@@ -56,6 +56,7 @@ from .workflows import (
     QmtBacktestRunConfig,
     QmtDatValidationConfig,
     V4Config,
+    V41Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -90,6 +91,7 @@ from .workflows import (
     run_v27_m0_governance,
     run_v27_m1_pit_readiness,
     run_v27_m2_engineering_audit,
+    run_v41_semantic_alpha,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -328,6 +330,10 @@ def build_parser() -> argparse.ArgumentParser:
     v4_platform = sub.add_parser("v4-ohlcv-platform")
     v4_platform.add_argument("--paths-config", required=True)
     v4_platform.add_argument("--output", default="reports/v4.0-ohlcv-platform")
+
+    v41_search = sub.add_parser("v4.1-alpha-search")
+    v41_search.add_argument("--paths-config", required=True)
+    v41_search.add_argument("--output", default="reports/v4.1-semantic-alpha")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1622,6 +1628,57 @@ def main() -> None:
                     "raw_candidates": report.raw_candidates,
                     "effective_hypotheses": report.effective_hypotheses,
                     "selected_candidate": report.selected_candidate_id,
+                    "decision": report.decision,
+                    "sealed_state": report.sealed_release.state,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v4.1-alpha-search":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.choose(
+                "dynamic_membership_jsonl", None, "--membership-jsonl"
+            )
+            optional_paths = {
+                key: str(path)
+                for key, path in local_paths.paths.items()
+                if key
+                in {
+                    "qd_fund_flow_dir",
+                    "qd_auction_dir",
+                    "qd_margin_dir",
+                    "qd_limit_event_dir",
+                }
+            }
+            report = run_v41_semantic_alpha(
+                daily_dir,
+                membership_path,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                optional_paths=optional_paths,
+                config=V41Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.1-alpha-search failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "experiment_id": report.experiment_id,
+                    "snapshot_sha256": report.snapshot_sha256,
+                    "proposed_candidates": report.proposed_candidates,
+                    "empirically_evaluated": report.empirically_evaluated_candidates,
+                    "effective_hypotheses": report.effective_hypotheses,
+                    "selected_candidate": report.selected_candidate_id,
+                    "selected_usage": (
+                        report.selected_usage.spec.usage if report.selected_usage else None
+                    ),
                     "decision": report.decision,
                     "sealed_state": report.sealed_release.state,
                     "output": str(Path(args.output).resolve()),

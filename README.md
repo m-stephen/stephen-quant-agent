@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+## V4.1 semantic A-share alpha search
+
+V4.1 adds a 288-candidate semantic search grammar, IC-to-economic-shape diagnostics,
+separate `BUY` / `AVOID` / `TIMING` mappings, prior-information regime states, and
+A-share-specific price, auction, fund-flow, margin and limit-event mechanisms. The frozen
+research sequence remains 2022 discovery, 2023 usage selection and 2024 retrospective shadow;
+2025/2026 remain sealed.
+
+```powershell
+stephen-quant --db artifacts/v4.1-semantic-alpha/registry.sqlite3 v4.1-alpha-search `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.1-semantic-alpha
+```
+
+The local path file and generated reports remain gitignored. See the
+[English V4.1 report](docs/V4_1_TEST_REPORT_EN.md) and
+[V4.1 中文报告](docs/V4_1_TEST_REPORT_ZH.md) for the frozen real-data result.
+
 V4.0 completes the single-user OHLCV research and historical paper-trading platform. It expands
 the frozen grammar to 990 candidates, reduces them to 218 effective mechanism clusters, applies
 family quotas and decision-local residualization, searches cost-aware portfolio conversion on
