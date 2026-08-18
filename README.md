@@ -1,5 +1,22 @@
 # Stephen Quant Agent
 
+## V5.2/V5.3 dual-track research
+
+V5.2 keeps the V5.1 candidate frozen for append-only forward monitoring. As of 2026-08-19,
+the three required sources have zero common sessions after the freeze date, so the result is
+`WAITING_FOR_DATA`, with no performance Trial added and the cumulative count unchanged at 1,218.
+
+V5.3 independently tested 14 direction-complete hypotheses across margin, auction and limit-event
+mechanisms, explicitly excluding chip and fund-flow inputs. No candidate passed the joint cross-year
+IC and tradability screen. The decision is `NO_INDEPENDENT_ALPHA`; 14 Trials were recorded and no
+downstream validation budget was spent.
+
+See the [V5.2 English report](docs/V5_2_FORWARD_RESULT_EN.md),
+[V5.2 中文报告](docs/V5_2_FORWARD_RESULT_ZH.md),
+[V5.3 English report](docs/V5_3_INDEPENDENT_RESULT_EN.md),
+[V5.3 中文报告](docs/V5_3_INDEPENDENT_RESULT_ZH.md), and
+[dual-track protocol](docs/V5_2_DUAL_TRACK_SPEC.md).
+
 ## V5.1 frozen candidate reliability audit
 
 V5.1 freezes the V5.0 two-factor ensemble and evaluates four predeclared signal

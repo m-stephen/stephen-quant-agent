@@ -71,6 +71,8 @@ from .workflows import (
     V48PortfolioReportConfig,
     V50Config,
     V51Config,
+    V52ForwardConfig,
+    V53Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -119,6 +121,8 @@ from .workflows import (
     run_v49_forward_readiness,
     run_v50_market_wide_search,
     run_v51_candidate_audit,
+    run_v52_forward_monitor,
+    run_v53_independent_search,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -439,6 +443,21 @@ def build_parser() -> argparse.ArgumentParser:
     v51_audit.add_argument("--v50-report", required=True)
     v51_audit.add_argument("--prior-inferential-trials", type=int, default=1206)
     v51_audit.add_argument("--output", default="reports/v5.1-candidate-audit")
+
+    v52_forward = sub.add_parser("v5.2-forward-monitor")
+    v52_forward.add_argument("--paths-config", required=True)
+    v52_forward.add_argument("--membership-jsonl")
+    v52_forward.add_argument("--as-of")
+    v52_forward.add_argument("--prior-inferential-trials", type=int, default=1218)
+    v52_forward.add_argument("--output", default="reports/v5.2-forward-monitor")
+
+    v53_search = sub.add_parser("v5.3-independent-search")
+    v53_search.add_argument("--paths-config", required=True)
+    v53_search.add_argument("--screening-membership-jsonl", required=True)
+    v53_search.add_argument("--membership-jsonl", required=True)
+    v53_search.add_argument("--tiers-jsonl", required=True)
+    v53_search.add_argument("--prior-inferential-trials", type=int, default=1218)
+    v53_search.add_argument("--output", default="reports/v5.3-independent-search")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2128,6 +2147,46 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v5.1-candidate-audit failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v5.2-forward-monitor":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v52_forward_monitor(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
+                local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                membership_path=args.membership_jsonl,
+                output_dir=args.output,
+                as_of=args.as_of,
+                config=V52ForwardConfig(),
+                prior_inferential_trials=args.prior_inferential_trials,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v5.2-forward-monitor failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v5.3-independent-search":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v53_independent_search(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                args.screening_membership_jsonl,
+                args.membership_jsonl,
+                args.tiers_jsonl,
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                margin_dir=local_paths.choose("qd_margin_dir", None, "--margin-dir"),
+                limit_event_dir=local_paths.choose("qd_limit_event_dir", None, "--limit-event-dir"),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V53Config(),
+                prior_inferential_trials=args.prior_inferential_trials,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v5.3-independent-search failed: {exc}") from exc
         print(report.to_json())
         return
 
