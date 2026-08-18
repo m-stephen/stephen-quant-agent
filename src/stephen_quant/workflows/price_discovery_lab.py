@@ -6,7 +6,7 @@ import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
-from itertools import combinations
+from itertools import combinations, pairwise
 from pathlib import Path
 from statistics import mean, stdev
 
@@ -397,6 +397,68 @@ def _signal(candidate: PriceCandidate, history: list[QmtDailyBar]) -> float | No
             amounts = [bar.amount for bar in window[1:]]
             amihud = mean(abs(ret) / amount for ret, amount in zip(daily_returns, amounts, strict=True)) if all(amount > 0 for amount in amounts) else None
             value = close_return * amihud if amihud is not None else None
+        elif family == "trend_curvature":
+            middle = len(window) // 2
+            early = _safe_return(window[0].close, window[middle].close)
+            recent = _safe_return(window[middle].close, window[-1].close)
+            value = recent - early if early is not None and recent is not None else None
+        elif family == "breakout_position":
+            lowest = min(bar.low for bar in window)
+            highest = max(bar.high for bar in window)
+            value = (window[-1].close - lowest) / (highest - lowest) if highest > lowest else None
+        elif family == "drawdown_recovery":
+            trough = min(bar.close for bar in window)
+            value = window[-1].close / trough - 1 if trough > 0 else None
+        elif family in {"downside_volatility", "upside_volatility"}:
+            selected = [
+                item
+                for item in daily_returns
+                if (item < 0 if family == "downside_volatility" else item > 0)
+            ]
+            value = math.sqrt(mean(item * item for item in selected)) if selected else 0.0
+        elif family == "range_volatility":
+            value = mean(
+                (bar.high - bar.low) / bar.close for bar in window[1:] if bar.close > 0
+            )
+        elif family == "gap_mean":
+            gaps = [
+                bar.open / previous.close - 1
+                for previous, bar in pairwise(window)
+                if previous.close > 0
+            ]
+            value = mean(gaps) if gaps else None
+        elif family == "intraday_mean":
+            values = [bar.close / bar.open - 1 for bar in window[1:] if bar.open > 0]
+            value = mean(values) if values else None
+        elif family == "overnight_momentum":
+            value = math.prod(
+                bar.open / previous.close
+                for previous, bar in pairwise(window)
+                if previous.close > 0
+            ) - 1
+        elif family == "volume_price_divergence":
+            volume_return = _safe_return(window[0].volume, window[-1].volume)
+            value = close_return - volume_return if volume_return is not None else None
+        elif family == "liquidity_change":
+            middle = max(2, len(daily_returns) // 2)
+            ratios = [
+                abs(ret) / bar.amount
+                for ret, bar in zip(daily_returns, window[1:], strict=True)
+                if bar.amount > 0
+            ]
+            early = mean(ratios[:middle]) if ratios[:middle] else None
+            recent = mean(ratios[middle:]) if ratios[middle:] else None
+            value = recent / early - 1 if early and recent is not None else None
+        elif family == "return_skewness":
+            center = mean(daily_returns)
+            variance = mean((item - center) ** 2 for item in daily_returns)
+            value = (
+                mean((item - center) ** 3 for item in daily_returns) / variance**1.5
+                if variance > 0
+                else 0.0
+            )
+        elif family == "price_level":
+            value = math.log(window[-1].close) if window[-1].close > 0 else None
         else:
             raise ValueError(f"unknown price candidate family: {family}")
     return value if value is not None and math.isfinite(value) else None
