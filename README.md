@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+## V4.5 candidate-level 2025 validation
+
+V4.5 freezes the V4.4 candidate and its equal-weight overlay before reading 2025 values. It uses
+the 2024-12-31 top-50 membership without future constituent backfill and evaluates 27 predeclared
+NAV, cost and breadth stress cells. The candidate fails: primary excess return is -1.64%, excess
+Sharpe is -4.09, incremental return is -1.38%, only 6/20 paths are positive, and 0/27 stress
+cells remain positive. The 2025 Q3 reversal explains most of the decay. V4.5 therefore rejects
+the candidate and prohibits tuning it on 2025.
+
+```powershell
+stephen-quant --db artifacts/v4.5/registry.sqlite3 v4.5-candidate-validate `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.5-candidate-validation
+```
+
+See the [English result](docs/V4_5_RESULT.en.md),
+[V4.5 中文结果](docs/V4_5_RESULT.zh.md), and [validation protocol](docs/V4_5_SPEC.md).
+
 ## V4.4 path-robust alpha research
 
 V4.4 separates overlapping 20-day holdings into 20 non-overlapping offset paths and subtracts

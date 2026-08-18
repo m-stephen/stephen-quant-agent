@@ -60,6 +60,7 @@ from .workflows import (
     V41Config,
     V42Config,
     V44Config,
+    V45Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -99,6 +100,7 @@ from .workflows import (
     run_v43_breadth_audit,
     run_v43_conversion,
     run_v44_path_robust_alpha,
+    run_v45_candidate_validation,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -357,6 +359,10 @@ def build_parser() -> argparse.ArgumentParser:
     v44_alpha = sub.add_parser("v4.4-path-alpha")
     v44_alpha.add_argument("--paths-config", required=True)
     v44_alpha.add_argument("--output", default="reports/v4.4-path-robust-alpha")
+
+    v45_validation = sub.add_parser("v4.5-candidate-validate")
+    v45_validation.add_argument("--paths-config", required=True)
+    v45_validation.add_argument("--output", default="reports/v4.5-candidate-validation")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1808,6 +1814,25 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.4-path-alpha failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.5-candidate-validate":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v45_candidate_validation(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                limit_event_dir=local_paths.choose(
+                    "qd_limit_event_dir", None, "--limit-event-dir"
+                ),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V45Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.5-candidate-validate failed: {exc}") from exc
         print(report.to_json())
         return
 

@@ -304,6 +304,13 @@ from .v44_path_robust_alpha import (
     run_v44_path_robust_alpha,
     select_robust_candidate,
 )
+from .v45_candidate_validation import (
+    V45_VERSION,
+    StressResult,
+    V45Config,
+    V45Report,
+    run_v45_candidate_validation,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -359,6 +366,7 @@ __all__ = [
     "V43_CONVERSION_VERSION",
     "V43_VERSION",
     "V44_VERSION",
+    "V45_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AutomatedDiscoveryConfig",
@@ -413,6 +421,7 @@ __all__ = [
     "RobustCandidate",
     "SemanticCandidate",
     "StabilityScore",
+    "StressResult",
     "UsageScore",
     "V4Config",
     "V4Report",
@@ -470,6 +479,8 @@ __all__ = [
     "V43ConversionReport",
     "V44Config",
     "V44Report",
+    "V45Config",
+    "V45Report",
     "VariantResult",
     "apply_v25_policy",
     "audit_source_readiness",
@@ -534,6 +545,7 @@ __all__ = [
     "run_v43_breadth_audit",
     "run_v43_conversion",
     "run_v44_path_robust_alpha",
+    "run_v45_candidate_validation",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
