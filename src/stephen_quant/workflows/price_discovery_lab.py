@@ -24,7 +24,13 @@ from stephen_quant.integrity.snapshot import (
     build_composite_snapshot_manifest,
     build_selected_files_snapshot_manifest,
 )
-from stephen_quant.qmt import QmtDailyBar, load_qd_daily_directory, select_qd_daily_files
+from stephen_quant.qmt import (
+    PriceLimitContext,
+    QmtDailyBar,
+    load_qd_daily_directory,
+    resolve_price_limit_rule,
+    select_qd_daily_files,
+)
 
 PRICE_DISCOVERY_VERSION = "v3.1-price-discovery-lab-1.0.0"
 LOOKBACKS = (2, 3, 5, 10, 20, 40, 60, 120, 240)
@@ -499,8 +505,12 @@ def _signal(candidate: PriceCandidate, history: list[QmtDailyBar]) -> float | No
             for previous, bar in pairwise(window):
                 if previous.close <= 0 or bar.open <= 0:
                     continue
-                code = bar.instrument.split(".", 1)[0]
-                limit = 0.20 if code.startswith(("300", "688")) else 0.10
+                rule = resolve_price_limit_rule(
+                    PriceLimitContext(bar.instrument, bar.trade_date)
+                )
+                if not rule.has_limit or rule.ratio is None:
+                    continue
+                limit = rule.ratio
                 close_move = bar.close / previous.close - 1
                 proximity = close_move / limit
                 if family == "limit_proximity":

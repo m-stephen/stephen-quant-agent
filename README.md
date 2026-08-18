@@ -1,5 +1,22 @@
 # Stephen Quant Agent
 
+## V4.2 stability-first economic conversion
+
+V4.2 freezes the twelve V4.1 representative mechanisms and replaces maximum full-year Sharpe
+selection with four chronological 2023 subwindows, double-cost stress, adjacent-breadth
+robustness and an explicit burden for regime wrappers. The selected mapping is evaluated on 2024
+only after selection; 2025/2026 remain sealed.
+
+```powershell
+stephen-quant --db artifacts/v4.2-stable-conversion/registry.sqlite3 v4.2-stable-conversion `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.2-stable-conversion
+```
+
+See the [English V4.2 report](docs/V4_2_TEST_REPORT_EN.md) and
+[V4.2 中文报告](docs/V4_2_TEST_REPORT_ZH.md). Generated artifacts and local paths remain
+gitignored.
+
 ## V4.1 semantic A-share alpha search
 
 V4.1 adds a 288-candidate semantic search grammar, IC-to-economic-shape diagnostics,
