@@ -338,6 +338,12 @@ from .v48_sealed_alpha_court import (
     run_v48_sealed_alpha_court,
     v47_trial_sharpes,
 )
+from .v49_forward_readiness import (
+    V49_READINESS_VERSION,
+    SourceCoverage,
+    V49ReadinessReport,
+    run_v49_forward_readiness,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -397,6 +403,7 @@ __all__ = [
     "V46_VERSION",
     "V47_VERSION",
     "V48_VERSION",
+    "V49_READINESS_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AutomatedDiscoveryConfig",
@@ -453,6 +460,7 @@ __all__ = [
     "ReturnMoments",
     "RobustCandidate",
     "SemanticCandidate",
+    "SourceCoverage",
     "StabilityScore",
     "StressResult",
     "TurnoverAttribution",
@@ -521,6 +529,7 @@ __all__ = [
     "V47Report",
     "V48Config",
     "V48Report",
+    "V49ReadinessReport",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -592,6 +601,7 @@ __all__ = [
     "run_v46_orthogonal_search",
     "run_v47_low_turnover_alpha",
     "run_v48_sealed_alpha_court",
+    "run_v49_forward_readiness",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",

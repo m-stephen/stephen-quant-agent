@@ -107,6 +107,7 @@ from .workflows import (
     run_v46_orthogonal_search,
     run_v47_low_turnover_alpha,
     run_v48_sealed_alpha_court,
+    run_v49_forward_readiness,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -384,6 +385,11 @@ def build_parser() -> argparse.ArgumentParser:
     v48_court.add_argument("--v46-registry", required=True)
     v48_court.add_argument("--v47-registry", required=True)
     v48_court.add_argument("--output", default="reports/v4.8-sealed-alpha-court")
+
+    v49_ready = sub.add_parser("v4.9-forward-readiness")
+    v49_ready.add_argument("--paths-config", required=True)
+    v49_ready.add_argument("--as-of")
+    v49_ready.add_argument("--output", default="reports/v4.9-forward-readiness")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1918,6 +1924,21 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.8-sealed-alpha-court failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.9-forward-readiness":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v49_forward_readiness(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
+                local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                output_dir=args.output,
+                as_of=args.as_of,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.9-forward-readiness failed: {exc}") from exc
         print(report.to_json())
         return
 
