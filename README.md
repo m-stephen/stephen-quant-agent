@@ -1,5 +1,65 @@
 # Stephen Quant Agent
 
+## V4.5 candidate-level 2025 validation
+
+V4.5 freezes the V4.4 candidate and its equal-weight overlay before reading 2025 values. It uses
+the 2024-12-31 top-50 membership without future constituent backfill and evaluates 27 predeclared
+NAV, cost and breadth stress cells. The candidate fails: primary excess return is -1.64%, excess
+Sharpe is -4.09, incremental return is -1.38%, only 6/20 paths are positive, and 0/27 stress
+cells remain positive. The 2025 Q3 reversal explains most of the decay. V4.5 therefore rejects
+the candidate and prohibits tuning it on 2025.
+
+```powershell
+stephen-quant --db artifacts/v4.5/registry.sqlite3 v4.5-candidate-validate `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.5-candidate-validation
+```
+
+See the [English result](docs/V4_5_RESULT.en.md),
+[V4.5 中文结果](docs/V4_5_RESULT.zh.md), and [validation protocol](docs/V4_5_SPEC.md).
+
+## V4.4 path-robust alpha research
+
+V4.4 separates overlapping 20-day holdings into 20 non-overlapping offset paths and subtracts
+an equal-weight control with identical regime and cash exposure. The frozen 2022-2023 search
+selected a mixed-regime AVOID overlay based on inverse 20-day limit-up persistence. Its one-shot
+2024 stock-selection increment remained positive (+2.14%, incremental Sharpe 2.00), with signal
+and return permutation p-values of 0.005. The complete strategy still failed Alpha Court because
+the original regime wrapper held cash outside mixed regimes, underperformed the 2024 benchmark,
+and DSR was only 0.162 after 1,022 recorded trials. It is a research-worthy stock-selection lead,
+not a deployable alpha.
+
+```powershell
+stephen-quant --db artifacts/v4.4/registry.sqlite3 v4.4-path-alpha `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.4-path-robust-alpha
+```
+
+See the [English result](docs/V4_4_RESULT.en.md),
+[V4.4 中文结果](docs/V4_4_RESULT.zh.md), and [frozen protocol](docs/V4_4_SPEC.md).
+
+## V4.3 information-domain breadth
+
+V4.3 unifies the historical safe-DSL generation plans, canonicalizes 202 proposals into 152
+unique hypotheses, applies per-domain proposal budgets, and adds explicit counter-direction
+tests for the underexplored chip and limit-event domains. It also fixes sparse-signal CPCV dates,
+bounds dynamic memberships by the research window, and provides an append-only forward-shadow
+ledger starting on 2026-08-19.
+
+```powershell
+stephen-quant --db artifacts/v4.3/registry.sqlite3 v4.3-domain-breadth `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.3-domain-breadth
+```
+
+The strict 2022 discovery run passed the signal gate but failed Alpha Court: the best candidate
+had net Sharpe -0.2709 and DSR 0.0139. See the [English result](docs/V4_3_RESULT.en.md) and
+[V4.3 中文结果](docs/V4_3_RESULT.zh.md).
+
+The subsequent frozen conversion selected an AVOID mapping with +8.79% excess return in 2022,
+but it reversed to -4.00% in the one-shot 2023 confirmation. The system rejected confirmation
+and kept 2024 closed.
+
 ## V4.2 stability-first economic conversion
 
 V4.2 freezes the twelve V4.1 representative mechanisms and replaces maximum full-year Sharpe

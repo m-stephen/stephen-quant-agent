@@ -49,6 +49,7 @@ from stephen_quant.discovery import (
     v30_epoch_four_generation_plan,
     v30_epoch_three_generation_plan,
     v30_epoch_two_generation_plan,
+    v43_sparse_domain_inverse_plan,
 )
 from stephen_quant.falsification import write_alpha_court_report
 from stephen_quant.integrity.models import ExperimentSpec
@@ -159,13 +160,14 @@ class AutomatedDiscoveryConfig:
             "v1.8.21",
             "v2.1",
             "v3.0",
+            "v4.3",
         }:
             raise ValueError("unsupported automated-discovery search_profile")
         if self.prior_inferential_trials < 0:
             raise ValueError("prior_inferential_trials cannot be negative")
         if self.search_profile == "v3.0" and self.mechanism_epoch not in {1, 2, 3, 4, 5}:
             raise ValueError("v3.0 mechanism_epoch must be between 1 and 5")
-        if self.search_profile != "v3.0" and self.mechanism_epoch != 0:
+        if self.search_profile not in {"v3.0"} and self.mechanism_epoch != 0:
             raise ValueError("mechanism_epoch is reserved for v3.0")
         if self.search_profile == "v3.0" and (
             self.court_minimum_annualized_sharpe is None
@@ -508,6 +510,12 @@ def _alternative_datasets(
     return datasets
 
 
+def _memberships_through(
+    memberships: dict[str, tuple[str, ...]], research_end: str
+) -> dict[str, tuple[str, ...]]:
+    return {day: members for day, members in memberships.items() if day <= research_end}
+
+
 def run_automated_discovery(
     daily_dir: str | Path,
     instruments: tuple[str, ...],
@@ -529,6 +537,9 @@ def run_automated_discovery(
         dynamic_memberships, dynamic_sha256 = _ranked_dynamic_memberships(
             dynamic_membership_path, config.dynamic_universe_top_n
         )
+        dynamic_memberships = _memberships_through(dynamic_memberships, config.research_end)
+        if not dynamic_memberships:
+            raise ValueError("dynamic universe has no membership on or before research_end")
         instruments = tuple(
             sorted(
                 {instrument for members in dynamic_memberships.values() for instrument in members}
@@ -582,6 +593,8 @@ def run_automated_discovery(
             else v30_epoch_five_generation_plan()
         )
         if config.search_profile == "v3.0"
+        else v43_sparse_domain_inverse_plan()
+        if config.search_profile == "v4.3"
         else v21_mechanism_generation_plan()
         if config.search_profile == "v2.1"
         else flow_stress_generation_plan()
@@ -726,7 +739,7 @@ def run_automated_discovery(
                 item.schema.compile(),
                 anchor,
             )
-    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0"}:
+    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0", "v4.3"}:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
             for fingerprint, rows in observations.items()

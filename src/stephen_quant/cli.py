@@ -51,6 +51,7 @@ from .v2 import (
 )
 from .workflows import (
     CompositeCpcvConfig,
+    ConversionConfig,
     DynamicBacktestConfig,
     PriceDiscoveryConfig,
     QmtBacktestRunConfig,
@@ -58,6 +59,8 @@ from .workflows import (
     V4Config,
     V41Config,
     V42Config,
+    V44Config,
+    V45Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -94,6 +97,10 @@ from .workflows import (
     run_v27_m2_engineering_audit,
     run_v41_semantic_alpha,
     run_v42_stable_conversion,
+    run_v43_breadth_audit,
+    run_v43_conversion,
+    run_v44_path_robust_alpha,
+    run_v45_candidate_validation,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -340,6 +347,22 @@ def build_parser() -> argparse.ArgumentParser:
     v42_conversion = sub.add_parser("v4.2-stable-conversion")
     v42_conversion.add_argument("--paths-config", required=True)
     v42_conversion.add_argument("--output", default="reports/v4.2-stable-conversion")
+
+    v43_breadth = sub.add_parser("v4.3-domain-breadth")
+    v43_breadth.add_argument("--paths-config", required=True)
+    v43_breadth.add_argument("--output", default="reports/v4.3-domain-breadth")
+
+    v43_conversion = sub.add_parser("v4.3-conversion")
+    v43_conversion.add_argument("--paths-config", required=True)
+    v43_conversion.add_argument("--output", default="reports/v4.3-conversion")
+
+    v44_alpha = sub.add_parser("v4.4-path-alpha")
+    v44_alpha.add_argument("--paths-config", required=True)
+    v44_alpha.add_argument("--output", default="reports/v4.4-path-robust-alpha")
+
+    v45_validation = sub.add_parser("v4.5-candidate-validate")
+    v45_validation.add_argument("--paths-config", required=True)
+    v45_validation.add_argument("--output", default="reports/v4.5-candidate-validation")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1729,6 +1752,88 @@ def main() -> None:
                 ensure_ascii=False,
             )
         )
+        return
+
+    if args.command == "v4.3-domain-breadth":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v43_breadth_audit(local_paths.paths, args.output)
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v4.3-domain-breadth failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "proposed_candidates": report.proposed_candidates,
+                    "unique_candidates": report.unique_candidates,
+                    "admitted_candidates": report.admitted_candidates,
+                    "semantic_domain_count": report.semantic_domain_count,
+                    "decision": report.decision,
+                    "forward_shadow_start": report.forward_shadow_start,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v4.3-conversion":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v43_conversion(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                limit_event_dir=local_paths.choose(
+                    "qd_limit_event_dir", None, "--limit-event-dir"
+                ),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=ConversionConfig(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.3-conversion failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.4-path-alpha":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v44_path_robust_alpha(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                limit_event_dir=local_paths.choose(
+                    "qd_limit_event_dir", None, "--limit-event-dir"
+                ),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V44Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.4-path-alpha failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.5-candidate-validate":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v45_candidate_validation(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                limit_event_dir=local_paths.choose(
+                    "qd_limit_event_dir", None, "--limit-event-dir"
+                ),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V45Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.5-candidate-validate failed: {exc}") from exc
+        print(report.to_json())
         return
 
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:

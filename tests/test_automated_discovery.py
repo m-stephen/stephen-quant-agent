@@ -12,7 +12,21 @@ from stephen_quant.workflows import (
     run_automated_discovery,
     run_automated_discovery_suite,
 )
-from stephen_quant.workflows.automated_discovery import _trim_leading_warmup
+from stephen_quant.workflows.automated_discovery import (
+    _memberships_through,
+    _trim_leading_warmup,
+)
+
+
+def test_dynamic_memberships_are_bounded_by_research_end() -> None:
+    memberships = {
+        "2022-12-30": ("000001.SZ",),
+        "2023-01-03": ("601059.SH",),
+        "2024-01-02": ("688001.SH",),
+    }
+    assert _memberships_through(memberships, "2022-12-30") == {
+        "2022-12-30": ("000001.SZ",)
+    }
 
 
 def _sessions(count: int = 100) -> list[date]:
