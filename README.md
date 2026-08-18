@@ -1,5 +1,21 @@
 # Stephen Quant Agent
 
+## V5.1 frozen candidate reliability audit
+
+V5.1 freezes the V5.0 two-factor ensemble and evaluates four predeclared signal
+representations under standard, doubled and conservative execution, for exactly 12 new Trials.
+Raw matched-control excess is 31.27% at standard costs and 13.64% under conservative execution,
+with 19/20 and 15/20 positive offset paths. After removing size, liquidity, momentum and
+volatility exposure, standard excess falls to 5.86% and turns negative under execution stress.
+
+The decision is `FORWARD_CANDIDATE_WITH_BLOCKERS`: timing, path, capacity, PBO and placebo gates
+pass, but DSR is only 0.00000197 after 1,218 cumulative Trials and the chip source lacks
+historical-vintage proof. The result is not deployable Alpha and still requires genuinely new
+forward data.
+
+See the [English result](docs/V5_1_RESULT_EN.md),
+[V5.1 中文结果](docs/V5_1_RESULT_ZH.md), and [frozen protocol](docs/V5_1_SPEC.md).
+
 ## V5.0 market-wide balanced-universe search
 
 V5.0 replaces the liquidity Top50 research universe with a full point-in-time eligible mother
