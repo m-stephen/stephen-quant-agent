@@ -70,3 +70,40 @@ def test_dynamic_universe_uses_daily_point_in_time_membership(tmp_path: Path) ->
         report.configuration,
     )
     assert replay.to_json() == report.to_json()
+
+
+def test_dynamic_universe_only_omits_explicit_fundamental_gap(tmp_path: Path) -> None:
+    daily, fundamental = tmp_path / "daily", tmp_path / "fundamental"
+    daily.mkdir()
+    fundamental.mkdir()
+    start = date(2024, 1, 2)
+    days = [start + timedelta(days=index) for index in range(4)]
+    for index, day in enumerate(days):
+        _write_day(daily, fundamental, day, index)
+    omitted = days[2]
+    with (fundamental / f"{omitted:%Y%m%d}.csv").open(
+        "w", encoding="utf-8-sig", newline=""
+    ) as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["日期", "代码", "名称"])
+
+    report = build_dynamic_universe(
+        daily,
+        fundamental,
+        DynamicUniverseConfig(
+            research_start=days[1].isoformat(),
+            research_end=days[3].isoformat(),
+            top_n=2,
+            minimum_history_sessions=2,
+            liquidity_lookback=2,
+            minimum_mean_amount_cny=1,
+            allowed_missing_fundamental_dates=(omitted.isoformat(),),
+        ),
+    )
+
+    assert report.sessions == 2
+    assert report.omitted_fundamental_dates == (omitted.isoformat(),)
+    assert {item.decision_date for item in report.memberships} == {
+        days[1].isoformat(),
+        days[3].isoformat(),
+    }

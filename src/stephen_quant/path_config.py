@@ -23,6 +23,7 @@ ALLOWED_PATH_KEYS = frozenset(
         "qd_fundamental_dir",
         "qd_concept_membership_csv",
         "csi300_csv",
+        "csi500_csv",
         "dynamic_membership_jsonl",
         "discovery_stock_file",
         "alphapai_cache_dir",

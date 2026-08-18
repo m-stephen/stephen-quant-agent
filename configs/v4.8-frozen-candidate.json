@@ -1,0 +1,30 @@
+{
+  "candidate_id": "v4.8-flow-auction-buffer10",
+  "candidate_fingerprint": "49bbaa53abab3f00a43011565235529629d807e8712eafc163e020f10ab9fec7",
+  "candidate_commit": "30de08a7edd0ded2b3bd8977b505829e18b64582",
+  "status": "suspected_alpha_rejected_alpha_court",
+  "signals": [
+    "flow_price_divergence_5_20d",
+    "auction_strength_5_20d"
+  ],
+  "combination": "equal_percentile_rank",
+  "usage": "AVOID",
+  "breadth": 10,
+  "buffer_ranks": 10,
+  "horizon_sessions": 20,
+  "nav_cny": 3000000,
+  "cost_model_bps": {
+    "commission": 3,
+    "sell_tax": 5,
+    "slippage": 5,
+    "impact": 10
+  },
+  "frozen_thresholds": {
+    "minimum_dsr": 0.95,
+    "maximum_pbo": 0.05,
+    "maximum_placebo_p": 0.05,
+    "minimum_positive_paths": 15,
+    "minimum_median_path_sharpe": 0.0
+  },
+  "usage_note": "Candidate identity only. Historical tests must not tune or replace any field."
+}

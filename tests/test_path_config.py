@@ -99,3 +99,16 @@ def test_dynamic_cpcv_cli_accepts_ignored_path_config_without_inline_paths() -> 
     assert args.daily_dir is None
     assert args.membership_jsonl is None
     assert args.candidate_manifest == "configs/v1.8.14-candidates.json"
+
+
+def test_v48_portfolio_report_cli_uses_ignored_path_config() -> None:
+    args = build_parser().parse_args(
+        [
+            "v4.8-portfolio-report",
+            "--paths-config",
+            "configs/qd-paths.local.json",
+        ]
+    )
+
+    assert args.paths_config == "configs/qd-paths.local.json"
+    assert args.output == "reports/v4.8-portfolio-report"
