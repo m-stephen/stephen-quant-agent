@@ -1,5 +1,27 @@
 # Stephen Quant Agent
 
+## V4.6 bounded orthogonal search
+
+V4.6 freezes 36 direction-complete hypotheses across auction, fund-flow and chip domains, with
+12 Trials per domain. It evaluates 2022-2025 as reused development evidence, rejects decaying
+signals, selects at most one candidate per domain, and combines only low-correlated survivors.
+
+The run found two stable, low-correlated leads: five-day flow-price divergence and five-day
+auction strength (daily-IC correlation -0.131). Their equal-weight development ensemble produced
++2.80% full excess return, 0.825 excess Sharpe, +8.40% matched-control increment, 17/20 positive
+paths and placebo p-values of 0.005. It still returns `NO_DEVELOPMENT_ALPHA`: only 2/4 stress cells
+were positive, 2x costs reduced full excess return to -4.54%, and DSR was 3.76e-10 after 1,089
+recorded Trials. No chip candidate passed the cross-year gate.
+
+```powershell
+stephen-quant --db artifacts/v4.6/registry.sqlite3 v4.6-orthogonal-search `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.6-orthogonal-search
+```
+
+See the [English result](docs/V4_6_RESULT.en.md),
+[V4.6 中文结果](docs/V4_6_RESULT.zh.md), and [frozen protocol](docs/V4_6_SPEC.md).
+
 ## V4.5 candidate-level 2025 validation
 
 V4.5 freezes the V4.4 candidate and its equal-weight overlay before reading 2025 values. It uses
