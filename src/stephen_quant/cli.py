@@ -61,6 +61,7 @@ from .workflows import (
     V42Config,
     V44Config,
     V45Config,
+    V46Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -101,6 +102,7 @@ from .workflows import (
     run_v43_conversion,
     run_v44_path_robust_alpha,
     run_v45_candidate_validation,
+    run_v46_orthogonal_search,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -363,6 +365,10 @@ def build_parser() -> argparse.ArgumentParser:
     v45_validation = sub.add_parser("v4.5-candidate-validate")
     v45_validation.add_argument("--paths-config", required=True)
     v45_validation.add_argument("--output", default="reports/v4.5-candidate-validation")
+
+    v46_search = sub.add_parser("v4.6-orthogonal-search")
+    v46_search.add_argument("--paths-config", required=True)
+    v46_search.add_argument("--output", default="reports/v4.6-orthogonal-search")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1833,6 +1839,27 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.5-candidate-validate failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.6-orthogonal-search":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v46_orthogonal_search(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                fund_flow_dir=local_paths.choose(
+                    "qd_fund_flow_dir", None, "--fund-flow-dir"
+                ),
+                chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V46Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.6-orthogonal-search failed: {exc}") from exc
         print(report.to_json())
         return
 
