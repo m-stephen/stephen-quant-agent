@@ -9,7 +9,7 @@ from .models import (
     PBOResult,
     PlaceboResult,
 )
-from .placebo import run_placebo
+from .placebo import run_placebo, run_rank_placebo_fast
 from .report import build_alpha_court_report
 from .statistics import deflated_sharpe_ratio, probability_of_backtest_overfitting
 
@@ -27,5 +27,6 @@ __all__ = [
     "deflated_sharpe_ratio",
     "probability_of_backtest_overfitting",
     "run_placebo",
+    "run_rank_placebo_fast",
     "write_alpha_court_report",
 ]

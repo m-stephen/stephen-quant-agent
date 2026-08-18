@@ -6,9 +6,14 @@ import random
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import replace
+from statistics import mean
 
 from stephen_quant.evaluation import EvaluationObservation
-from stephen_quant.evaluation.metrics import daily_correlations
+from stephen_quant.evaluation.metrics import (
+    average_ranks,
+    daily_correlations,
+    pearson_correlation,
+)
 from stephen_quant.integrity.audit import audit_feature_timing
 from stephen_quant.integrity.models import FeatureObservation
 
@@ -127,5 +132,73 @@ def run_placebo(
         repetitions=repetitions,
         observed_mean_rank_ic=observed,
         placebo_mean_rank_ics=placebo_scores,
+        empirical_p_value=p_value,
+    )
+
+
+def run_rank_placebo_fast(
+    observations: Sequence[EvaluationObservation],
+    *,
+    horizon: str,
+    direction: int,
+    method: str,
+    seed: int,
+    repetitions: int = 199,
+    min_cross_section: int = 3,
+) -> PlaceboResult:
+    """Equivalent rank placebo without recreating observations every repetition."""
+
+    fields = {"signal_shuffle": 0, "return_permutation": 1}
+    if method not in fields:
+        raise FalsificationError(f"unknown placebo method: {method}")
+    if direction not in {-1, 1}:
+        raise FalsificationError("direction must be -1 or 1")
+    if repetitions < 1:
+        raise FalsificationError("repetitions must be positive")
+    if min_cross_section < 2:
+        raise FalsificationError("min_cross_section must be at least two")
+
+    rows = _validate_rows(observations, horizon)
+    grouped: dict[str, list[EvaluationObservation]] = defaultdict(list)
+    for row in rows:
+        grouped[row.timestamp].append(row)
+    ranked: list[tuple[list[float], list[float]]] = []
+    for timestamp in sorted(grouped):
+        cross = sorted(grouped[timestamp], key=lambda row: row.instrument)
+        if len(cross) < min_cross_section:
+            continue
+        signal_ranks = average_ranks([direction * row.factor_value for row in cross])
+        return_ranks = average_ranks([row.forward_return for row in cross])
+        if len(set(signal_ranks)) < 2 or len(set(return_ranks)) < 2:
+            continue
+        ranked.append((signal_ranks, return_ranks))
+    if not ranked:
+        raise FalsificationError("no valid cross-sections for rank placebo")
+    observed = mean(
+        pearson_correlation(signal_ranks, return_ranks)
+        for signal_ranks, return_ranks in ranked
+    )
+    placebo_scores = []
+    shuffled_index = fields[method]
+    for repetition in range(repetitions):
+        generator = random.Random(_seed(seed, method, repetition))
+        correlations = []
+        for signal_ranks, return_ranks in ranked:
+            values = list((signal_ranks, return_ranks)[shuffled_index])
+            generator.shuffle(values)
+            if shuffled_index == 0:
+                correlations.append(pearson_correlation(values, return_ranks))
+            else:
+                correlations.append(pearson_correlation(signal_ranks, values))
+        placebo_scores.append(mean(correlations))
+    scores = tuple(placebo_scores)
+    p_value = (1 + sum(score >= observed for score in scores)) / (repetitions + 1)
+    return PlaceboResult(
+        method=method,
+        method_version="cross-sectional-rank-placebo-2.0.0",
+        seed=seed,
+        repetitions=repetitions,
+        observed_mean_rank_ic=observed,
+        placebo_mean_rank_ics=scores,
         empirical_p_value=p_value,
     )

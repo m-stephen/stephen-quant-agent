@@ -1,5 +1,19 @@
 # Stephen Quant Agent
 
+## V5.0 market-wide balanced-universe search
+
+V5.0 replaces the liquidity Top50 research universe with a full point-in-time eligible mother
+pool averaging 4,082 names, plus stable size-balanced panels of roughly 300 names for screening
+and 1,200 for validation. A frozen 36-Trial search selected holder cost-gap reversal and 20-day
+flow-price divergence. The ensemble was positive in all NAV/cost stresses and every size and
+liquidity slice, with PBO 0 and both placebo p-values 0.005.
+
+The decision remains `NO_DEVELOPMENT_ALPHA`: empirical-moment DSR is zero after 1,206 recorded
+Trials. This is the strongest append-only forward candidate so far, not a deployable alpha.
+
+See the [English result](docs/V5_0_RESULT.en.md),
+[V5.0 中文结果](docs/V5_0_RESULT.zh.md), and [frozen protocol](docs/V5_0_SPEC.md).
+
 ## V4.8 sealed Alpha Court
 
 V4.8 freezes the V4.7 candidate and reveals 2026-01-01 through 2026-08-16 exactly once. The

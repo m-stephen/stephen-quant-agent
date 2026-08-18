@@ -1,0 +1,52 @@
+{
+  "version": "v5.0-market-wide-alpha-search-1.1.0",
+  "tracking_issue": 116,
+  "universe": {
+    "minimum_history_sessions": 120,
+    "liquidity_lookback": 20,
+    "minimum_mean_amount_cny": 10000000,
+    "liquidity_rank_truncation": null,
+    "size_fractions": {
+      "large": 0.30,
+      "mid": 0.40,
+      "small": 0.30
+    },
+    "research_names_per_size_bucket": 400,
+    "screening_names_per_size_bucket": 100,
+    "research_panel_selection": "stable_sha256_instrument_rank_within_daily_size_bucket",
+    "membership_effective_lag": "next_trading_session"
+  },
+  "windows": {
+    "development": ["2022-01-01", "2022-12-31"],
+    "confirmation": ["2023-01-01", "2023-12-31"],
+    "reused_shadow": ["2024-01-01", "2024-12-31"],
+    "prohibited_for_tuning": ["2025-01-01", "2026-12-31"]
+  },
+  "search": {
+    "catalog": "v4.6_direction_complete_curated_schemas",
+    "candidate_trials": 36,
+    "two_stage_evaluation": "300-name balanced screening then 1200-name selected-candidate validation",
+    "domains": ["auction", "fund_flow", "chip"],
+    "usage": "BUY",
+    "breadth": 50,
+    "horizon_sessions": 20
+  },
+  "execution": {
+    "nav_cny": [3000000, 20000000],
+    "cost_multipliers": [1, 2],
+    "commission_bps": 3,
+    "sell_tax_bps": 5,
+    "slippage_bps": 5,
+    "impact_bps": 10,
+    "maximum_participation_rate": 0.05
+  },
+  "court": {
+    "cpcv_groups": 6,
+    "cpcv_test_groups": 3,
+    "embargo_days": 5,
+    "minimum_dsr": 0.95,
+    "maximum_pbo": 0.05,
+    "maximum_placebo_p": 0.05,
+    "minimum_positive_stress_fraction": 0.75
+  }
+}

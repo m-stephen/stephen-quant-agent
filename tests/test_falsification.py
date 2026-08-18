@@ -20,6 +20,7 @@ from stephen_quant.falsification import (
     deflated_sharpe_ratio,
     probability_of_backtest_overfitting,
     run_placebo,
+    run_rank_placebo_fast,
     write_alpha_court_report,
 )
 from stephen_quant.integrity.audit import AuditFinding
@@ -107,6 +108,29 @@ def test_both_placebos_destroy_a_known_cross_sectional_signal() -> None:
         seed=42,
         repetitions=199,
     )
+
+
+@pytest.mark.parametrize("method", ["signal_shuffle", "return_permutation"])
+def test_fast_rank_placebo_is_numerically_equivalent(method: str) -> None:
+    expected = run_placebo(
+        _observations(),
+        horizon="5d",
+        direction=1,
+        method=method,
+        seed=42,
+        repetitions=19,
+    )
+    actual = run_rank_placebo_fast(
+        _observations(),
+        horizon="5d",
+        direction=1,
+        method=method,
+        seed=42,
+        repetitions=19,
+    )
+    assert actual.observed_mean_rank_ic == pytest.approx(expected.observed_mean_rank_ic)
+    assert actual.placebo_mean_rank_ics == pytest.approx(expected.placebo_mean_rank_ics)
+    assert actual.empirical_p_value == expected.empirical_p_value
 
 
 def test_dsr_penalizes_the_full_recorded_search() -> None:

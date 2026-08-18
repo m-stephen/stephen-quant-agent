@@ -360,6 +360,13 @@ from .v49_forward_readiness import (
     V49ReadinessReport,
     run_v49_forward_readiness,
 )
+from .v50_market_wide_search import (
+    V50_VERSION,
+    SliceEvidence,
+    V50Config,
+    V50Report,
+    run_v50_market_wide_search,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -422,6 +429,7 @@ __all__ = [
     "V48_PORTFOLIO_REPORT_VERSION",
     "V48_VERSION",
     "V49_READINESS_VERSION",
+    "V50_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -480,6 +488,7 @@ __all__ = [
     "ReturnMoments",
     "RobustCandidate",
     "SemanticCandidate",
+    "SliceEvidence",
     "SourceCoverage",
     "StabilityScore",
     "StressResult",
@@ -554,6 +563,8 @@ __all__ = [
     "V48PortfolioReportConfig",
     "V48Report",
     "V49ReadinessReport",
+    "V50Config",
+    "V50Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -629,6 +640,7 @@ __all__ = [
     "run_v48_portfolio_report",
     "run_v48_sealed_alpha_court",
     "run_v49_forward_readiness",
+    "run_v50_market_wide_search",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
