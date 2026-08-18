@@ -331,6 +331,12 @@ from .v47_low_turnover_alpha import (
     run_v47_low_turnover_alpha,
     v46_trial_sharpes,
 )
+from .v48_historical_falsification import (
+    V48_HISTORICAL_VERSION,
+    V48HistoricalConfig,
+    V48HistoricalReport,
+    run_v48_historical_falsification,
+)
 from .v48_portfolio_report import (
     V48_PORTFOLIO_REPORT_VERSION,
     AccountingSummary,
@@ -412,6 +418,7 @@ __all__ = [
     "V45_VERSION",
     "V46_VERSION",
     "V47_VERSION",
+    "V48_HISTORICAL_VERSION",
     "V48_PORTFOLIO_REPORT_VERSION",
     "V48_VERSION",
     "V49_READINESS_VERSION",
@@ -541,6 +548,8 @@ __all__ = [
     "V47Config",
     "V47Report",
     "V48Config",
+    "V48HistoricalConfig",
+    "V48HistoricalReport",
     "V48PortfolioAccountingReport",
     "V48PortfolioReportConfig",
     "V48Report",
@@ -616,6 +625,7 @@ __all__ = [
     "run_v45_candidate_validation",
     "run_v46_orthogonal_search",
     "run_v47_low_turnover_alpha",
+    "run_v48_historical_falsification",
     "run_v48_portfolio_report",
     "run_v48_sealed_alpha_court",
     "run_v49_forward_readiness",

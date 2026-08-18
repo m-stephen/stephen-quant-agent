@@ -27,6 +27,7 @@ class DynamicUniverseConfig:
     minimum_history_sessions: int = 120
     liquidity_lookback: int = 20
     minimum_mean_amount_cny: float = 20_000_000.0
+    allowed_missing_fundamental_dates: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class DynamicUniverseReport:
     mean_eligible: float
     mean_turnover_rate: float
     exact_fundamental_matches: int
+    omitted_fundamental_dates: tuple[str, ...]
     memberships: tuple[DailyUniverseMembership, ...]
 
     def to_json(self) -> str:
@@ -74,6 +76,7 @@ class DynamicUniverseReport:
             f"- Mean eligible: {self.mean_eligible:.2f}",
             f"- Mean one-way membership turnover: {self.mean_turnover_rate:.4%}",
             f"- Exact same-day fundamental matches: {self.exact_fundamental_matches}",
+            f"- Explicitly omitted fundamental dates: {', '.join(self.omitted_fundamental_dates) or 'none'}",
             "",
             "| Decision date | Eligible | Selected | Entries | Exits | Turnover |",
             "|---|---:|---:|---:|---:|---:|",
@@ -146,6 +149,10 @@ def build_dynamic_universe(
         raise QmtDataError("dynamic-universe counts must be positive")
     if config.minimum_mean_amount_cny < 0:
         raise QmtDataError("minimum_mean_amount_cny cannot be negative")
+    if len(set(config.allowed_missing_fundamental_dates)) != len(
+        config.allowed_missing_fundamental_dates
+    ):
+        raise QmtDataError("allowed missing fundamental dates must be unique")
     try:
         start = date.fromisoformat(config.research_start)
         end = date.fromisoformat(config.research_end)
@@ -153,6 +160,14 @@ def build_dynamic_universe(
         raise QmtDataError("dynamic-universe boundaries must be ISO dates") from exc
     if start > end:
         raise QmtDataError("research_start must not be after research_end")
+    try:
+        allowed_missing = {
+            date.fromisoformat(item) for item in config.allowed_missing_fundamental_dates
+        }
+    except ValueError as exc:
+        raise QmtDataError("allowed missing fundamental dates must be ISO dates") from exc
+    if any(item < start or item > end for item in allowed_missing):
+        raise QmtDataError("allowed missing fundamental dates must fall inside the research window")
 
     daily_root = Path(daily_dir).expanduser().resolve()
     fundamental_root = Path(fundamental_dir).expanduser().resolve()
@@ -165,12 +180,14 @@ def build_dynamic_universe(
     history_width = max(config.minimum_history_sessions, config.liquidity_lookback) - 1
     selected_daily = daily[max(first_position - history_width, 0) : research_positions[-1] + 1]
     research_daily = [(day, path) for day, path in selected_daily if day >= start]
-    missing_fundamental = [day for day, _ in research_daily if day not in fundamentals]
+    missing_fundamental = [
+        day for day, _ in research_daily if day not in fundamentals and day not in allowed_missing
+    ]
     if missing_fundamental:
         raise QmtDataError(
             f"missing exact same-day fundamental snapshots: {missing_fundamental[:3]}"
         )
-    fundamental_files = [fundamentals[day] for day, _ in research_daily]
+    fundamental_files = [fundamentals[day] for day, _ in research_daily if day in fundamentals]
     common_root = Path(os.path.commonpath((daily_root, fundamental_root)))
     snapshot = build_selected_files_snapshot_manifest(
         common_root, tuple(path for _, path in selected_daily) + tuple(fundamental_files)
@@ -184,7 +201,12 @@ def build_dynamic_universe(
     previous: set[str] = set()
     unique_members: set[str] = set()
     for day, daily_path in selected_daily:
-        metadata = _listing_metadata(fundamentals[day]) if day >= start else {}
+        omit_fundamental = day in allowed_missing
+        metadata = (
+            _listing_metadata(fundamentals[day])
+            if day >= start and not omit_fundamental
+            else {}
+        )
         reader = _reader(daily_path)
         required = {"代码", "名称", "成交量(手)", "成交额(千元)"}
         if not reader.fieldnames or not required <= set(reader.fieldnames):
@@ -203,6 +225,8 @@ def build_dynamic_universe(
                 observation_count[instrument] += 1
                 amount_history[instrument].append(amount)
         if day < start:
+            continue
+        if omit_fundamental:
             continue
 
         exclusions: dict[str, int] = defaultdict(int)
@@ -275,6 +299,7 @@ def build_dynamic_universe(
         mean_eligible=sum(item.eligible_candidates for item in memberships) / len(memberships),
         mean_turnover_rate=sum(item.turnover_rate for item in memberships) / len(memberships),
         exact_fundamental_matches=len(memberships),
+        omitted_fundamental_dates=tuple(sorted(item.isoformat() for item in allowed_missing)),
         memberships=tuple(memberships),
     )
 

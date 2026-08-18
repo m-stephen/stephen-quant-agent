@@ -64,6 +64,7 @@ from .workflows import (
     V46Config,
     V47Config,
     V48Config,
+    V48HistoricalConfig,
     V48PortfolioReportConfig,
     build_factor_family_validation_report,
     build_v26_validation_panel,
@@ -107,6 +108,7 @@ from .workflows import (
     run_v45_candidate_validation,
     run_v46_orthogonal_search,
     run_v47_low_turnover_alpha,
+    run_v48_historical_falsification,
     run_v48_portfolio_report,
     run_v48_sealed_alpha_court,
     run_v49_forward_readiness,
@@ -391,6 +393,12 @@ def build_parser() -> argparse.ArgumentParser:
     v48_portfolio = sub.add_parser("v4.8-portfolio-report")
     v48_portfolio.add_argument("--paths-config", required=True)
     v48_portfolio.add_argument("--output", default="reports/v4.8-portfolio-report")
+
+    v48_history = sub.add_parser("v4.8-historical-falsification")
+    v48_history.add_argument("--paths-config", required=True)
+    v48_history.add_argument("--v46-registry", required=True)
+    v48_history.add_argument("--v47-registry", required=True)
+    v48_history.add_argument("--output", default="reports/v4.8-historical-falsification")
 
     v49_ready = sub.add_parser("v4.9-forward-readiness")
     v49_ready.add_argument("--paths-config", required=True)
@@ -1950,6 +1958,28 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.8-portfolio-report failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.8-historical-falsification":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v48_historical_falsification(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("qd_fundamental_dir", None, "--fundamental-dir"),
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
+                csi300_csv=local_paths.choose("csi300_csv", None, "--csi300-csv"),
+                csi500_csv=local_paths.choose("csi500_csv", None, "--csi500-csv"),
+                registry=registry,
+                v46_registry=ExperimentRegistry(args.v46_registry),
+                v47_registry=ExperimentRegistry(args.v47_registry),
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V48HistoricalConfig(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.8-historical-falsification failed: {exc}") from exc
         print(report.to_json())
         return
 
