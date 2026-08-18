@@ -63,6 +63,7 @@ from .workflows import (
     V45Config,
     V46Config,
     V47Config,
+    V48Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -105,6 +106,7 @@ from .workflows import (
     run_v45_candidate_validation,
     run_v46_orthogonal_search,
     run_v47_low_turnover_alpha,
+    run_v48_sealed_alpha_court,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -376,6 +378,12 @@ def build_parser() -> argparse.ArgumentParser:
     v47_search.add_argument("--paths-config", required=True)
     v47_search.add_argument("--prior-registry", required=True)
     v47_search.add_argument("--output", default="reports/v4.7-low-turnover-alpha")
+
+    v48_court = sub.add_parser("v4.8-sealed-alpha-court")
+    v48_court.add_argument("--paths-config", required=True)
+    v48_court.add_argument("--v46-registry", required=True)
+    v48_court.add_argument("--v47-registry", required=True)
+    v48_court.add_argument("--output", default="reports/v4.8-sealed-alpha-court")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1888,6 +1896,28 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.7-low-turnover-alpha failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v4.8-sealed-alpha-court":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v48_sealed_alpha_court(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                fund_flow_dir=local_paths.choose(
+                    "qd_fund_flow_dir", None, "--fund-flow-dir"
+                ),
+                registry=registry,
+                v46_registry=ExperimentRegistry(args.v46_registry),
+                v47_registry=ExperimentRegistry(args.v47_registry),
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V48Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.8-sealed-alpha-court failed: {exc}") from exc
         print(report.to_json())
         return
 

@@ -331,6 +331,13 @@ from .v47_low_turnover_alpha import (
     run_v47_low_turnover_alpha,
     v46_trial_sharpes,
 )
+from .v48_sealed_alpha_court import (
+    V48_VERSION,
+    V48Config,
+    V48Report,
+    run_v48_sealed_alpha_court,
+    v47_trial_sharpes,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -389,6 +396,7 @@ __all__ = [
     "V45_VERSION",
     "V46_VERSION",
     "V47_VERSION",
+    "V48_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AutomatedDiscoveryConfig",
@@ -511,6 +519,8 @@ __all__ = [
     "V46Report",
     "V47Config",
     "V47Report",
+    "V48Config",
+    "V48Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -581,6 +591,7 @@ __all__ = [
     "run_v45_candidate_validation",
     "run_v46_orthogonal_search",
     "run_v47_low_turnover_alpha",
+    "run_v48_sealed_alpha_court",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
@@ -593,6 +604,7 @@ __all__ = [
     "strategy_family_pbo",
     "temporal_diagnostics",
     "v46_trial_sharpes",
+    "v47_trial_sharpes",
     "verify_label_free_replay",
     "verify_v21_replay",
     "verify_v22_portfolio_breadth_replay",

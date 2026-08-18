@@ -1,5 +1,17 @@
 # Stephen Quant Agent
 
+## V4.8 sealed Alpha Court
+
+V4.8 freezes the V4.7 candidate and reveals 2026-01-01 through 2026-08-16 exactly once. The
+candidate produced +5.36% full excess return at standard costs and +5.11% at doubled costs, with
+20/20 profitable paths at both levels, placebo p-values of 0.005 and execution-selection PBO of
+zero. It is nevertheless `REJECT_ALPHA_COURT`: empirical-moment DSR is 0.93393, below the frozen
+0.95 threshold after 1,103 recorded Trials. The revealed window is now consumed and prohibited
+from future tuning.
+
+See the [English result](docs/V4_8_RESULT.en.md),
+[V4.8 中文结果](docs/V4_8_RESULT.zh.md), and [sealed protocol](docs/V4_8_SPEC.md).
+
 ## V4.7 low-turnover development candidate
 
 V4.7 freezes the V4.6 flow-divergence and auction signals and evaluates exactly 12 execution
