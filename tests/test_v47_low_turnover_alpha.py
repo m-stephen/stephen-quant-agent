@@ -6,6 +6,7 @@ from stephen_quant.workflows.v47_low_turnover_alpha import (
     COST_MULTIPLIERS,
     SIGNAL_STRUCTURES,
     V47Config,
+    evaluate_buffered_avoid_accounting_events,
     evaluate_buffered_avoid_events,
 )
 
@@ -83,6 +84,54 @@ def test_rank_buffer_retains_borderline_holding_and_reduces_turnover() -> None:
         config=config,
     )
     assert buffered[-1].turnover < plain[-1].turnover
+
+
+def test_accounting_components_reconcile_to_legacy_excess_event() -> None:
+    calendar = ("2025-01-01", "2025-01-02")
+    instruments = ("A", "B", "C", "D")
+    rows = tuple(
+        _row("2025-01-02", name, value, forward)
+        for name, value, forward in zip(
+            instruments,
+            (0, 1, 2, 3),
+            (-0.02, -0.01, 0.01, 0.02),
+            strict=True,
+        )
+    )
+    bars = {name: {day: _bar(day, name) for day in calendar} for name in instruments}
+    config = V41Config(
+        commission_bps=3,
+        sell_tax_bps=5,
+        slippage_bps=5,
+        impact_bps=10,
+        participation_rate=1.0,
+    )
+    accounting, _ = evaluate_buffered_avoid_accounting_events(
+        rows,
+        breadth=2,
+        buffer_ranks=1,
+        horizon=1,
+        nav=1_000_000,
+        bars=bars,
+        calendar=calendar,
+        config=config,
+    )
+    legacy, _ = evaluate_buffered_avoid_events(
+        rows,
+        breadth=2,
+        buffer_ranks=1,
+        horizon=1,
+        nav=1_000_000,
+        bars=bars,
+        calendar=calendar,
+        config=config,
+    )
+
+    assert len(accounting) == len(legacy) == 1
+    assert accounting[0].net_portfolio_return == (
+        accounting[0].gross_portfolio_return - accounting[0].cost_rate
+    )
+    assert accounting[0].excess_return == legacy[0].excess_return
 
 
 def test_invalid_buffer_fails_closed() -> None:

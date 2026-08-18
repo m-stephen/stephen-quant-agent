@@ -10,6 +10,7 @@
     "qd_daily_dir": "<QD_DAILY_DIR>",
     "qd_fundamental_dir": "<QD_FUNDAMENTAL_DIR>",
     "csi300_csv": "<CSI300_CSV>",
+    "csi500_csv": "<CSI500_CSV>",
     "dynamic_membership_jsonl": "../artifacts/qd-v1.8.11-universe/dynamic-universe-membership.jsonl",
     "discovery_stock_file": "../artifacts/qd-universe/stocks.txt",
     "qd_fund_flow_dir": "<QD_FUND_FLOW_DIR>",

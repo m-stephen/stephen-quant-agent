@@ -77,6 +77,23 @@ class TurnoverAttribution:
 
 
 @dataclass(frozen=True)
+class BufferedAvoidAccountingEvent:
+    """Auditable components of one staggered 20-session cohort contribution."""
+
+    day: str
+    end_day: str
+    offset: int
+    gross_portfolio_return: float
+    benchmark_return: float
+    net_portfolio_return: float
+    excess_return: float
+    turnover: float
+    cost_rate: float
+    selected_instruments: int
+    retained_instruments: int
+
+
+@dataclass(frozen=True)
 class GridEvidence:
     signal_structure: str
     buffer_ranks: int
@@ -202,7 +219,7 @@ def _portfolio_metrics(events: tuple[UsageEvent, ...]) -> tuple[float, float, fl
     return sharpe, math.prod(1 + value for value in returns) - 1, _drawdown(returns)
 
 
-def evaluate_buffered_avoid_events(
+def evaluate_buffered_avoid_accounting_events(
     rows: tuple[EvaluationObservation, ...],
     *,
     breadth: int,
@@ -212,8 +229,8 @@ def evaluate_buffered_avoid_events(
     bars: dict[str, dict[str, QmtDailyBar]],
     calendar: tuple[str, ...],
     config: V41Config,
-) -> tuple[tuple[UsageEvent, ...], float]:
-    """Execute an AVOID signal with a rank buffer, independently for each offset path."""
+) -> tuple[tuple[BufferedAvoidAccountingEvent, ...], float]:
+    """Execute an AVOID signal and retain the absolute-return accounting components."""
     if breadth <= 0 or buffer_ranks < 0 or buffer_ranks > breadth:
         raise ValueError("invalid V4.7 breadth or buffer")
     grouped: dict[str, list[EvaluationObservation]] = defaultdict(list)
@@ -227,7 +244,7 @@ def evaluate_buffered_avoid_events(
         + config.slippage_bps * 2
         + config.impact_bps * 2
     ) / 10_000
-    events: list[UsageEvent] = []
+    events: list[BufferedAvoidAccountingEvent] = []
     clipped = 0.0
     for offset in range(horizon):
         previous: dict[str, float] = {}
@@ -245,6 +262,7 @@ def evaluate_buffered_avoid_events(
             ]
             kept.sort(key=lambda item: (-rank[item.instrument], item.instrument))
             selected = kept[:target_count]
+            retained_instruments = len(selected)
             selected_ids = {item.instrument for item in selected}
             for item in reversed(cross):
                 if len(selected) >= target_count:
@@ -274,9 +292,65 @@ def evaluate_buffered_avoid_events(
                 for instrument, weight in executed.items()
                 if instrument in by_id
             )
-            events.append(UsageEvent(day, offset, portfolio_return - benchmark - cost, turnover, cost, True))
+            end_days = {item.label_end_at[:10] for item in selected}
+            if len(end_days) != 1:
+                raise ValueError("buffered cohort has inconsistent label end dates")
+            net_return = portfolio_return - cost
+            events.append(
+                BufferedAvoidAccountingEvent(
+                    day=day,
+                    end_day=end_days.pop(),
+                    offset=offset,
+                    gross_portfolio_return=portfolio_return,
+                    benchmark_return=benchmark,
+                    net_portfolio_return=net_return,
+                    excess_return=net_return - benchmark,
+                    turnover=turnover,
+                    cost_rate=cost,
+                    selected_instruments=len(selected),
+                    retained_instruments=retained_instruments,
+                )
+            )
             previous = executed
     return tuple(sorted(events, key=lambda item: (item.day, item.offset))), clipped
+
+
+def evaluate_buffered_avoid_events(
+    rows: tuple[EvaluationObservation, ...],
+    *,
+    breadth: int,
+    buffer_ranks: int,
+    horizon: int,
+    nav: float,
+    bars: dict[str, dict[str, QmtDailyBar]],
+    calendar: tuple[str, ...],
+    config: V41Config,
+) -> tuple[tuple[UsageEvent, ...], float]:
+    """Execute an AVOID signal with a rank buffer, independently for each offset path."""
+    accounting, clipped = evaluate_buffered_avoid_accounting_events(
+        rows,
+        breadth=breadth,
+        buffer_ranks=buffer_ranks,
+        horizon=horizon,
+        nav=nav,
+        bars=bars,
+        calendar=calendar,
+        config=config,
+    )
+    return (
+        tuple(
+            UsageEvent(
+                item.day,
+                item.offset,
+                item.excess_return,
+                item.turnover,
+                item.cost_rate,
+                True,
+            )
+            for item in accounting
+        ),
+        clipped,
+    )
 
 
 def _path(
