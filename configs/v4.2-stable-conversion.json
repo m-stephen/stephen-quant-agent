@@ -1,0 +1,18 @@
+{
+  "version": "4.2.0",
+  "selection_year": 2023,
+  "shadow_year": 2024,
+  "sealed_years": [2025, 2026],
+  "frozen_shortlist_sha256": "913de6d25c60289f9a0c04f053d2803bd5933b0a893ad8984203ec002dce9a46",
+  "subwindows": 4,
+  "usages": ["BUY", "AVOID", "TIMING"],
+  "breadths": [5, 10, 20],
+  "regimes": ["all", "risk_on", "risk_off"],
+  "minimum_active_days": 60,
+  "minimum_sign_consistency": 0.75,
+  "minimum_worst_subwindow_sharpe": 0.0,
+  "minimum_breadth_robustness": 0.6666666666666666,
+  "regime_increment_required": 0.25,
+  "cost_stress_multiplier": 2.0,
+  "capacity_cny": [1000000, 3000000, 5000000, 10000000, 20000000]
+}

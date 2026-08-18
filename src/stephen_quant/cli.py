@@ -57,6 +57,7 @@ from .workflows import (
     QmtDatValidationConfig,
     V4Config,
     V41Config,
+    V42Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -92,6 +93,7 @@ from .workflows import (
     run_v27_m1_pit_readiness,
     run_v27_m2_engineering_audit,
     run_v41_semantic_alpha,
+    run_v42_stable_conversion,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -334,6 +336,10 @@ def build_parser() -> argparse.ArgumentParser:
     v41_search = sub.add_parser("v4.1-alpha-search")
     v41_search.add_argument("--paths-config", required=True)
     v41_search.add_argument("--output", default="reports/v4.1-semantic-alpha")
+
+    v42_conversion = sub.add_parser("v4.2-stable-conversion")
+    v42_conversion.add_argument("--paths-config", required=True)
+    v42_conversion.add_argument("--output", default="reports/v4.2-stable-conversion")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1679,6 +1685,42 @@ def main() -> None:
                     "selected_usage": (
                         report.selected_usage.spec.usage if report.selected_usage else None
                     ),
+                    "decision": report.decision,
+                    "sealed_state": report.sealed_release.state,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v4.2-stable-conversion":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            membership_path = local_paths.choose(
+                "dynamic_membership_jsonl", None, "--membership-jsonl"
+            )
+            report = run_v42_stable_conversion(
+                daily_dir,
+                membership_path,
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V42Config(),
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v4.2-stable-conversion failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "experiment_id": report.experiment_id,
+                    "snapshot_sha256": report.snapshot_sha256,
+                    "shortlist_sha256": report.shortlist_sha256,
+                    "selected_candidate": report.selected_candidate_id,
+                    "selected_mapping": report.selected_spec.identity,
+                    "stability_eligible": report.selected_was_eligible,
                     "decision": report.decision,
                     "sealed_state": report.sealed_release.state,
                     "output": str(Path(args.output).resolve()),
