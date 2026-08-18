@@ -907,16 +907,16 @@ def _alternative_panel(
     )
     rows = tuple(
         EvaluationObservation(
-            row.instrument,
-            row.execution_at,
-            candidate.direction * row.signal,
-            row.signal_available_at,
-            row.execution_at,
-            row.return_end_at,
-            row.forward_return,
-            f"{candidate.horizon}d",
-            str(year),
-            "unspecified",
+            timestamp=row.execution_at,
+            instrument=row.instrument,
+            factor_value=candidate.direction * row.signal,
+            factor_available_at=row.signal_available_at,
+            label_start_at=row.execution_at,
+            label_end_at=row.return_end_at,
+            forward_return=row.forward_return,
+            horizon=f"{candidate.horizon}d",
+            subperiod=str(year),
+            regime="unspecified",
         )
         for row in built
         if row.eligible

@@ -18,6 +18,10 @@ The strict 2022 discovery run passed the signal gate but failed Alpha Court: the
 had net Sharpe -0.2709 and DSR 0.0139. See the [English result](docs/V4_3_RESULT.en.md) and
 [V4.3 中文结果](docs/V4_3_RESULT.zh.md).
 
+The subsequent frozen conversion selected an AVOID mapping with +8.79% excess return in 2022,
+but it reversed to -4.00% in the one-shot 2023 confirmation. The system rejected confirmation
+and kept 2024 closed.
+
 ## V4.2 stability-first economic conversion
 
 V4.2 freezes the twelve V4.1 representative mechanisms and replaces maximum full-year Sharpe

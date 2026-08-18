@@ -19,3 +19,7 @@ The frozen temporal protocol is:
 
 The `v4.3-domain-breadth` command writes JSON plus Chinese and English Markdown reports. Local
 data paths remain in the gitignored `configs/qd-paths.local.json` file.
+
+The `v4.3-conversion` command evaluates a frozen 36-cell mapping grid only in 2022, selects one
+candidate/use/breadth identity, and opens 2023 exactly once for confirmation. A failed 2023
+confirmation keeps 2024 closed.

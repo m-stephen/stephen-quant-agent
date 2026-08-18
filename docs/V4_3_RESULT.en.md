@@ -45,4 +45,15 @@ The signal gate passed, but Alpha Court rejected the candidate.
 
 ## Next step
 
-Do not mechanically add more same-family formulas. The next experiment should focus on IC-to-return conversion: test AVOID/cash exposure, event cooldown, holding period, and rebalance frequency. Freeze that mapping inside 2022 before opening the 2023 confirmation window.
+The follow-up IC-to-return conversion experiment is complete:
+
+- Six frozen signals × `BUY/AVOID` × 5/10/20 breadths produced 36 selection Trials in 2022.
+- The 2022 winner was `chip_cost_band_compression_5_20_inverse_20_20d`, used as `AVOID` by excluding the bottom 20 names.
+- 2022: Sharpe 7.6132, excess return +8.79%, maximum drawdown -1.28%.
+- Frozen 2023 confirmation: Sharpe -3.0218, excess return -4.00%, maximum drawdown -5.53%.
+- DSR: 0.0210; global recorded Trials: 841.
+- Decision: `REJECT_2023_CONFIRMATION`; 2024 remains unopened.
+
+This run also fixed a critical historical defect: the V4.1 alternative-data panel passed `timestamp` and `instrument` positionally in reverse order, causing economic conversion to group by stock code instead of date. The repaired panel can form a valid AVOID portfolio, but it remains unstable across years.
+
+Do not optimize against 2023. Return to 2022 and define an observable, preregistered state or cooldown mechanism for the regime flip. Only a newly frozen mapping may use a fresh confirmation window.
