@@ -17,11 +17,13 @@ from .path_config import PathConfigError, load_local_path_config
 from .qmt import (
     DatExportConfig,
     DynamicUniverseConfig,
+    MarketWideUniverseConfig,
     QmtDataError,
     QmtDatError,
     XtquantExportConfig,
     XtquantExportError,
     build_dynamic_universe,
+    build_market_wide_universe,
     create_local_unlock,
     data_search_ledger_record,
     export_qmt_daily_csv,
@@ -37,6 +39,7 @@ from .qmt import (
     write_dynamic_universe,
     write_factor_redundancy_screen,
     write_industry_proxy_audit,
+    write_market_wide_universe,
     write_qd_universe,
 )
 from .v2 import (
@@ -66,6 +69,7 @@ from .workflows import (
     V48Config,
     V48HistoricalConfig,
     V48PortfolioReportConfig,
+    V50Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -112,6 +116,7 @@ from .workflows import (
     run_v48_portfolio_report,
     run_v48_sealed_alpha_court,
     run_v49_forward_readiness,
+    run_v50_market_wide_search,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -288,6 +293,20 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_universe.add_argument("--minimum-mean-amount", type=float, default=20_000_000)
     dynamic_universe.add_argument("--output", default="artifacts/qd-dynamic-universe")
 
+    market_wide = sub.add_parser("qd-market-wide-universe")
+    market_wide.add_argument("--paths-config")
+    market_wide.add_argument("--daily-dir")
+    market_wide.add_argument("--fundamental-dir")
+    market_wide.add_argument("--research-start", required=True)
+    market_wide.add_argument("--research-end", required=True)
+    market_wide.add_argument("--minimum-history-sessions", type=int, default=120)
+    market_wide.add_argument("--liquidity-lookback", type=int, default=20)
+    market_wide.add_argument("--minimum-mean-amount", type=float, default=10_000_000)
+    market_wide.add_argument(
+        "--allow-missing-fundamental-date", action="append", default=[]
+    )
+    market_wide.add_argument("--output", default="artifacts/qd-market-wide-universe")
+
     dynamic_backtest = sub.add_parser("qd-dynamic-backtest")
     dynamic_backtest.add_argument("--paths-config")
     dynamic_backtest.add_argument("--daily-dir")
@@ -404,6 +423,14 @@ def build_parser() -> argparse.ArgumentParser:
     v49_ready.add_argument("--paths-config", required=True)
     v49_ready.add_argument("--as-of")
     v49_ready.add_argument("--output", default="reports/v4.9-forward-readiness")
+
+    v50_search = sub.add_parser("v5.0-market-wide-search")
+    v50_search.add_argument("--paths-config", required=True)
+    v50_search.add_argument("--screening-membership-jsonl", required=True)
+    v50_search.add_argument("--membership-jsonl", required=True)
+    v50_search.add_argument("--tiers-jsonl", required=True)
+    v50_search.add_argument("--prior-inferential-trials", type=int, default=1114)
+    v50_search.add_argument("--output", default="reports/v5.0-market-wide-search")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1538,6 +1565,70 @@ def main() -> None:
         )
         return
 
+    if args.command == "qd-market-wide-universe":
+        daily_dir, fundamental_dir = args.daily_dir, args.fundamental_dir
+        if args.paths_config:
+            local_paths = load_local_path_config(args.paths_config)
+            daily_dir = local_paths.choose("qd_daily_dir", daily_dir, "--daily-dir")
+            fundamental_dir = local_paths.choose(
+                "qd_fundamental_dir", fundamental_dir, "--fundamental-dir"
+            )
+        if not daily_dir or not fundamental_dir:
+            raise SystemExit(
+                "qd-market-wide-universe requires --paths-config or both source directories"
+            )
+        report = build_market_wide_universe(
+            daily_dir,
+            fundamental_dir,
+            MarketWideUniverseConfig(
+                research_start=args.research_start,
+                research_end=args.research_end,
+                minimum_history_sessions=args.minimum_history_sessions,
+                liquidity_lookback=args.liquidity_lookback,
+                minimum_mean_amount_cny=args.minimum_mean_amount,
+                allowed_missing_fundamental_dates=tuple(
+                    args.allow_missing_fundamental_date
+                ),
+            ),
+        )
+        artifacts = write_market_wide_universe(report, args.output)
+        print(
+            json.dumps(
+                {
+                    "method_version": report.method_version,
+                    "source_snapshot_sha256": report.source_snapshot_sha256,
+                    "sessions": report.sessions,
+                    "unique_members": report.unique_members,
+                    "mean_eligible": report.mean_eligible,
+                    "minimum_eligible": report.minimum_eligible,
+                    "maximum_eligible": report.maximum_eligible,
+                    "membership_jsonl_path": str(artifacts.membership_jsonl_path),
+                    "membership_jsonl_sha256": artifacts.membership_jsonl_sha256,
+                    "research_membership_jsonl_path": str(
+                        artifacts.research_membership_jsonl_path
+                    ),
+                    "research_membership_jsonl_sha256": (
+                        artifacts.research_membership_jsonl_sha256
+                    ),
+                    "research_tiers_jsonl_path": str(
+                        artifacts.research_tiers_jsonl_path
+                    ),
+                    "research_tiers_jsonl_sha256": (
+                        artifacts.research_tiers_jsonl_sha256
+                    ),
+                    "screening_membership_jsonl_path": str(
+                        artifacts.screening_membership_jsonl_path
+                    ),
+                    "screening_membership_jsonl_sha256": (
+                        artifacts.screening_membership_jsonl_sha256
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
     if args.command == "qd-dynamic-backtest":
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -1995,6 +2086,30 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v4.9-forward-readiness failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v5.0-market-wide-search":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v50_market_wide_search(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                args.screening_membership_jsonl,
+                args.membership_jsonl,
+                args.tiers_jsonl,
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                fund_flow_dir=local_paths.choose(
+                    "qd_fund_flow_dir", None, "--fund-flow-dir"
+                ),
+                chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V50Config(),
+                prior_inferential_trials=args.prior_inferential_trials,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v5.0-market-wide-search failed: {exc}") from exc
         print(report.to_json())
         return
 
