@@ -367,6 +367,14 @@ from .v50_market_wide_search import (
     V50Report,
     run_v50_market_wide_search,
 )
+from .v51_candidate_audit import (
+    V51_VERSION,
+    AuditCell,
+    SourceAudit,
+    V51Config,
+    V51Report,
+    run_v51_candidate_audit,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -430,9 +438,11 @@ __all__ = [
     "V48_VERSION",
     "V49_READINESS_VERSION",
     "V50_VERSION",
+    "V51_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
+    "AuditCell",
     "AutomatedDiscoveryConfig",
     "AutomatedDiscoveryReport",
     "AutomatedDiscoveryRun",
@@ -489,6 +499,7 @@ __all__ = [
     "RobustCandidate",
     "SemanticCandidate",
     "SliceEvidence",
+    "SourceAudit",
     "SourceCoverage",
     "StabilityScore",
     "StressResult",
@@ -565,6 +576,8 @@ __all__ = [
     "V49ReadinessReport",
     "V50Config",
     "V50Report",
+    "V51Config",
+    "V51Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -641,6 +654,7 @@ __all__ = [
     "run_v48_sealed_alpha_court",
     "run_v49_forward_readiness",
     "run_v50_market_wide_search",
+    "run_v51_candidate_audit",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",

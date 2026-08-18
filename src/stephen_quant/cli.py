@@ -70,6 +70,7 @@ from .workflows import (
     V48HistoricalConfig,
     V48PortfolioReportConfig,
     V50Config,
+    V51Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -117,6 +118,7 @@ from .workflows import (
     run_v48_sealed_alpha_court,
     run_v49_forward_readiness,
     run_v50_market_wide_search,
+    run_v51_candidate_audit,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -302,9 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
     market_wide.add_argument("--minimum-history-sessions", type=int, default=120)
     market_wide.add_argument("--liquidity-lookback", type=int, default=20)
     market_wide.add_argument("--minimum-mean-amount", type=float, default=10_000_000)
-    market_wide.add_argument(
-        "--allow-missing-fundamental-date", action="append", default=[]
-    )
+    market_wide.add_argument("--allow-missing-fundamental-date", action="append", default=[])
     market_wide.add_argument("--output", default="artifacts/qd-market-wide-universe")
 
     dynamic_backtest = sub.add_parser("qd-dynamic-backtest")
@@ -432,6 +432,14 @@ def build_parser() -> argparse.ArgumentParser:
     v50_search.add_argument("--prior-inferential-trials", type=int, default=1114)
     v50_search.add_argument("--output", default="reports/v5.0-market-wide-search")
 
+    v51_audit = sub.add_parser("v5.1-candidate-audit")
+    v51_audit.add_argument("--paths-config", required=True)
+    v51_audit.add_argument("--membership-jsonl", required=True)
+    v51_audit.add_argument("--tiers-jsonl", required=True)
+    v51_audit.add_argument("--v50-report", required=True)
+    v51_audit.add_argument("--prior-inferential-trials", type=int, default=1206)
+    v51_audit.add_argument("--output", default="reports/v5.1-candidate-audit")
+
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
     v2_shadow.add_argument("--output", default="reports/v2.0-shadow")
@@ -501,9 +509,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     v27_governance = sub.add_parser("v2-governance-reset")
     v27_governance.add_argument("--config", default="configs/v2.7-m0-governance.json")
-    v27_governance.add_argument(
-        "--mode", choices=("run", "replay", "kill"), default="run"
-    )
+    v27_governance.add_argument("--mode", choices=("run", "replay", "kill"), default="run")
     v27_governance.add_argument("--failure-store", default="reports/v2.7-m0/failures.sqlite3")
     v27_governance.add_argument("--output", default="reports/v2.7-m0")
     v27_governance.add_argument("--replay-manifest")
@@ -527,9 +533,7 @@ def build_parser() -> argparse.ArgumentParser:
     pit_lite.add_argument("--output", default="reports/v2.9-pit-lite")
 
     label_free = sub.add_parser("v2-label-free-search")
-    label_free.add_argument(
-        "--config", default="configs/v2.8-label-free-semantic-search.json"
-    )
+    label_free.add_argument("--config", default="configs/v2.8-label-free-semantic-search.json")
     label_free.add_argument("--mode", choices=("run", "replay", "kill"), default="run")
     label_free.add_argument("--output", default="reports/v2.8-label-free-semantic-search")
     label_free.add_argument("--replay-manifest")
@@ -1064,9 +1068,7 @@ def main() -> None:
 
     if args.command == "v2-governance-reset":
         if args.mode == "kill":
-            raise SystemExit(
-                "v2-governance-reset stopped before failure-store or artifact access"
-            )
+            raise SystemExit("v2-governance-reset stopped before failure-store or artifact access")
         try:
             if args.mode == "replay":
                 if not args.replay_manifest:
@@ -1110,7 +1112,11 @@ def main() -> None:
             if args.mode == "replay":
                 if not args.replay_manifest:
                     raise ValueError("--replay-manifest is required in replay mode")
-                print(json.dumps(asdict(verify_v27_m1_replay(args.replay_manifest)), indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        asdict(verify_v27_m1_replay(args.replay_manifest)), indent=2, sort_keys=True
+                    )
+                )
                 return
             load_v27_m1_config(args.config)
             report, artifacts = run_v27_m1_pit_readiness(args.config, args.output)
@@ -1139,7 +1145,11 @@ def main() -> None:
             if args.mode == "replay":
                 if not args.replay_manifest:
                     raise ValueError("--replay-manifest is required in replay mode")
-                print(json.dumps(asdict(verify_v27_m2_replay(args.replay_manifest)), indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        asdict(verify_v27_m2_replay(args.replay_manifest)), indent=2, sort_keys=True
+                    )
+                )
                 return
             load_v27_m2_config(args.config)
             report, artifacts = run_v27_m2_engineering_audit(args.config, args.output)
@@ -1348,11 +1358,19 @@ def main() -> None:
                 except ValueError:
                     overlaps = False
             if overlaps:
-                raise SystemExit("qd-data-audit output must be physically disjoint from snapshot root")
+                raise SystemExit(
+                    "qd-data-audit output must be physically disjoint from snapshot root"
+                )
             output.mkdir(parents=True, exist_ok=True)
-            (output / "qd-data-audit.json").write_text(report.to_json() + "\n", encoding="utf-8", newline="\n")
-            (output / "qd-data-audit.zh.md").write_text(report.to_markdown(language="zh"), encoding="utf-8", newline="\n")
-            (output / "qd-data-audit.en.md").write_text(report.to_markdown(language="en"), encoding="utf-8", newline="\n")
+            (output / "qd-data-audit.json").write_text(
+                report.to_json() + "\n", encoding="utf-8", newline="\n"
+            )
+            (output / "qd-data-audit.zh.md").write_text(
+                report.to_markdown(language="zh"), encoding="utf-8", newline="\n"
+            )
+            (output / "qd-data-audit.en.md").write_text(
+                report.to_markdown(language="en"), encoding="utf-8", newline="\n"
+            )
             ledger = data_search_ledger_record(report)
             ledger_name = f"data-search-ledger-{ledger['event_id']}.json"
             ledger_path = output / ledger_name
@@ -1586,9 +1604,7 @@ def main() -> None:
                 minimum_history_sessions=args.minimum_history_sessions,
                 liquidity_lookback=args.liquidity_lookback,
                 minimum_mean_amount_cny=args.minimum_mean_amount,
-                allowed_missing_fundamental_dates=tuple(
-                    args.allow_missing_fundamental_date
-                ),
+                allowed_missing_fundamental_dates=tuple(args.allow_missing_fundamental_date),
             ),
         )
         artifacts = write_market_wide_universe(report, args.output)
@@ -1604,18 +1620,12 @@ def main() -> None:
                     "maximum_eligible": report.maximum_eligible,
                     "membership_jsonl_path": str(artifacts.membership_jsonl_path),
                     "membership_jsonl_sha256": artifacts.membership_jsonl_sha256,
-                    "research_membership_jsonl_path": str(
-                        artifacts.research_membership_jsonl_path
-                    ),
+                    "research_membership_jsonl_path": str(artifacts.research_membership_jsonl_path),
                     "research_membership_jsonl_sha256": (
                         artifacts.research_membership_jsonl_sha256
                     ),
-                    "research_tiers_jsonl_path": str(
-                        artifacts.research_tiers_jsonl_path
-                    ),
-                    "research_tiers_jsonl_sha256": (
-                        artifacts.research_tiers_jsonl_sha256
-                    ),
+                    "research_tiers_jsonl_path": str(artifacts.research_tiers_jsonl_path),
+                    "research_tiers_jsonl_sha256": (artifacts.research_tiers_jsonl_sha256),
                     "screening_membership_jsonl_path": str(
                         artifacts.screening_membership_jsonl_path
                     ),
@@ -1916,9 +1926,7 @@ def main() -> None:
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
                 chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
-                limit_event_dir=local_paths.choose(
-                    "qd_limit_event_dir", None, "--limit-event-dir"
-                ),
+                limit_event_dir=local_paths.choose("qd_limit_event_dir", None, "--limit-event-dir"),
                 registry=registry,
                 output_dir=args.output,
                 code_version=_git_head(),
@@ -1936,9 +1944,7 @@ def main() -> None:
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
                 chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
-                limit_event_dir=local_paths.choose(
-                    "qd_limit_event_dir", None, "--limit-event-dir"
-                ),
+                limit_event_dir=local_paths.choose("qd_limit_event_dir", None, "--limit-event-dir"),
                 registry=registry,
                 output_dir=args.output,
                 code_version=_git_head(),
@@ -1955,9 +1961,7 @@ def main() -> None:
             report = run_v45_candidate_validation(
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
-                limit_event_dir=local_paths.choose(
-                    "qd_limit_event_dir", None, "--limit-event-dir"
-                ),
+                limit_event_dir=local_paths.choose("qd_limit_event_dir", None, "--limit-event-dir"),
                 registry=registry,
                 output_dir=args.output,
                 code_version=_git_head(),
@@ -1975,9 +1979,7 @@ def main() -> None:
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
                 auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
-                fund_flow_dir=local_paths.choose(
-                    "qd_fund_flow_dir", None, "--fund-flow-dir"
-                ),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
                 chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
                 registry=registry,
                 output_dir=args.output,
@@ -1996,9 +1998,7 @@ def main() -> None:
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
                 auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
-                fund_flow_dir=local_paths.choose(
-                    "qd_fund_flow_dir", None, "--fund-flow-dir"
-                ),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
                 registry=registry,
                 prior_registry=ExperimentRegistry(args.prior_registry),
                 output_dir=args.output,
@@ -2017,9 +2017,7 @@ def main() -> None:
                 local_paths.choose("qd_daily_dir", None, "--daily-dir"),
                 local_paths.choose("dynamic_membership_jsonl", None, "--membership-jsonl"),
                 auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
-                fund_flow_dir=local_paths.choose(
-                    "qd_fund_flow_dir", None, "--fund-flow-dir"
-                ),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
                 registry=registry,
                 v46_registry=ExperimentRegistry(args.v46_registry),
                 v47_registry=ExperimentRegistry(args.v47_registry),
@@ -2098,9 +2096,7 @@ def main() -> None:
                 args.membership_jsonl,
                 args.tiers_jsonl,
                 auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
-                fund_flow_dir=local_paths.choose(
-                    "qd_fund_flow_dir", None, "--fund-flow-dir"
-                ),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
                 chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
                 registry=registry,
                 output_dir=args.output,
@@ -2110,6 +2106,28 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v5.0-market-wide-search failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v5.1-candidate-audit":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v51_candidate_audit(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                args.membership_jsonl,
+                args.tiers_jsonl,
+                args.v50_report,
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                fund_flow_dir=local_paths.choose("qd_fund_flow_dir", None, "--fund-flow-dir"),
+                chip_dir=local_paths.choose("qd_chip_dir", None, "--chip-dir"),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V51Config(),
+                prior_inferential_trials=args.prior_inferential_trials,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v5.1-candidate-audit failed: {exc}") from exc
         print(report.to_json())
         return
 
