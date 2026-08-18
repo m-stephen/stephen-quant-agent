@@ -325,7 +325,7 @@ def _cpcv_rows(*, variant: bool = False) -> tuple[BaselineObservation, ...]:
     rows: list[BaselineObservation] = []
     instruments = ("000001.SZ", "000002.SZ", "600000.SH", "600001.SH")
     signals = (1.0, 3.0, 2.0, 4.0) if variant else (1.0, 2.0, 3.0, 4.0)
-    for day in range(2, 14):
+    for day in range(2, 26):
         for index, instrument in enumerate(instruments):
             rows.append(
                 BaselineObservation(
@@ -418,6 +418,73 @@ def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) ->
     assert registry.trial_count(experiment_id) == 4
     assert "Validation window opened: no" in report.to_markdown(language="en")
     assert "是否打开验证期: 否" in report.to_markdown(language="zh")
+
+
+def test_cpcv_uses_only_dates_with_valid_ic_for_every_candidate(tmp_path: Path) -> None:
+    registry, experiment_id = _experiment(tmp_path)
+    campaign = SearchCampaign(
+        registry,
+        CampaignSpec(
+            name="constant-day-cpcv",
+            experiment_id=experiment_id,
+            budget=CampaignBudget(schema=2, cpcv=2, execution=1),
+            horizons=("5d",),
+            ranking_metric="mean_path_rank_ic",
+            stopping_rule="two candidates",
+            sealed_windows=("2025", "2026"),
+        ),
+    )
+    schemas = (
+        _schema("period_return(close, 2)"),
+        FactorSchema(
+            **{**_schema("period_return(close, 3)").__dict__, "schema_id": "constant_day_peer"}
+        ),
+    )
+    generated = []
+    for schema in schemas:
+        unique, proposal_id, number = campaign.propose(schema)
+        generated.append(GeneratedCandidate(schema, proposal_id, number, unique))
+    first = _cpcv_rows()
+    second = tuple(
+        replace(row, signal=1.0) if row.execution_at.startswith("2024-01-05") else row
+        for row in _cpcv_rows(variant=True)
+    )
+    panels = {schemas[0].fingerprint: first, schemas[1].fingerprint: second}
+    window = ScreeningWindow(
+        research_start="2024-01-01",
+        research_end="2024-01-31",
+        validation_start="2025-01-01",
+        validation_end="2025-12-31",
+        test_start="2026-01-01",
+        test_end="2026-12-31",
+    )
+    screening = run_training_screen(
+        registry,
+        campaign,
+        tuple(generated),
+        panels,
+        window=window,
+        config=ScreeningConfig(minimum_mean_rank_ic=-1.0, maximum_peer_rank_correlation=1.0),
+    )
+    report = run_discovery_cpcv(
+        registry,
+        campaign,
+        screening,
+        tuple(generated),
+        panels,
+        snapshot_id=registry.experiment_snapshot_id(experiment_id),
+        code_version="test",
+        window=window,
+        config=DiscoveryCpcvConfig(groups=6, test_groups=3, embargo_days=0),
+    )
+    assert report.hygiene_passed is True
+
+
+def test_cpcv_rejects_an_impossible_positive_path_threshold() -> None:
+    with pytest.raises(ValueError, match="exceeds"):
+        DiscoveryCpcvConfig(
+            groups=5, test_groups=2, minimum_positive_paths=5
+        ).validate()
 
 
 def test_execution_tournament_counts_trials_and_builds_alpha_court(tmp_path: Path) -> None:

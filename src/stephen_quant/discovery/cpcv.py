@@ -4,6 +4,7 @@ import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import timedelta
+from math import comb
 
 from stephen_quant.baseline import BaselineObservation
 from stephen_quant.cross_validation import (
@@ -40,6 +41,11 @@ class DiscoveryCpcvConfig:
             raise ValueError("embargo_days cannot be negative")
         if self.minimum_positive_paths < 1:
             raise ValueError("minimum_positive_paths must be positive")
+        available_paths = comb(self.groups - 1, self.test_groups - 1)
+        if self.minimum_positive_paths > available_paths:
+            raise ValueError(
+                "minimum_positive_paths exceeds the configured CPCV path count"
+            )
         if not 0 <= self.maximum_pbo <= 1:
             raise ValueError("maximum_pbo must be in [0, 1]")
 
@@ -202,9 +208,16 @@ def run_discovery_cpcv(
                 or _timestamp_date(row.return_end_at) > window.research_end
             ):
                 raise ValueError("CPCV observations touch a sealed or out-of-research window")
-    dates = sorted(reference)
+    daily_by_fingerprint = {
+        item.schema.fingerprint: _daily_rank_ic(
+            observations[item.schema.fingerprint], item.schema.direction
+        )
+        for item in selected_candidates
+    }
+    valid_date_sets = [set(values) for values in daily_by_fingerprint.values()]
+    dates = sorted(set(reference).intersection(*valid_date_sets))
     if len(dates) < config.groups:
-        raise ValueError("CPCV research dates are fewer than configured groups")
+        raise ValueError("CPCV common valid-IC dates are fewer than configured groups")
 
     trials: dict[str, tuple[str, int]] = {}
     for item in selected_candidates:
@@ -259,7 +272,7 @@ def run_discovery_cpcv(
     scores: list[DiscoveryCpcvScore] = []
     pbo_inputs: dict[str, dict[str, float]] = {}
     for item in selected_candidates:
-        daily = _daily_rank_ic(observations[item.schema.fingerprint], item.schema.direction)
+        daily = daily_by_fingerprint[item.schema.fingerprint]
         path_scores: dict[str, float] = {}
         for path in manifest.paths:
             values: list[float] = []

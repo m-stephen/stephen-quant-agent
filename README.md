@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+## V4.3 information-domain breadth
+
+V4.3 unifies the historical safe-DSL generation plans, canonicalizes 202 proposals into 152
+unique hypotheses, applies per-domain proposal budgets, and adds explicit counter-direction
+tests for the underexplored chip and limit-event domains. It also fixes sparse-signal CPCV dates,
+bounds dynamic memberships by the research window, and provides an append-only forward-shadow
+ledger starting on 2026-08-19.
+
+```powershell
+stephen-quant --db artifacts/v4.3/registry.sqlite3 v4.3-domain-breadth `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.3-domain-breadth
+```
+
+The strict 2022 discovery run passed the signal gate but failed Alpha Court: the best candidate
+had net Sharpe -0.2709 and DSR 0.0139. See the [English result](docs/V4_3_RESULT.en.md) and
+[V4.3 中文结果](docs/V4_3_RESULT.zh.md).
+
 ## V4.2 stability-first economic conversion
 
 V4.2 freezes the twelve V4.1 representative mechanisms and replaces maximum full-year Sharpe

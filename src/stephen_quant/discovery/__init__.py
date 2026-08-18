@@ -36,6 +36,7 @@ from .generator import (
     v30_epoch_four_generation_plan,
     v30_epoch_three_generation_plan,
     v30_epoch_two_generation_plan,
+    v43_sparse_domain_inverse_plan,
 )
 from .memory import (
     RESEARCH_MEMORY_VERSION,
@@ -156,4 +157,5 @@ __all__ = [
     "v30_epoch_four_generation_plan",
     "v30_epoch_three_generation_plan",
     "v30_epoch_two_generation_plan",
+    "v43_sparse_domain_inverse_plan",
 ]

@@ -94,6 +94,7 @@ from .workflows import (
     run_v27_m2_engineering_audit,
     run_v41_semantic_alpha,
     run_v42_stable_conversion,
+    run_v43_breadth_audit,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -340,6 +341,10 @@ def build_parser() -> argparse.ArgumentParser:
     v42_conversion = sub.add_parser("v4.2-stable-conversion")
     v42_conversion.add_argument("--paths-config", required=True)
     v42_conversion.add_argument("--output", default="reports/v4.2-stable-conversion")
+
+    v43_breadth = sub.add_parser("v4.3-domain-breadth")
+    v43_breadth.add_argument("--paths-config", required=True)
+    v43_breadth.add_argument("--output", default="reports/v4.3-domain-breadth")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -1723,6 +1728,29 @@ def main() -> None:
                     "stability_eligible": report.selected_was_eligible,
                     "decision": report.decision,
                     "sealed_state": report.sealed_release.state,
+                    "output": str(Path(args.output).resolve()),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    if args.command == "v4.3-domain-breadth":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v43_breadth_audit(local_paths.paths, args.output)
+        except (PathConfigError, ValueError) as exc:
+            raise SystemExit(f"v4.3-domain-breadth failed: {exc}") from exc
+        print(
+            json.dumps(
+                {
+                    "proposed_candidates": report.proposed_candidates,
+                    "unique_candidates": report.unique_candidates,
+                    "admitted_candidates": report.admitted_candidates,
+                    "semantic_domain_count": report.semantic_domain_count,
+                    "decision": report.decision,
+                    "forward_shadow_start": report.forward_shadow_start,
                     "output": str(Path(args.output).resolve()),
                 },
                 indent=2,

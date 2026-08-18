@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import product
 
 from .campaign import SearchCampaign
@@ -706,6 +706,35 @@ def v30_epoch_five_generation_plan() -> GenerationPlan:
         windows=(20,),
         horizons=("20d",),
     )
+
+
+def v43_sparse_domain_inverse_plan() -> GenerationPlan:
+    """Direction-complete follow-up for the underexplored chip and limit-event domains.
+
+    V3.0 preregistered only one economic direction per formula. V4.3 records the opposite
+    direction as a new hypothesis instead of silently taking an absolute IC.
+    """
+
+    source_plans = (
+        v30_epoch_three_generation_plan(),
+        v30_epoch_four_generation_plan(),
+        v30_epoch_five_generation_plan(),
+    )
+    templates = tuple(
+        replace(
+            template,
+            template_id=f"{template.template_id}_inverse",
+            name=f"{template.name} (inverse hypothesis)",
+            direction=-template.direction,
+            economic_rationale=(
+                f"Counter-direction falsification of the prior hypothesis: "
+                f"{template.economic_rationale}"
+            ),
+        )
+        for plan in source_plans
+        for template in plan.templates
+    )
+    return GenerationPlan(templates=templates, windows=(20,), horizons=("20d",))
 
 
 def flow_stress_generation_plan() -> GenerationPlan:
