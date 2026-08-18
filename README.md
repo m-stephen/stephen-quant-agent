@@ -1,5 +1,28 @@
 # Stephen Quant Agent
 
+## V4.7 low-turnover development candidate
+
+V4.7 freezes the V4.6 flow-divergence and auction signals and evaluates exactly 12 execution
+Trials: two signal structures, three rank buffers and standard/2x costs. The selected
+flow-plus-auction ensemble with a 10-rank holding buffer reduced mean turnover from 1.89% to
+1.13%. It produced +6.96% full excess return with 17/20 profitable paths at standard costs and
++2.36% with 18/20 paths at doubled costs. Both placebo p-values are 0.005.
+
+The decision is deliberately split: `WORTH_FORWARD_VALIDATION` at the development gate, but
+`REJECT` at Alpha Court because DSR is 1.68e-9 after carrying the V4.6 search distribution into
+1,101 recorded Trials. This is a candidate for append-only shadow validation, not a deployable or
+independently proven alpha.
+
+```powershell
+stephen-quant --db artifacts/v4.7/registry.sqlite3 v4.7-low-turnover-alpha `
+  --paths-config configs/qd-paths.local.json `
+  --prior-registry artifacts/v4.6/registry.sqlite3 `
+  --output reports/v4.7-low-turnover-alpha
+```
+
+See the [English result](docs/V4_7_RESULT.en.md),
+[V4.7 中文结果](docs/V4_7_RESULT.zh.md), and [frozen protocol](docs/V4_7_SPEC.md).
+
 ## V4.6 bounded orthogonal search
 
 V4.6 freezes 36 direction-complete hypotheses across auction, fund-flow and chip domains, with
