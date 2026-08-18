@@ -1,5 +1,25 @@
 # Stephen Quant Agent
 
+## V4.4 path-robust alpha research
+
+V4.4 separates overlapping 20-day holdings into 20 non-overlapping offset paths and subtracts
+an equal-weight control with identical regime and cash exposure. The frozen 2022-2023 search
+selected a mixed-regime AVOID overlay based on inverse 20-day limit-up persistence. Its one-shot
+2024 stock-selection increment remained positive (+2.14%, incremental Sharpe 2.00), with signal
+and return permutation p-values of 0.005. The complete strategy still failed Alpha Court because
+the original regime wrapper held cash outside mixed regimes, underperformed the 2024 benchmark,
+and DSR was only 0.162 after 1,022 recorded trials. It is a research-worthy stock-selection lead,
+not a deployable alpha.
+
+```powershell
+stephen-quant --db artifacts/v4.4/registry.sqlite3 v4.4-path-alpha `
+  --paths-config configs/qd-paths.local.json `
+  --output reports/v4.4-path-robust-alpha
+```
+
+See the [English result](docs/V4_4_RESULT.en.md),
+[V4.4 中文结果](docs/V4_4_RESULT.zh.md), and [frozen protocol](docs/V4_4_SPEC.md).
+
 ## V4.3 information-domain breadth
 
 V4.3 unifies the historical safe-DSL generation plans, canonicalizes 202 proposals into 152

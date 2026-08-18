@@ -344,6 +344,16 @@ class UsageScore:
 
 
 @dataclass(frozen=True)
+class UsageEvent:
+    day: str
+    offset: int
+    excess_return: float
+    turnover: float
+    cost_rate: float
+    active: bool
+
+
+@dataclass(frozen=True)
 class SourceStatus:
     source_kind: str
     status: str
@@ -969,7 +979,60 @@ def evaluate_usage(
     calendar: tuple[str, ...],
     regimes: dict[str, RegimeState],
     config: V41Config,
+    hold_equal_weight_when_inactive: bool = False,
 ) -> tuple[UsageScore, tuple[float, ...]]:
+    events, clipped = evaluate_usage_events(
+        rows,
+        base_rows,
+        spec,
+        horizon=horizon,
+        nav=nav,
+        bars=bars,
+        calendar=calendar,
+        regimes=regimes,
+        config=config,
+        hold_equal_weight_when_inactive=hold_equal_weight_when_inactive,
+    )
+    ordered = sorted(events, key=lambda item: item.day)
+    returns = [item.excess_return for item in ordered]
+    sharpe = (
+        mean(returns) / stdev(returns) * math.sqrt(252)
+        if len(returns) >= 2 and stdev(returns) > 0
+        else float("-inf")
+    )
+    complexity = 0.15 if spec.regime != "all" else 0.0
+    score = UsageScore(
+        candidate_id,
+        year,
+        spec,
+        nav,
+        sum(item.active for item in ordered),
+        len(returns),
+        sharpe,
+        math.prod(1 + item for item in returns) - 1 if returns else -1.0,
+        _drawdown(returns),
+        mean(item.turnover for item in ordered) if ordered else 0.0,
+        sum(item.cost_rate for item in ordered),
+        clipped,
+        sharpe - complexity,
+    )
+    return score, tuple(returns)
+
+
+def evaluate_usage_events(
+    rows: tuple[EvaluationObservation, ...],
+    base_rows: tuple[EvaluationObservation, ...],
+    spec: UsageSpec,
+    *,
+    horizon: int,
+    nav: float,
+    bars: dict[str, dict[str, QmtDailyBar]],
+    calendar: tuple[str, ...],
+    regimes: dict[str, RegimeState],
+    config: V41Config,
+    hold_equal_weight_when_inactive: bool = False,
+) -> tuple[tuple[UsageEvent, ...], float]:
+    """Return dated cohort events so overlapping holding paths can be audited separately."""
     grouped: dict[str, list[EvaluationObservation]] = defaultdict(list)
     base_grouped: dict[str, list[EvaluationObservation]] = defaultdict(list)
     for row in rows:
@@ -977,7 +1040,7 @@ def evaluate_usage(
     for row in base_rows:
         base_grouped[row.timestamp[:10]].append(row)
     positions = {day: index for index, day in enumerate(calendar)}
-    events: list[tuple[str, float, float, float, bool]] = []
+    events: list[UsageEvent] = []
     clipped = 0.0
     cost_rate = (
         config.commission_bps * 2
@@ -1012,6 +1075,9 @@ def evaluate_usage(
                 )[: spec.breadth]
                 selected = [item for item in base if timing.get(item.instrument, -math.inf) >= threshold]
                 raw_weights = {item.instrument: 1 / spec.breadth for item in selected}
+            elif not active and hold_equal_weight_when_inactive:
+                selected = cross
+                raw_weights = {item.instrument: 1 / len(selected) for item in selected}
             elif active:
                 raise ValueError(f"unknown V4.1 usage: {spec.usage}")
             executed: dict[str, float] = {}
@@ -1034,32 +1100,11 @@ def evaluate_usage(
                 for instrument, weight in executed.items()
                 if instrument in by_id
             )
-            events.append((day, portfolio_return - benchmark - cost, turnover, cost, active))
+            events.append(
+                UsageEvent(day, offset, portfolio_return - benchmark - cost, turnover, cost, active)
+            )
             previous = executed
-    ordered = sorted(events, key=lambda item: item[0])
-    returns = [item[1] for item in ordered]
-    sharpe = (
-        mean(returns) / stdev(returns) * math.sqrt(252)
-        if len(returns) >= 2 and stdev(returns) > 0
-        else float("-inf")
-    )
-    complexity = 0.15 if spec.regime != "all" else 0.0
-    score = UsageScore(
-        candidate_id,
-        year,
-        spec,
-        nav,
-        sum(item[4] for item in ordered),
-        len(returns),
-        sharpe,
-        math.prod(1 + item for item in returns) - 1 if returns else -1.0,
-        _drawdown(returns),
-        mean(item[2] for item in ordered) if ordered else 0.0,
-        sum(item[3] for item in ordered),
-        clipped,
-        sharpe - complexity,
-    )
-    return score, tuple(returns)
+    return tuple(sorted(events, key=lambda item: (item.day, item.offset))), clipped
 
 
 def _load_sources(
