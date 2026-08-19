@@ -1,5 +1,17 @@
 # Stephen Quant Agent
 
+## V7.2 source-balanced automatic discovery
+
+V7.2 prevents the price grammar from monopolizing automatic search. Its frozen 32-candidate batch
+allocates direction-complete formula pairs across price, fund flow, margin financing, chip
+distribution and a cross-source flow/margin family. The real 2022–2024 run recorded 42 Trials and
+sent ten candidates into purged-fold validation. Twenty-session reversal led with mean fold RankIC
+0.066944; fold-selection PBO was exactly 0.05. Chip-cost and cross-source candidates also survived,
+so the frozen set is ready for execution/placebo/DSR diagnostics but is not yet deployable.
+
+See the [English result](docs/V7_2_RESULT_EN.md), [中文报告](docs/V7_2_RESULT_ZH.md), and
+[design specification](docs/V7_2_SPEC.md).
+
 ## V7.1 non-degenerate automatic validation
 
 V7.1 evaluates fixed symbolic factors on separate purged CPCV train/test fold matrices: each fold

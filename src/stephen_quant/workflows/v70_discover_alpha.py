@@ -67,6 +67,7 @@ class V70Config:
     formula_pairs: int = 8
     horizon: str = "5d"
     search_profile: str = "v7.0"
+    source_pair_quotas: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,8 @@ class V70Report:
         if language not in {"zh", "en"}:
             raise ValueError("language must be zh or en")
         zh = language == "zh"
-        release = "V7.1" if "v7.1" in self.method_version else "V7.0"
+        match = re.search(r"v(\d+\.\d+)", self.method_version)
+        release = f"V{match.group(1)}" if match else "V7"
         lines = [
             f"# {release} 自动 Alpha 发现报告"
             if zh
@@ -180,17 +182,32 @@ def _coverage(source: str, root: Path | None) -> tuple[SourceCoverage, set[str]]
     )
 
 
-def _direction_complete_plan(formula_pairs: int) -> tuple[GenerationPlan, tuple[str, ...]]:
+def _direction_complete_plan(
+    formula_pairs: int,
+    *,
+    source_pair_quotas: tuple[tuple[str, int], ...] = (),
+) -> tuple[GenerationPlan, tuple[str, ...]]:
     proposals = generate_symbolic_proposals(budget=512, include_inverse=True)
     supported = {"open", "high", "low", "close", "volume", "amount"}
-    grouped: dict[str, list[GeneratedProposal]] = {}
+    quotas = dict(source_pair_quotas)
+    if len(quotas) != len(source_pair_quotas) or any(not key or value < 1 for key, value in quotas.items()):
+        raise ValueError("source pair quotas must contain unique names and positive budgets")
+    if quotas and sum(quotas.values()) != formula_pairs:
+        raise ValueError("source pair quotas must sum to formula_pairs")
+    grouped: dict[tuple[str, str], list[GeneratedProposal]] = {}
     for item in proposals:
+        source_key = "+".join(item.schema.data_sources)
         if (
             item.proposal.research_form == "continuous_ranking"
-            and item.schema.data_sources == ("qd_daily",)
-            and set(item.schema.required_fields) <= supported
+            and not ({"benchmark_close", "turnover"} & set(item.schema.required_fields))
+            and (
+                source_key in quotas
+                if quotas
+                else item.schema.data_sources == ("qd_daily",)
+                and set(item.schema.required_fields) <= supported
+            )
         ):
-            grouped.setdefault(item.schema.formula, []).append(item)
+            grouped.setdefault((source_key, item.schema.formula), []).append(item)
     priority = {
         "symbolic:price-return": 0,
         "symbolic:price-risk": 1,
@@ -198,14 +215,45 @@ def _direction_complete_plan(formula_pairs: int) -> tuple[GenerationPlan, tuple[
         "symbolic:same-unit-ratio": 3,
         "symbolic:field-level": 4,
     }
-    ordered = sorted(
-        (
-            items
-            for items in grouped.values()
-            if {item.schema.direction for item in items} == {-1, 1}
-        ),
-        key=lambda items: (priority.get(items[0].proposal.provider_id, 99), items[0].schema.formula),
-    )[:formula_pairs]
+    eligible = [
+        items
+        for items in grouped.values()
+        if {item.schema.direction for item in items} == {-1, 1}
+    ]
+    def ordering(items: list[GeneratedProposal]) -> tuple[int, str]:
+        return (
+            priority.get(items[0].proposal.provider_id, 99),
+            items[0].schema.formula,
+        )
+    if quotas:
+        ordered = []
+        for source_key, quota in source_pair_quotas:
+            source_items = [
+                items for items in eligible if "+".join(items[0].schema.data_sources) == source_key
+            ]
+            ranked_source = sorted(source_items, key=ordering)
+            selected_source: list[list[GeneratedProposal]] = []
+            seen_field_signatures: set[tuple[str, ...]] = set()
+            for items in ranked_source:
+                signature = items[0].schema.required_fields
+                if signature in seen_field_signatures:
+                    continue
+                selected_source.append(items)
+                seen_field_signatures.add(signature)
+                if len(selected_source) == quota:
+                    break
+            if len(selected_source) < quota:
+                selected_source.extend(
+                    items
+                    for items in ranked_source
+                    if items not in selected_source
+                )
+                selected_source = selected_source[:quota]
+            if len(selected_source) != quota:
+                raise ValueError(f"automatic grammar cannot satisfy source quota: {source_key}")
+            ordered.extend(selected_source)
+    else:
+        ordered = sorted(eligible, key=ordering)[:formula_pairs]
     selected = tuple(item for pair in ordered for item in sorted(pair, key=lambda row: row.schema.direction))
     if len(selected) != formula_pairs * 2:
         raise ValueError("automatic grammar cannot satisfy the direction-complete research budget")
@@ -270,7 +318,10 @@ def run_v70_discover_alpha(
         "v6.2_court": run_v62_auto_alpha_court(stage_root / "v6.2").decision,
         "v6.3_forward": run_v63_forward_shadow(stage_root / "v6.3").decision,
     }
-    plan, proposal_ids = _direction_complete_plan(config.formula_pairs)
+    plan, proposal_ids = _direction_complete_plan(
+        config.formula_pairs,
+        source_pair_quotas=config.source_pair_quotas,
+    )
     research = None
     if not metadata_only:
         daily = local.paths.get("qd_daily_dir")
@@ -312,11 +363,28 @@ def run_v70_discover_alpha(
                 stability_weight=0.01,
                 turnover_penalty=0.01,
             ),
+            alternative_paths={
+                key: str(path)
+                for key, path in local.paths.items()
+                if key
+                in {
+                    "qd_fund_flow_dir",
+                    "qd_margin_dir",
+                    "qd_chip_dir",
+                }
+                and {
+                    "qd_fund_flow_dir": "qd_fund_flow",
+                    "qd_margin_dir": "qd_margin",
+                    "qd_chip_dir": "qd_chip",
+                }[key]
+                in {source for template in plan.templates for source in template.data_sources}
+            },
             dynamic_membership_path=membership,
             generation_plan=plan,
         )
         research = run.report
-        release_key = "v7.1_research" if "v7.1" in method_version else "v7.0_research"
+        release_match = re.search(r"v(\d+\.\d+)", method_version)
+        release_key = f"v{release_match.group(1)}_research" if release_match else "v7_research"
         pipeline[release_key] = research.decision
 
     alpha_status = (
