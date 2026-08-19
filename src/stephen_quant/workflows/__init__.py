@@ -449,6 +449,7 @@ from .v63_forward_shadow import (
     run_v63_forward_shadow,
 )
 from .v70_discover_alpha import V70_VERSION, V70Config, V70Report, run_v70_discover_alpha
+from .v71_discover_alpha import V71_VERSION, run_v71_discover_alpha
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -526,6 +527,7 @@ __all__ = [
     "V62_VERSION",
     "V63_VERSION",
     "V70_VERSION",
+    "V71_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -782,6 +784,7 @@ __all__ = [
     "run_v62_auto_alpha_court",
     "run_v63_forward_shadow",
     "run_v70_discover_alpha",
+    "run_v71_discover_alpha",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",

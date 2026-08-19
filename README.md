@@ -1,5 +1,17 @@
 # Stephen Quant Agent
 
+## V7.1 non-degenerate automatic validation
+
+V7.1 evaluates fixed symbolic factors on separate purged CPCV train/test fold matrices: each fold
+selects its winner on training evidence and measures its rank on complementary OOS evidence. The
+reference 2022–2024 run expanded the direction-complete batch to 32 candidates and recorded 39
+Trials. Seven candidates reached fold validation; inverse 60-session volatility led all 20 folds,
+but selection PBO was 0.15—acceptable only for the exploratory 0.20 research funnel and above the
+0.05 final Alpha Court threshold. The result is a research candidate, not a deployable Alpha.
+
+See the [English result](docs/V7_1_RESULT_EN.md), [中文报告](docs/V7_1_RESULT_ZH.md), and
+[design specification](docs/V7_1_SPEC.md).
+
 ## V7.0 automatic Alpha discovery
 
 V7.0 connects the semantic catalog, typed DSL, direction-complete symbolic proposals, bounded Trial

@@ -11,7 +11,11 @@ from .models import (
 )
 from .placebo import run_placebo, run_rank_placebo_fast
 from .report import build_alpha_court_report
-from .statistics import deflated_sharpe_ratio, probability_of_backtest_overfitting
+from .statistics import (
+    deflated_sharpe_ratio,
+    probability_of_backtest_overfitting,
+    probability_of_fold_selection_overfitting,
+)
 
 __all__ = [
     "AlphaCourtArtifacts",
@@ -26,6 +30,7 @@ __all__ = [
     "build_alpha_court_report",
     "deflated_sharpe_ratio",
     "probability_of_backtest_overfitting",
+    "probability_of_fold_selection_overfitting",
     "run_placebo",
     "run_rank_placebo_fast",
     "write_alpha_court_report",

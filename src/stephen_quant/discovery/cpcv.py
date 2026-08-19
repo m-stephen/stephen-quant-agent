@@ -14,7 +14,10 @@ from stephen_quant.cross_validation import (
     generate_cpcv_manifest,
 )
 from stephen_quant.evaluation import spearman_correlation
-from stephen_quant.falsification import PBOResult, probability_of_backtest_overfitting
+from stephen_quant.falsification import (
+    PBOResult,
+    probability_of_fold_selection_overfitting,
+)
 from stephen_quant.integrity.models import TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 
@@ -22,7 +25,7 @@ from .campaign import SearchCampaign
 from .generator import GeneratedCandidate
 from .screening import ScreeningReport, ScreeningWindow, _timestamp_date
 
-CPCV_DISCOVERY_VERSION = "v1.8.16-generated-factor-cpcv-1.0.0"
+CPCV_DISCOVERY_VERSION = "v7.1-purged-fold-selection-cpcv-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -267,41 +270,39 @@ def run_discovery_cpcv(
     )
     findings = audit_manifest(manifest, samples)
     hygiene = all(finding.passed for finding in findings)
-    groups = _date_groups(dates, config.groups)
-    fold_by_id = {fold.fold_id: fold for fold in manifest.folds}
     scores: list[DiscoveryCpcvScore] = []
-    pbo_inputs: dict[str, dict[str, float]] = {}
+    pbo_train_inputs: dict[str, dict[str, float]] = {}
+    pbo_test_inputs: dict[str, dict[str, float]] = {}
     for item in selected_candidates:
         daily = daily_by_fingerprint[item.schema.fingerprint]
-        path_scores: dict[str, float] = {}
-        for path in manifest.paths:
-            values: list[float] = []
-            for segment in path.segments:
-                fold = fold_by_id[segment.fold_id]
-                values.extend(
-                    daily[day]
-                    for day in fold.test_ids
-                    if groups[day] == segment.group_id
-                )
-            path_scores[path.path_id] = sum(values) / len(values)
+        train_scores: dict[str, float] = {}
+        test_scores: dict[str, float] = {}
+        for fold in manifest.folds:
+            train_values = [daily[day] for day in fold.train_ids if day in daily]
+            test_values = [daily[day] for day in fold.test_ids if day in daily]
+            if not train_values or not test_values:
+                raise ValueError(f"CPCV fold {fold.fold_id} has no valid IC observations")
+            train_scores[fold.fold_id] = sum(train_values) / len(train_values)
+            test_scores[fold.fold_id] = sum(test_values) / len(test_values)
         trial_id, trial_number = trials[item.schema.fingerprint]
         score = DiscoveryCpcvScore(
             schema_id=item.schema.schema_id,
             fingerprint=item.schema.fingerprint,
             trial_id=trial_id,
             trial_number=trial_number,
-            mean_path_rank_ic=sum(path_scores.values()) / len(path_scores),
-            positive_paths=sum(value > 0 for value in path_scores.values()),
-            path_scores=path_scores,
+            mean_path_rank_ic=sum(test_scores.values()) / len(test_scores),
+            positive_paths=sum(value > 0 for value in test_scores.values()),
+            path_scores=test_scores,
         )
         scores.append(score)
-        pbo_inputs[item.schema.fingerprint] = path_scores
-    pbo = probability_of_backtest_overfitting(manifest, pbo_inputs, findings)
+        pbo_train_inputs[item.schema.fingerprint] = train_scores
+        pbo_test_inputs[item.schema.fingerprint] = test_scores
+    pbo = probability_of_fold_selection_overfitting(
+        manifest, pbo_train_inputs, pbo_test_inputs, findings
+    )
     winner = max(scores, key=lambda score: (score.mean_path_rank_ic, score.fingerprint))
-    # A fixed, non-fitted signal can produce identical full-path averages because
-    # every combinatorial path traverses every temporal group exactly once.  In
-    # that case PBO and positive-path counts contain no path-wise falsification
-    # information and must not authorize the signal gate.
+    # If every fixed candidate is constant across purged test folds, the matrix
+    # contains no temporal falsification information and cannot authorize a gate.
     degenerate_paths = all(
         max(score.path_scores.values()) - min(score.path_scores.values()) <= 1e-12
         for score in scores

@@ -13,6 +13,7 @@ from .models import DeflatedSharpeResult, FalsificationError, PBOResult
 
 DSR_METHOD_VERSION = "bailey-lopez-de-prado-dsr-2014"
 PBO_METHOD_VERSION = "cscv-on-cpcv-paths-1.0.0"
+FOLD_PBO_METHOD_VERSION = "selection-pbo-on-purged-cpcv-folds-1.0.0"
 EULER_MASCHERONI = 0.5772156649015329
 
 
@@ -143,6 +144,68 @@ def probability_of_backtest_overfitting(
         logits=tuple(logits),
         combinations=len(logits),
         paths=len(path_ids),
+        configurations=len(configuration_ids),
+        split_manifest_sha256=manifest.manifest_sha256,
+    )
+
+
+def probability_of_fold_selection_overfitting(
+    manifest: SplitManifest,
+    train_scores: Mapping[str, Mapping[str, float]],
+    test_scores: Mapping[str, Mapping[str, float]],
+    audit_findings: Sequence[AuditFinding],
+) -> PBOResult:
+    """Estimate selection PBO from audited purged-fold train and complementary OOS scores."""
+
+    if manifest.method != "combinatorial_purged_cross_validation":
+        raise FalsificationError("fold-selection PBO requires a CPCV split manifest")
+    expected_audit = {
+        (check, True, f"fold={fold.fold_id}")
+        for fold in manifest.folds
+        for check in (
+            "train_test_disjoint",
+            "no_label_overlap",
+            "embargo_respected",
+            "temporal_boundaries_recorded",
+        )
+    }
+    supplied_audit = {
+        (finding.check, finding.passed, finding.detail) for finding in audit_findings
+    }
+    if supplied_audit != expected_audit:
+        raise FalsificationError("fold-selection PBO requires a fully passing CPCV audit")
+    configuration_ids = tuple(sorted(train_scores))
+    if configuration_ids != tuple(sorted(test_scores)) or len(configuration_ids) < 2:
+        raise FalsificationError("fold-selection PBO requires matching candidate matrices")
+    fold_ids = tuple(fold.fold_id for fold in manifest.folds)
+    expected_folds = set(fold_ids)
+    for configuration_id in configuration_ids:
+        for matrix in (train_scores[configuration_id], test_scores[configuration_id]):
+            if set(matrix) != expected_folds:
+                raise FalsificationError(
+                    f"configuration {configuration_id} does not cover CPCV folds exactly"
+                )
+            if any(not math.isfinite(float(value)) for value in matrix.values()):
+                raise FalsificationError(
+                    f"configuration {configuration_id} has non-finite fold scores"
+                )
+    logits: list[float] = []
+    for fold_id in fold_ids:
+        selected = max(
+            configuration_ids,
+            key=lambda item: (train_scores[item][fold_id], item),
+        )
+        oos_values = [test_scores[item][fold_id] for item in configuration_ids]
+        ranks = average_ranks(oos_values)
+        selected_rank = ranks[configuration_ids.index(selected)]
+        relative_rank = selected_rank / (len(configuration_ids) + 1)
+        logits.append(math.log(relative_rank / (1 - relative_rank)))
+    return PBOResult(
+        method_version=FOLD_PBO_METHOD_VERSION,
+        probability=sum(value <= 0 for value in logits) / len(logits),
+        logits=tuple(logits),
+        combinations=len(logits),
+        paths=len(fold_ids),
         configurations=len(configuration_ids),
         split_manifest_sha256=manifest.manifest_sha256,
     )

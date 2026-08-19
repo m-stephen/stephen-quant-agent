@@ -415,7 +415,7 @@ def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) ->
     assert report.signal_gate_passed is False
     assert report.decision == "REJECT_DEGENERATE_CPCV_PATHS"
     assert report.validation_window_opened is False
-    assert report.pbo.paths == 10
+    assert report.pbo.paths == 20
     assert registry.trial_count(experiment_id) == 4
     assert "Validation window opened: no" in report.to_markdown(language="en")
     assert "是否打开验证期: 否" in report.to_markdown(language="zh")
