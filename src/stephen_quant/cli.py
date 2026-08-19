@@ -53,6 +53,7 @@ from .v2 import (
     verify_shadow_replay,
 )
 from .workflows import (
+    V55_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -125,6 +126,7 @@ from .workflows import (
     run_v52_forward_monitor,
     run_v53_independent_search,
     run_v54_alpha_conversion,
+    run_v55_semantic_router,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -467,6 +469,9 @@ def build_parser() -> argparse.ArgumentParser:
     v54_conversion.add_argument("--membership-jsonl", required=True)
     v54_conversion.add_argument("--prior-inferential-trials", type=int, default=1280)
     v54_conversion.add_argument("--output", default="reports/v5.4-alpha-conversion")
+
+    v55_router = sub.add_parser("v5.5-semantic-router")
+    v55_router.add_argument("--output", default="reports/v5.5-semantic-router")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2220,6 +2225,13 @@ def main() -> None:
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v5.4-alpha-conversion failed: {exc}") from exc
         print(report.to_json())
+        return
+
+    if args.command == "v5.5-semantic-router":
+        report = run_v55_semantic_router(args.output)
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V55_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:
