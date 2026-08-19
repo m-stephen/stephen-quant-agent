@@ -400,6 +400,12 @@ from .v54_alpha_conversion import (
     constrained_schemas,
     run_v54_alpha_conversion,
 )
+from .v55_semantic_router import (
+    V55_VERSION,
+    RouteCoverage,
+    V55Report,
+    run_v55_semantic_router,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -467,6 +473,7 @@ __all__ = [
     "V52_VERSION",
     "V53_VERSION",
     "V54_VERSION",
+    "V55_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -531,6 +538,7 @@ __all__ = [
     "QmtDatValidationRun",
     "ReturnMoments",
     "RobustCandidate",
+    "RouteCoverage",
     "SemanticCandidate",
     "SliceEvidence",
     "SourceAudit",
@@ -618,6 +626,7 @@ __all__ = [
     "V53Report",
     "V54Config",
     "V54Report",
+    "V55Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -699,6 +708,7 @@ __all__ = [
     "run_v52_forward_monitor",
     "run_v53_independent_search",
     "run_v54_alpha_conversion",
+    "run_v55_semantic_router",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",

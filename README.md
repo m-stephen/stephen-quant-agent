@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V5.5 semantic catalog and research-form routing
+
+V5.5 is the first automatic-discovery foundation milestone. It declares type, unit, timing,
+sparsity, missing-value meaning and economic role for all 34 registered source fields, then routes
+factor schemas into continuous ranking, event study, portfolio filter or regime-switch research.
+The label-free audit reduced 214 schemas to 164 unique semantic candidates before any statistical
+trial, while preserving sparse event semantics and margin data's ranking/filter dual role.
+
+The decision is `READY_FOR_TYPED_DSL`. See the [English result](docs/V5_5_RESULT_EN.md),
+[中文报告](docs/V5_5_RESULT_ZH.md), and [design specification](docs/V5_5_SPEC.md).
+
 ## V5.4 Alpha conversion diagnostics
 
 V5.4 tests why positive RankIC has not become tradable Alpha. A frozen 36-cell grid covers three
