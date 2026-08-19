@@ -443,6 +443,11 @@ from .v62_auto_alpha_court import (
     V62Report,
     run_v62_auto_alpha_court,
 )
+from .v63_forward_shadow import (
+    V63_VERSION,
+    V63Report,
+    run_v63_forward_shadow,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -518,6 +523,7 @@ __all__ = [
     "V60_VERSION",
     "V61_VERSION",
     "V62_VERSION",
+    "V63_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -680,6 +686,7 @@ __all__ = [
     "V60Report",
     "V61Report",
     "V62Report",
+    "V63Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -769,6 +776,7 @@ __all__ = [
     "run_v60_portfolio_aware",
     "run_v61_research_memory",
     "run_v62_auto_alpha_court",
+    "run_v63_forward_shadow",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
