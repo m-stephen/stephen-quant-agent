@@ -298,13 +298,28 @@ def run_discovery_cpcv(
         pbo_inputs[item.schema.fingerprint] = path_scores
     pbo = probability_of_backtest_overfitting(manifest, pbo_inputs, findings)
     winner = max(scores, key=lambda score: (score.mean_path_rank_ic, score.fingerprint))
+    # A fixed, non-fitted signal can produce identical full-path averages because
+    # every combinatorial path traverses every temporal group exactly once.  In
+    # that case PBO and positive-path counts contain no path-wise falsification
+    # information and must not authorize the signal gate.
+    degenerate_paths = all(
+        max(score.path_scores.values()) - min(score.path_scores.values()) <= 1e-12
+        for score in scores
+    )
     passed = (
         hygiene
+        and not degenerate_paths
         and winner.mean_path_rank_ic >= config.minimum_mean_path_rank_ic
         and winner.positive_paths >= config.minimum_positive_paths
         and pbo.probability <= config.maximum_pbo
     )
-    decision = "PASS_SIGNAL_GATE" if passed else "REJECT_SIGNAL_GATE"
+    decision = (
+        "PASS_SIGNAL_GATE"
+        if passed
+        else "REJECT_DEGENERATE_CPCV_PATHS"
+        if degenerate_paths
+        else "REJECT_SIGNAL_GATE"
+    )
     report = DiscoveryCpcvReport(
         method_version=CPCV_DISCOVERY_VERSION,
         campaign_id=campaign.campaign_id,

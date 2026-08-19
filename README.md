@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V7.0 automatic Alpha discovery
+
+V7.0 connects the semantic catalog, typed DSL, direction-complete symbolic proposals, bounded Trial
+ledger, training screen and purged CPCV behind one `discover-alpha` command. Local data roots remain
+in a gitignored path configuration; reports contain coverage hashes rather than terminal paths.
+The reference run uses only 2022–2024 labels and keeps 2025/2026 sealed. A degenerate CPCV path
+matrix now fails closed instead of allowing a misleading PBO result to authorize an Alpha.
+
+See the [English result](docs/V7_0_RESULT_EN.md), [中文报告](docs/V7_0_RESULT_ZH.md), and
+[design specification](docs/V7_0_SPEC.md).
+
 ## V6.3 append-only forward shadow
 
 V6.3 freezes candidate, cutoff date, required source snapshots, portfolio and cost model before

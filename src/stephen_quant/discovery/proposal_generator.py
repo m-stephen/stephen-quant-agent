@@ -97,44 +97,63 @@ def _symbolic_specs(
     catalog: tuple[FieldSemantic, ...],
     *,
     lookbacks: tuple[int, ...],
+    include_inverse: bool,
 ) -> tuple[ProposalSpec, ...]:
     specs: list[ProposalSpec] = []
+
+    def add(
+        formula: str,
+        hypothesis: str,
+        research_form: ResearchForm,
+        provider_id: str,
+    ) -> None:
+        for direction in ((1, -1) if include_inverse else (1,)):
+            specs.append(
+                ProposalSpec(
+                    formula,
+                    hypothesis,
+                    research_form,
+                    "5d",
+                    direction,
+                    "symbolic",
+                    provider_id,
+                )
+            )
+
     for item in catalog:
         if "continuous_ranking" in item.allowed_forms and item.value_type == "continuous":
             for lookback in lookbacks:
-                specs.append(
-                    ProposalSpec(
-                        f"mean({item.field}, {lookback})",
-                        f"The trailing level of {item.field} may rank subsequent returns.",
-                        "continuous_ranking",
-                        "5d",
-                        1,
-                        "symbolic",
-                        "symbolic:field-level",
-                    )
+                add(
+                    f"mean({item.field}, {lookback})",
+                    f"The trailing level of {item.field} may rank subsequent returns.",
+                    "continuous_ranking",
+                    "symbolic:field-level",
                 )
-                specs.append(
-                    ProposalSpec(
-                        f"sma_ratio({item.field}, {max(1, lookback // 4)}, {lookback})",
-                        f"The trend state of {item.field} may persist or mean-revert.",
-                        "continuous_ranking",
-                        "5d",
-                        1,
-                        "symbolic",
-                        "symbolic:field-trend",
-                    )
+                add(
+                    f"sma_ratio({item.field}, {max(1, lookback // 4)}, {lookback})",
+                    f"The trend state of {item.field} may persist or mean-revert.",
+                    "continuous_ranking",
+                    "symbolic:field-trend",
                 )
+                if item.source == "qd_daily" and item.field == "close":
+                    add(
+                        f"period_return(close, {lookback})",
+                        "Trailing price return may continue or reverse over the next horizon.",
+                        "continuous_ranking",
+                        "symbolic:price-return",
+                    )
+                    add(
+                        f"volatility(close, {lookback})",
+                        "Realized volatility may proxy risk appetite or a volatility premium.",
+                        "continuous_ranking",
+                        "symbolic:price-risk",
+                    )
         if "event_study" in item.allowed_forms:
-            specs.append(
-                ProposalSpec(
-                    f"mean({item.field}, {lookbacks[0]})",
-                    f"The {item.field} state may condition a sparse event response.",
-                    "event_study",
-                    "5d",
-                    1,
-                    "symbolic",
-                    "symbolic:event-level",
-                )
+            add(
+                f"mean({item.field}, {lookbacks[0]})",
+                f"The {item.field} state may condition a sparse event response.",
+                "event_study",
+                "symbolic:event-level",
             )
     same_unit: dict[str, list[FieldSemantic]] = {}
     for item in catalog:
@@ -144,16 +163,11 @@ def _symbolic_specs(
         if unit == "binary":
             continue
         for left, right in pairwise(items):
-            specs.append(
-                ProposalSpec(
-                    f"mean({left.field}, {lookbacks[0]}) / (mean({right.field}, {lookbacks[0]}) + 1)",
-                    f"The normalized imbalance between {left.field} and {right.field} may proxy pressure.",
-                    "continuous_ranking",
-                    "5d",
-                    1,
-                    "symbolic",
-                    "symbolic:same-unit-ratio",
-                )
+            add(
+                f"mean({left.field}, {lookbacks[0]}) / (mean({right.field}, {lookbacks[0]}) + 1)",
+                f"The normalized imbalance between {left.field} and {right.field} may proxy pressure.",
+                "continuous_ranking",
+                "symbolic:same-unit-ratio",
             )
     return tuple(specs)
 
@@ -162,13 +176,16 @@ def generate_symbolic_proposals(
     *,
     budget: int = 256,
     lookbacks: tuple[int, ...] = (5, 20, 60),
+    include_inverse: bool = False,
 ) -> tuple[GeneratedProposal, ...]:
     if budget < 1:
         raise ValueError("proposal budget must be positive")
     if not lookbacks or any(value < 2 or value > 252 for value in lookbacks):
         raise ValueError("symbolic lookbacks must be between 2 and 252")
     unique: dict[str, GeneratedProposal] = {}
-    for spec in _symbolic_specs(build_semantic_catalog(), lookbacks=lookbacks):
+    for spec in _symbolic_specs(
+        build_semantic_catalog(), lookbacks=lookbacks, include_inverse=include_inverse
+    ):
         try:
             item = compile_proposal(spec)
         except (ValueError, TypeError):

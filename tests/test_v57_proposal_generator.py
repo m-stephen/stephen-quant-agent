@@ -27,6 +27,20 @@ def test_v57_symbolic_generation_has_ranking_and_event_proposals() -> None:
     assert {item.proposal.origin for item in proposals} == {"symbolic"}
 
 
+def test_v70_direction_complete_generation_pairs_each_formula() -> None:
+    one_sided = generate_symbolic_proposals(budget=512)
+    proposals = generate_symbolic_proposals(budget=512, include_inverse=True)
+    by_formula = {}
+    for item in proposals:
+        by_formula.setdefault(item.schema.formula, set()).add(item.schema.direction)
+    assert len(proposals) == 2 * len(one_sided)
+    assert all(directions == {-1, 1} for directions in by_formula.values())
+    assert {item.proposal.provider_id for item in proposals} >= {
+        "symbolic:price-return",
+        "symbolic:price-risk",
+    }
+
+
 def test_v57_llm_packet_is_untrusted_and_typed(tmp_path) -> None:
     path = tmp_path / "llm.json"
     path.write_text(

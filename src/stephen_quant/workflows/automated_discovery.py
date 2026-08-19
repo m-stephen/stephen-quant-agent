@@ -161,6 +161,7 @@ class AutomatedDiscoveryConfig:
             "v2.1",
             "v3.0",
             "v4.3",
+            "v7.0",
         }:
             raise ValueError("unsupported automated-discovery search_profile")
         if self.prior_inferential_trials < 0:
@@ -527,6 +528,7 @@ def run_automated_discovery(
     alternative_paths: dict[str, str] | None = None,
     dynamic_membership_path: str | Path | None = None,
     ingested_at: str = "1970-01-01T00:00:00+00:00",
+    generation_plan: GenerationPlan | None = None,
 ) -> AutomatedDiscoveryRun:
     """Run bounded generation, training-only screening and CPCV without opening reserves."""
 
@@ -580,7 +582,7 @@ def run_automated_discovery(
     available_sources = {"qd_daily"} | {
         source for key, source in source_keys.items() if key in alternative_paths
     }
-    plan_seed = (
+    plan_seed = generation_plan or (
         (
             v30_continuous_generation_plan()
             if config.mechanism_epoch == 1
@@ -609,8 +611,8 @@ def run_automated_discovery(
             for template in plan_seed.templates
             if set(template.data_sources) <= available_sources
         ),
-        windows=config.windows,
-        horizons=(config.horizon,),  # type: ignore[arg-type]
+        windows=(plan_seed.windows if generation_plan is not None else config.windows),
+        horizons=(plan_seed.horizons if generation_plan is not None else (config.horizon,)),  # type: ignore[arg-type]
     )
     planned_count = len(plan.templates) * len(set(plan.windows))
     if planned_count > config.schema_budget:
@@ -739,7 +741,7 @@ def run_automated_discovery(
                 item.schema.compile(),
                 anchor,
             )
-    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0", "v4.3"}:
+    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0", "v4.3", "v7.0"}:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
             for fingerprint, rows in observations.items()
@@ -981,7 +983,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v3.0-continuous-factor-research-1.0.0"
+            "v7.0-automatic-alpha-discovery-1.0.0"
+            if config.search_profile == "v7.0"
+            else "v3.0-continuous-factor-research-1.0.0"
             if config.search_profile == "v3.0"
             else "v1.8.21-preregistered-portfolio-usage-1.0.0"
             if config.search_profile == "v1.8.21"

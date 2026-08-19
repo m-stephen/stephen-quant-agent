@@ -86,5 +86,5 @@ def test_v58_planning_run_is_deterministic_and_trial_free(tmp_path) -> None:
     second = run_v58_screening_funnel(tmp_path / "second")
     assert first.to_json() == second.to_json()
     assert first.decision == "READY_FOR_DATA_EVIDENCE"
-    assert first.available_typed_proposals == 185
+    assert first.available_typed_proposals == 191
     assert first.inferential_trial_delta == 0
