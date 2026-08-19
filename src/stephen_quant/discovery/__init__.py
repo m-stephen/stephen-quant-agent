@@ -83,6 +83,14 @@ from .screening import (
     ScreeningWindow,
     run_training_screen,
 )
+from .search_controller import (
+    DEFAULT_SEARCH_CONTROLLER_CONFIG,
+    SEARCH_CONTROLLER_VERSION,
+    SearchArmState,
+    SearchControllerConfig,
+    SearchDecision,
+    choose_search_action,
+)
 from .semantic_catalog import (
     SEMANTIC_CATALOG_VERSION,
     CandidateRoutingDecision,
@@ -119,6 +127,7 @@ from .typed_dsl import (
 )
 
 __all__ = [
+    "DEFAULT_SEARCH_CONTROLLER_CONFIG",
     "DEFAULT_STAGED_SCREENING_CONFIG",
     "FACTOR_ATTRIBUTION_VERSION",
     "MAX_AUTOMATIC_LOOKBACK",
@@ -126,6 +135,7 @@ __all__ = [
     "PROPOSAL_GENERATOR_VERSION",
     "REFERENCE_PORTFOLIO_VERSION",
     "RESEARCH_MEMORY_VERSION",
+    "SEARCH_CONTROLLER_VERSION",
     "SEMANTIC_CATALOG_VERSION",
     "SIGNAL_PORTFOLIO_PROTOCOL_VERSION",
     "STABILITY_DIAGNOSTICS_VERSION",
@@ -171,7 +181,10 @@ __all__ = [
     "ScreeningConfig",
     "ScreeningReport",
     "ScreeningWindow",
+    "SearchArmState",
     "SearchCampaign",
+    "SearchControllerConfig",
+    "SearchDecision",
     "SearchRecommendation",
     "SliceScore",
     "StabilityDiagnosticsReport",
@@ -185,6 +198,7 @@ __all__ = [
     "build_alpha_card",
     "build_research_memory",
     "build_semantic_catalog",
+    "choose_search_action",
     "compile_proposal",
     "failure_memory_identity",
     "flow_stress_generation_plan",
