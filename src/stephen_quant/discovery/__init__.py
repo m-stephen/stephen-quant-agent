@@ -47,6 +47,16 @@ from .memory import (
     mutate_schema,
 )
 from .models import CampaignBudget, DiscoveryError, FactorSchema, PredictionHorizon
+from .portfolio_objective import (
+    DEFAULT_PORTFOLIO_OBJECTIVE_CONFIG,
+    PORTFOLIO_OBJECTIVE_VERSION,
+    PairwiseDependence,
+    PortfolioCandidateEvidence,
+    PortfolioObjectiveConfig,
+    PortfolioSelectionReport,
+    PortfolioSelectionScore,
+    select_portfolio_candidates,
+)
 from .portfolio_protocol import (
     SIGNAL_PORTFOLIO_PROTOCOL_VERSION,
     AlphaCard,
@@ -127,10 +137,12 @@ from .typed_dsl import (
 )
 
 __all__ = [
+    "DEFAULT_PORTFOLIO_OBJECTIVE_CONFIG",
     "DEFAULT_SEARCH_CONTROLLER_CONFIG",
     "DEFAULT_STAGED_SCREENING_CONFIG",
     "FACTOR_ATTRIBUTION_VERSION",
     "MAX_AUTOMATIC_LOOKBACK",
+    "PORTFOLIO_OBJECTIVE_VERSION",
     "PORTFOLIO_USAGE_VERSION",
     "PROPOSAL_GENERATOR_VERSION",
     "REFERENCE_PORTFOLIO_VERSION",
@@ -166,7 +178,12 @@ __all__ = [
     "GeneratedCandidate",
     "GeneratedProposal",
     "GenerationPlan",
+    "PairwiseDependence",
+    "PortfolioCandidateEvidence",
     "PortfolioMapping",
+    "PortfolioObjectiveConfig",
+    "PortfolioSelectionReport",
+    "PortfolioSelectionScore",
     "PortfolioSignalPackage",
     "PortfolioUsageConfig",
     "PortfolioUsageRegistration",
@@ -222,6 +239,7 @@ __all__ = [
     "run_staged_screening",
     "run_training_screen",
     "seed_generation_plan",
+    "select_portfolio_candidates",
     "type_check_schema",
     "v21_mechanism_generation_plan",
     "v30_continuous_generation_plan",

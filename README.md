@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V6.0 portfolio-aware factor objective
+
+V6.0 ranks candidates by marginal portfolio value instead of standalone Alpha alone. The joint
+objective rewards marginal IR, net and doubled-cost Sharpe and path stability while penalizing
+turnover, drawdown and correlation. It enforces the user's CNY 3 million current-capital floor,
+rejects pair correlation above 0.70 and limits the active factor set to five.
+
+The planning result is `READY_FOR_PORTFOLIO_EVIDENCE`. See the
+[English result](docs/V6_0_RESULT_EN.md), [中文报告](docs/V6_0_RESULT_ZH.md), and
+[design specification](docs/V6_0_SPEC.md).
+
 ## V5.9 budget-aware search controller
 
 V5.9 chooses bounded EXPLORE, MUTATE, REPAIR or STOP actions from research-only family state. It
