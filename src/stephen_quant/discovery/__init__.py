@@ -101,6 +101,15 @@ from .stability import (
     register_capacity_stress_trials,
     run_stability_diagnostics,
 )
+from .staged_screening import (
+    DEFAULT_STAGED_SCREENING_CONFIG,
+    STAGED_SCREENING_VERSION,
+    FunnelDecision,
+    FunnelEvidence,
+    StagedScreeningConfig,
+    StagedScreeningReport,
+    run_staged_screening,
+)
 from .typed_dsl import (
     MAX_AUTOMATIC_LOOKBACK,
     TYPED_DSL_VERSION,
@@ -110,6 +119,7 @@ from .typed_dsl import (
 )
 
 __all__ = [
+    "DEFAULT_STAGED_SCREENING_CONFIG",
     "FACTOR_ATTRIBUTION_VERSION",
     "MAX_AUTOMATIC_LOOKBACK",
     "PORTFOLIO_USAGE_VERSION",
@@ -119,6 +129,7 @@ __all__ = [
     "SEMANTIC_CATALOG_VERSION",
     "SIGNAL_PORTFOLIO_PROTOCOL_VERSION",
     "STABILITY_DIAGNOSTICS_VERSION",
+    "STAGED_SCREENING_VERSION",
     "TYPED_DSL_VERSION",
     "AlphaCard",
     "AttributionRegistration",
@@ -140,6 +151,8 @@ __all__ = [
     "FactorSchema",
     "FactorTemplate",
     "FieldSemantic",
+    "FunnelDecision",
+    "FunnelEvidence",
     "GeneratedCandidate",
     "GeneratedProposal",
     "GenerationPlan",
@@ -162,6 +175,8 @@ __all__ = [
     "SearchRecommendation",
     "SliceScore",
     "StabilityDiagnosticsReport",
+    "StagedScreeningConfig",
+    "StagedScreeningReport",
     "TypedFormulaAnalysis",
     "TypedValue",
     "WalkForwardBlock",
@@ -190,6 +205,7 @@ __all__ = [
     "run_factor_attribution",
     "run_portfolio_usage",
     "run_stability_diagnostics",
+    "run_staged_screening",
     "run_training_screen",
     "seed_generation_plan",
     "type_check_schema",
