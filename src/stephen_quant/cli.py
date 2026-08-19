@@ -59,6 +59,7 @@ from .workflows import (
     V58_VERSION,
     V59_VERSION,
     V60_VERSION,
+    V61_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -137,6 +138,7 @@ from .workflows import (
     run_v58_screening_funnel,
     run_v59_search_controller,
     run_v60_portfolio_aware,
+    run_v61_research_memory,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -503,6 +505,10 @@ def build_parser() -> argparse.ArgumentParser:
     v60_portfolio = sub.add_parser("v6.0-portfolio-aware")
     v60_portfolio.add_argument("--evidence")
     v60_portfolio.add_argument("--output", default="reports/v6.0-portfolio-aware")
+
+    v61_memory = sub.add_parser("v6.1-research-memory")
+    v61_memory.add_argument("--ledger")
+    v61_memory.add_argument("--output", default="reports/v6.1-research-memory")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2302,6 +2308,13 @@ def main() -> None:
         report = run_v60_portfolio_aware(args.output, evidence_path=args.evidence)
         payload = json.loads(report.to_json())
         payload["cli_version"] = V60_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v6.1-research-memory":
+        report = run_v61_research_memory(args.output, ledger_path=args.ledger)
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V61_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

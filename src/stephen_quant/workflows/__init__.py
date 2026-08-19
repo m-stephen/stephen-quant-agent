@@ -433,6 +433,11 @@ from .v60_portfolio_aware import (
     V60Report,
     run_v60_portfolio_aware,
 )
+from .v61_research_memory import (
+    V61_VERSION,
+    V61Report,
+    run_v61_research_memory,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -506,6 +511,7 @@ __all__ = [
     "V58_VERSION",
     "V59_VERSION",
     "V60_VERSION",
+    "V61_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -666,6 +672,7 @@ __all__ = [
     "V58Report",
     "V59Report",
     "V60Report",
+    "V61Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -753,6 +760,7 @@ __all__ = [
     "run_v58_screening_funnel",
     "run_v59_search_controller",
     "run_v60_portfolio_aware",
+    "run_v61_research_memory",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
