@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V6.3 append-only forward shadow
+
+V6.3 freezes candidate, cutoff date, required source snapshots, portfolio and cost model before
+forward observations are appended to a SHA-256 chain. Sessions must be strictly new and ordered;
+performance remains hidden until at least 25 common sessions exist, and the forward window is never
+fed back into proposal tuning.
+
+The planning result is `READY_FOR_FORWARD_PROTOCOL`. See the
+[English result](docs/V6_3_RESULT_EN.md), [中文报告](docs/V6_3_RESULT_ZH.md), and
+[design specification](docs/V6_3_SPEC.md).
+
 ## V6.2 automatic Alpha Court
 
 V6.2 generalizes the sealed Alpha Court into a candidate-independent frozen protocol. Candidate,

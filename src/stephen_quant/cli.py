@@ -61,6 +61,7 @@ from .workflows import (
     V60_VERSION,
     V61_VERSION,
     V62_VERSION,
+    V63_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -141,6 +142,7 @@ from .workflows import (
     run_v60_portfolio_aware,
     run_v61_research_memory,
     run_v62_auto_alpha_court,
+    run_v63_forward_shadow,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -516,6 +518,11 @@ def build_parser() -> argparse.ArgumentParser:
     v62_court.add_argument("--protocol")
     v62_court.add_argument("--evidence")
     v62_court.add_argument("--output", default="reports/v6.2-alpha-court")
+
+    v63_shadow = sub.add_parser("v6.3-forward-shadow")
+    v63_shadow.add_argument("--protocol")
+    v63_shadow.add_argument("--ledger")
+    v63_shadow.add_argument("--output", default="reports/v6.3-forward-shadow")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2331,6 +2338,15 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V62_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v6.3-forward-shadow":
+        report = run_v63_forward_shadow(
+            args.output, protocol_path=args.protocol, ledger_path=args.ledger
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V63_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
