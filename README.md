@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V6.1 tamper-evident research memory
+
+V6.1 records research-only outcomes in an append-only SHA-256 hash chain keyed by semantic identity,
+stage, failure and evidence snapshot. Renaming a proposal cannot replay the same evidence as a new
+attempt. Repeated failures recommend REPAIR after three occurrences and STOP_FAMILY after eight;
+validation/final-test feedback is rejected.
+
+The empty baseline is `READY_FOR_RESEARCH_EXPERIENCES`. See the
+[English result](docs/V6_1_RESULT_EN.md), [中文报告](docs/V6_1_RESULT_ZH.md), and
+[design specification](docs/V6_1_SPEC.md).
+
 ## V6.0 portfolio-aware factor objective
 
 V6.0 ranks candidates by marginal portfolio value instead of standalone Alpha alone. The joint
