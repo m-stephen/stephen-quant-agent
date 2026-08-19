@@ -1,5 +1,18 @@
 # Stephen Quant Agent
 
+## V7.3 frozen survivor full Alpha Court
+
+V7.3 freezes and deduplicates every V7.1/V7.2 CPCV survivor, then evaluates all 16 candidates under
+one trial-aware protocol. Every candidate receives a CNY 3 million Top-10 execution backtest,
+doubled-cost stress, empirical-moment DSR and two 199-repetition placebos. The real 2022–2024 run
+recorded 145 cumulative Trials. Inverse 60-session volatility returned 37.75% net under standard
+costs and 30.27% under doubled costs, but its DSR was only 0.187. The walk-forward selector also
+missed the frozen Sharpe and drawdown gates. V7.3 therefore returns `REJECT_ALPHA_COURT`; the
+candidate is worth independent forward observation but is not deployable.
+
+See the [English result](docs/V7_3_RESULT_EN.md), [中文报告](docs/V7_3_RESULT_ZH.md), and
+[design specification](docs/V7_3_SPEC.md).
+
 ## V7.2 source-balanced automatic discovery
 
 V7.2 prevents the price grammar from monopolizing automatic search. Its frozen 32-candidate batch

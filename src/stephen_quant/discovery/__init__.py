@@ -24,6 +24,7 @@ from .cpcv import (
     run_discovery_cpcv,
 )
 from .execution import (
+    CandidateCourtScore,
     DiscoveryExecutionConfig,
     DiscoveryExecutionReport,
     ExecutionCandidateScore,
@@ -194,6 +195,7 @@ __all__ = [
     "AttributionThresholds",
     "CampaignBudget",
     "CampaignSpec",
+    "CandidateCourtScore",
     "CandidateRoutingDecision",
     "CandidateScreenScore",
     "CapacityStressRegistration",

@@ -129,6 +129,9 @@ class AutomatedDiscoveryConfig:
     mechanism_epoch: int = 0
     court_minimum_annualized_sharpe: float | None = None
     court_maximum_drawdown: float | None = None
+    all_candidate_court: bool = False
+    doubled_cost_multiplier: float = 2.0
+    minimum_candidate_positive_paths: int | None = None
 
     def validate(self) -> None:
         window = ScreeningWindow(
@@ -164,6 +167,7 @@ class AutomatedDiscoveryConfig:
             "v7.0",
             "v7.1",
             "v7.2",
+            "v7.3",
         }:
             raise ValueError("unsupported automated-discovery search_profile")
         if self.prior_inferential_trials < 0:
@@ -232,6 +236,9 @@ class AutomatedDiscoveryConfig:
             max_placebo_p_value=self.max_placebo_p_value,
             min_dsr_probability=self.min_dsr_probability,
             maximum_pbo=self.maximum_pbo,
+            all_candidate_court=self.all_candidate_court,
+            doubled_cost_multiplier=self.doubled_cost_multiplier,
+            minimum_candidate_positive_paths=self.minimum_candidate_positive_paths,
         ).validate()
 
 
@@ -266,7 +273,11 @@ class AutomatedDiscoveryReport:
             raise ValueError("report language must be en or zh")
         zh = language == "zh"
         title = (
-            "# V1.8.20 因子增量价值与收益归因报告"
+            "# V7.3 冻结候选完整 Alpha Court 报告"
+            if zh and "v7.3" in self.method_version
+            else "# V7.3 Frozen Survivor Full Alpha Court Report"
+            if "v7.3" in self.method_version
+            else "# V1.8.20 因子增量价值与收益归因报告"
             if zh and "1.8.20" in self.method_version
             else "# V1.8.20 Factor Incremental Value and Return Attribution"
             if "1.8.20" in self.method_version
@@ -336,16 +347,38 @@ class AutomatedDiscoveryReport:
                     "",
                     "## Execution and falsification / 执行与证伪",
                     "",
-                    "| Trial | Schema | Periods | Raw Sharpe | Net return | Max drawdown | Cost |",
-                    "|---:|---|---:|---:|---:|---:|---:|",
+                    "| Trial | Schema | Periods | Net Sharpe | Net return | Max drawdown | Double-cost return | Capacity clipped |",
+                    "|---:|---|---:|---:|---:|---:|---:|---:|",
                 ]
             )
             lines.extend(
                 f"| {score.trial_number} | `{score.schema_id}` | {score.periods} | "
-                f"{score.raw_net_sharpe:.6f} | {score.net_total_return:.2%} | "
-                f"{score.max_drawdown:.2%} | {score.total_cost:.2f} |"
+                f"{score.annualized_net_sharpe if score.annualized_net_sharpe is not None else 'N/A'} | "
+                f"{score.net_total_return:.2%} | {score.max_drawdown:.2%} | "
+                f"{score.doubled_cost_net_total_return if score.doubled_cost_net_total_return is not None else 'N/A'} | "
+                f"{score.capacity_clipped_notional:.2f} |"
                 for score in self.execution.configurations
             )
+            if self.execution.candidate_courts:
+                lines.extend(
+                    [
+                        "",
+                        "## Candidate-wide Court / 全候选门禁",
+                        "",
+                        "| Schema | Signal p | Return p | DSR | Court | Economic | Final |",
+                        "|---|---:|---:|---:|---|---|---|",
+                    ]
+                )
+                for candidate in self.execution.candidate_courts:
+                    economic = all(passed for _, passed in candidate.economic_checks)
+                    lines.append(
+                        f"| `{candidate.schema_id}` | "
+                        f"{candidate.alpha_court.signal_placebo.empirical_p_value:.3f} | "
+                        f"{candidate.alpha_court.return_placebo.empirical_p_value:.3f} | "
+                        f"{candidate.alpha_court.deflated_sharpe.probability:.6f} | "
+                        f"{candidate.alpha_court.decision.passed} | {economic} | "
+                        f"{candidate.passed} |"
+                    )
             lines.extend(
                 [
                     "",
@@ -751,6 +784,7 @@ def run_automated_discovery(
         "v7.0",
         "v7.1",
         "v7.2",
+        "v7.3",
     }:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
@@ -828,7 +862,11 @@ def run_automated_discovery(
     factor_attribution: FactorAttributionReport | None = None
     portfolio_usage: PortfolioUsageReport | None = None
     execution_reports = {}
-    if cpcv is not None and cpcv.signal_gate_passed and config.execution_budget >= 2:
+    if (
+        cpcv is not None
+        and (cpcv.signal_gate_passed or config.all_candidate_court)
+        and config.execution_budget >= 2
+    ):
         attribution_registration: AttributionRegistration | None = None
         portfolio_registrations: tuple[PortfolioUsageRegistration, ...] = ()
         attribution_target = None
@@ -899,6 +937,9 @@ def run_automated_discovery(
             maximum_pbo=config.maximum_pbo,
             minimum_annualized_sharpe=config.court_minimum_annualized_sharpe,
             maximum_drawdown=config.court_maximum_drawdown,
+            all_candidate_court=config.all_candidate_court,
+            doubled_cost_multiplier=config.doubled_cost_multiplier,
+            minimum_candidate_positive_paths=config.minimum_candidate_positive_paths,
         )
         execution, execution_reports = run_discovery_execution(
             registry,
@@ -1150,18 +1191,41 @@ def run_automated_discovery(
                 sha256=digest,
             )
     first_trial = screening.scores[0].trial_id
+    candidate_wide_court = execution is not None and any(
+        score.doubled_cost_trial_id is not None for score in execution.configurations
+    )
     for fingerprint, baseline_report in execution_reports.items():
-        artifacts = write_baseline_report(baseline_report, output / "execution")
         if fingerprint == "__walk_forward__":
             trial_id = execution.alpha_court.lineage.trial_id  # type: ignore[union-attr]
             artifact_prefix = "walk_forward"
-        else:
-            trial_id = next(
-                score.trial_id
-                for score in execution.configurations  # type: ignore[union-attr]
-                if score.fingerprint == fingerprint
+            artifact_dir = (
+                output / "execution" / "walk-forward"
+                if candidate_wide_court
+                else output / "execution"
             )
-            artifact_prefix = "execution_baseline"
+        else:
+            candidate_fingerprint, _, stress = fingerprint.partition("::")
+            score = next(
+                item
+                for item in execution.configurations  # type: ignore[union-attr]
+                if item.fingerprint == candidate_fingerprint
+            )
+            trial_id = next(
+                value
+                for value in (
+                    score.doubled_cost_trial_id if stress == "double_cost" else score.trial_id,
+                )
+                if value is not None
+            )
+            artifact_prefix = (
+                "execution_double_cost" if stress == "double_cost" else "execution_baseline"
+            )
+            artifact_dir = (
+                output / "execution" / ("double-cost" if stress else "standard-cost")
+                if candidate_wide_court
+                else output / "execution"
+            )
+        artifacts = write_baseline_report(baseline_report, artifact_dir)
         registry.register_artifact(
             trial_id=trial_id,
             kind=f"{artifact_prefix}_json",

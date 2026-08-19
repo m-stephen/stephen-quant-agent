@@ -451,6 +451,13 @@ from .v63_forward_shadow import (
 from .v70_discover_alpha import V70_VERSION, V70Config, V70Report, run_v70_discover_alpha
 from .v71_discover_alpha import V71_VERSION, run_v71_discover_alpha
 from .v72_discover_alpha import V72_SOURCE_PAIR_QUOTAS, V72_VERSION, run_v72_discover_alpha
+from .v73_candidate_court import (
+    V73_FROZEN_TEMPLATE_IDS,
+    V73_PRIOR_INFERENTIAL_TRIALS,
+    V73_VERSION,
+    frozen_v73_generation_plan,
+    run_v73_candidate_court,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -531,6 +538,9 @@ __all__ = [
     "V71_VERSION",
     "V72_SOURCE_PAIR_QUOTAS",
     "V72_VERSION",
+    "V73_FROZEN_TEMPLATE_IDS",
+    "V73_PRIOR_INFERENTIAL_TRIALS",
+    "V73_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -722,6 +732,7 @@ __all__ = [
     "evaluation_rows",
     "execution_memberships",
     "finalize_stability_scores",
+    "frozen_v73_generation_plan",
     "generate_price_candidates",
     "generate_v4_candidates",
     "generate_v41_candidates",
@@ -789,6 +800,7 @@ __all__ = [
     "run_v70_discover_alpha",
     "run_v71_discover_alpha",
     "run_v72_discover_alpha",
+    "run_v73_candidate_court",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
