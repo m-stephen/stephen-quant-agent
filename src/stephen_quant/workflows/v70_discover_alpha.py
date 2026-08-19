@@ -66,6 +66,7 @@ class V70Config:
     dynamic_universe_top_n: int = 300
     formula_pairs: int = 8
     horizon: str = "5d"
+    search_profile: str = "v7.0"
 
 
 @dataclass(frozen=True)
@@ -96,8 +97,11 @@ class V70Report:
         if language not in {"zh", "en"}:
             raise ValueError("language must be zh or en")
         zh = language == "zh"
+        release = "V7.1" if "v7.1" in self.method_version else "V7.0"
         lines = [
-            "# V7.0 自动 Alpha 发现报告" if zh else "# V7.0 Automatic Alpha Discovery Report",
+            f"# {release} 自动 Alpha 发现报告"
+            if zh
+            else f"# {release} Automatic Alpha Discovery Report",
             "",
             f"**{'系统状态' if zh else 'System status'}: `{self.system_status}`**",
             f"**Alpha {'状态' if zh else 'status'}: `{self.alpha_status}`**",
@@ -232,6 +236,8 @@ def run_v70_discover_alpha(
     code_version: str,
     metadata_only: bool = False,
     config: V70Config | None = None,
+    method_version: str = V70_VERSION,
+    report_stem: str = "v7.0-report",
 ) -> V70Report:
     config = config or V70Config()
     local = (
@@ -300,7 +306,7 @@ def run_v70_discover_alpha(
                 minimum_positive_paths=6,
                 maximum_pbo=0.20,
                 dynamic_universe_top_n=config.dynamic_universe_top_n,
-                search_profile="v7.0",
+                search_profile=config.search_profile,
                 minimum_positive_year_fraction=2 / 3,
                 maximum_rank_turnover=0.80,
                 stability_weight=0.01,
@@ -310,7 +316,8 @@ def run_v70_discover_alpha(
             generation_plan=plan,
         )
         research = run.report
-        pipeline["v7.0_research"] = research.decision
+        release_key = "v7.1_research" if "v7.1" in method_version else "v7.0_research"
+        pipeline[release_key] = research.decision
 
     alpha_status = (
         "RESEARCH_CANDIDATE_PENDING_EXECUTION"
@@ -319,7 +326,7 @@ def run_v70_discover_alpha(
     )
     recorded_trials = 0 if research is None else registry.trial_count(research.experiment_id)
     report = V70Report(
-        V70_VERSION,
+        method_version,
         "OPERATIONAL",
         alpha_status,
         False,
@@ -341,7 +348,7 @@ def run_v70_discover_alpha(
         ),
         "V7_OPERATIONAL_RESEARCH_COMPLETE" if research is not None else "V7_OPERATIONAL_METADATA_ONLY",
     )
-    (output / "v7.0-report.json").write_text(report.to_json() + "\n", encoding="utf-8")
-    (output / "v7.0-report.zh.md").write_text(report.to_markdown("zh"), encoding="utf-8")
-    (output / "v7.0-report.en.md").write_text(report.to_markdown("en"), encoding="utf-8")
+    (output / f"{report_stem}.json").write_text(report.to_json() + "\n", encoding="utf-8")
+    (output / f"{report_stem}.zh.md").write_text(report.to_markdown("zh"), encoding="utf-8")
+    (output / f"{report_stem}.en.md").write_text(report.to_markdown("en"), encoding="utf-8")
     return report

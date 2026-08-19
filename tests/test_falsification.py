@@ -19,6 +19,7 @@ from stephen_quant.falsification import (
     build_alpha_court_report,
     deflated_sharpe_ratio,
     probability_of_backtest_overfitting,
+    probability_of_fold_selection_overfitting,
     run_placebo,
     run_rank_placebo_fast,
     write_alpha_court_report,
@@ -177,6 +178,37 @@ def test_pbo_uses_only_complete_audited_cpcv_paths() -> None:
             scores,
             (AuditFinding("unrelated_check", True, "not this manifest"),),
         )
+
+
+def test_fold_selection_pbo_uses_train_winner_and_complementary_oos_rank() -> None:
+    manifest, findings = _cpcv_fixture()
+    fold_ids = [fold.fold_id for fold in manifest.folds]
+    train = {
+        "stable": {fold: 0.8 for fold in fold_ids},
+        "weak": {fold: 0.2 for fold in fold_ids},
+        "overfit": {
+            fold: (1.0 if index % 2 == 0 else 0.1)
+            for index, fold in enumerate(fold_ids)
+        },
+    }
+    test = {
+        "stable": {fold: 0.8 for fold in fold_ids},
+        "weak": {fold: 0.2 for fold in fold_ids},
+        "overfit": {
+            fold: (-0.5 if index % 2 == 0 else 0.1)
+            for index, fold in enumerate(fold_ids)
+        },
+    }
+    result = probability_of_fold_selection_overfitting(manifest, train, test, findings)
+    assert result.paths == len(fold_ids) == 10
+    assert result.combinations == 10
+    assert result.probability == 0.5
+    assert len(set(result.logits)) == 2
+
+    incomplete = {name: dict(values) for name, values in test.items()}
+    incomplete["stable"].pop(fold_ids[0])
+    with pytest.raises(FalsificationError, match="cover"):
+        probability_of_fold_selection_overfitting(manifest, train, incomplete, findings)
 
 
 def test_alpha_court_report_is_deterministic_and_complete(tmp_path: Path) -> None:

@@ -62,7 +62,7 @@ from .workflows import (
     V61_VERSION,
     V62_VERSION,
     V63_VERSION,
-    V70_VERSION,
+    V71_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -144,7 +144,7 @@ from .workflows import (
     run_v61_research_memory,
     run_v62_auto_alpha_court,
     run_v63_forward_shadow,
-    run_v70_discover_alpha,
+    run_v71_discover_alpha,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -2358,7 +2358,7 @@ def main() -> None:
         return
 
     if args.command == "discover-alpha":
-        report = run_v70_discover_alpha(
+        report = run_v71_discover_alpha(
             args.paths_config,
             registry=registry,
             output_dir=args.output,
@@ -2366,7 +2366,7 @@ def main() -> None:
             metadata_only=args.metadata_only,
         )
         payload = json.loads(report.to_json())
-        payload["cli_version"] = V70_VERSION
+        payload["cli_version"] = V71_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

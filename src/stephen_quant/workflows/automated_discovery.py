@@ -162,6 +162,7 @@ class AutomatedDiscoveryConfig:
             "v3.0",
             "v4.3",
             "v7.0",
+            "v7.1",
         }:
             raise ValueError("unsupported automated-discovery search_profile")
         if self.prior_inferential_trials < 0:
@@ -741,7 +742,7 @@ def run_automated_discovery(
                 item.schema.compile(),
                 anchor,
             )
-    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0", "v4.3", "v7.0"}:
+    if config.search_profile in {"v1.8.17", "v1.8.18", "v3.0", "v4.3", "v7.0", "v7.1"}:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
             for fingerprint, rows in observations.items()
@@ -983,7 +984,9 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v7.0-automatic-alpha-discovery-1.0.0"
+            "v7.1-nondegenerate-automatic-alpha-discovery-1.0.0"
+            if config.search_profile == "v7.1"
+            else "v7.0-automatic-alpha-discovery-1.0.0"
             if config.search_profile == "v7.0"
             else "v3.0-continuous-factor-research-1.0.0"
             if config.search_profile == "v3.0"
