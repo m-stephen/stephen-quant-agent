@@ -21,6 +21,7 @@ from stephen_quant.falsification import (
     build_alpha_court_report,
     deflated_sharpe_ratio,
     run_placebo,
+    run_rank_placebo_fast,
 )
 from stephen_quant.integrity.models import TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
@@ -49,6 +50,9 @@ class DiscoveryExecutionConfig:
     walk_forward_blocks: int = 6
     minimum_annualized_sharpe: float | None = None
     maximum_drawdown: float | None = None
+    all_candidate_court: bool = False
+    doubled_cost_multiplier: float = 2.0
+    minimum_candidate_positive_paths: int | None = None
 
     def validate(self) -> None:
         if self.top_k < 1:
@@ -71,6 +75,13 @@ class DiscoveryExecutionConfig:
             raise ValueError("minimum_annualized_sharpe must be finite when configured")
         if self.maximum_drawdown is not None and not 0 < self.maximum_drawdown < 1:
             raise ValueError("maximum_drawdown must be in (0, 1) when configured")
+        if not math.isfinite(self.doubled_cost_multiplier) or self.doubled_cost_multiplier < 1:
+            raise ValueError("doubled_cost_multiplier must be finite and at least one")
+        if (
+            self.minimum_candidate_positive_paths is not None
+            and self.minimum_candidate_positive_paths < 1
+        ):
+            raise ValueError("minimum_candidate_positive_paths must be positive")
         if any(
             not math.isfinite(value) or value < 0
             for value in (
@@ -97,6 +108,24 @@ class ExecutionCandidateScore:
     net_total_return: float
     max_drawdown: float
     total_cost: float
+    capacity_clipped_notional: float = 0.0
+    doubled_cost_trial_id: str | None = None
+    doubled_cost_annualized_net_sharpe: float | None = None
+    doubled_cost_net_total_return: float | None = None
+    doubled_cost_max_drawdown: float | None = None
+    doubled_cost_total_cost: float | None = None
+    doubled_cost_capacity_clipped_notional: float | None = None
+
+
+@dataclass(frozen=True)
+class CandidateCourtScore:
+    schema_id: str
+    fingerprint: str
+    alpha_court: AlphaCourtReport
+    empirical_skewness: float
+    empirical_excess_kurtosis: float
+    economic_checks: tuple[tuple[str, bool], ...]
+    passed: bool
 
 
 @dataclass(frozen=True)
@@ -107,6 +136,7 @@ class DiscoveryExecutionReport:
     configurations: tuple[ExecutionCandidateScore, ...]
     selected_fingerprint: str
     alpha_court: AlphaCourtReport
+    candidate_courts: tuple[CandidateCourtScore, ...]
     walk_forward: WalkForwardSummary
     decision: str
 
@@ -162,6 +192,20 @@ def _raw_sharpe(report: BaselineReport) -> float:
     if dispersion == 0:
         return 0.0
     return (sum(returns) / len(returns)) / dispersion
+
+
+def _empirical_moments(report: BaselineReport) -> tuple[float, float]:
+    returns = [period.net_return for period in report.periods]
+    if len(returns) < 4:
+        return 0.0, 0.0
+    average = sum(returns) / len(returns)
+    centered = [value - average for value in returns]
+    second = sum(value**2 for value in centered) / len(centered)
+    if second <= 0:
+        return 0.0, 0.0
+    third = sum(value**3 for value in centered) / len(centered)
+    fourth = sum(value**4 for value in centered) / len(centered)
+    return third / second**1.5, fourth / second**2 - 3.0
 
 
 def _evaluation_rows(
@@ -292,7 +336,18 @@ def _walk_forward(
         ),
         initial_nav=config.initial_nav,
     )
-    passed = replay.metrics.net_sharpe is not None and replay.metrics.net_sharpe > 0
+    passed = (
+        replay.metrics.net_sharpe is not None
+        and replay.metrics.net_sharpe > 0
+        and (
+            config.minimum_annualized_sharpe is None
+            or replay.metrics.net_sharpe >= config.minimum_annualized_sharpe
+        )
+        and (
+            config.maximum_drawdown is None
+            or replay.metrics.max_drawdown >= -config.maximum_drawdown
+        )
+    )
     return (
         WalkForwardSummary(
             method_version="expanding-window-factor-selection-1.0.0",
@@ -328,7 +383,9 @@ def run_discovery_execution(
     config.validate()
     if prior_inferential_trials < 0:
         raise ValueError("prior_inferential_trials cannot be negative")
-    if not cpcv.signal_gate_passed:
+    if not cpcv.signal_gate_passed and not (
+        config.all_candidate_court and cpcv.hygiene_passed
+    ):
         raise ValueError("execution is forbidden before the CPCV signal gate passes")
     if campaign.spec.budget.execution < 2:
         raise ValueError("execution budget must be at least two for DSR multiplicity evidence")
@@ -373,6 +430,17 @@ def run_discovery_execution(
         execution_rows = _non_overlapping(
             observations[schema.fingerprint], horizon_sessions, config.top_k
         )
+        baseline_config = BaselineConfig(
+            top_k=config.top_k,
+            direction=schema.direction,
+            commission_bps=config.commission_bps,
+            sell_tax_bps=config.sell_tax_bps,
+            slippage_bps=config.slippage_bps,
+            impact_coefficient_bps=config.impact_coefficient_bps,
+            max_participation_rate=config.max_participation_rate,
+            periods_per_year=max(1, 252 // horizon_sessions),
+            missing_holding_policy="stale_zero_return",
+        )
         report = run_momentum_topk(
             execution_rows,
             BaselineLineage(
@@ -383,19 +451,57 @@ def run_discovery_execution(
                 trial_id,
                 code_version,
             ),
-            BaselineConfig(
-                top_k=config.top_k,
-                direction=schema.direction,
-                commission_bps=config.commission_bps,
-                sell_tax_bps=config.sell_tax_bps,
-                slippage_bps=config.slippage_bps,
-                impact_coefficient_bps=config.impact_coefficient_bps,
-                max_participation_rate=config.max_participation_rate,
-                periods_per_year=max(1, 252 // horizon_sessions),
-                missing_holding_policy="stale_zero_return",
-            ),
+            baseline_config,
             initial_nav=config.initial_nav,
         )
+        doubled_trial_id = None
+        doubled_report = None
+        if config.all_candidate_court:
+            doubled_trial_id, _ = registry.create_trial(
+                TrialSpec(
+                    experiment_id=campaign.spec.experiment_id,
+                    model_name="v7.3_doubled_cost_topk_execution",
+                    factor_set=schema.schema_id,
+                    hyperparams=json.dumps(
+                        {
+                            "campaign_id": campaign.campaign_id,
+                            "fingerprint": schema.fingerprint,
+                            "cost_multiplier": config.doubled_cost_multiplier,
+                            "execution": asdict(config),
+                            "horizon_sessions": horizon_sessions,
+                        },
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    ),
+                    seed=seed,
+                    train_start=window.research_start,
+                    train_end=window.research_end,
+                    validation_start=window.validation_start,
+                    validation_end=window.validation_end,
+                    test_start=window.test_start,
+                    test_end=window.test_end,
+                )
+            )
+            multiplier = config.doubled_cost_multiplier
+            doubled_report = run_momentum_topk(
+                execution_rows,
+                BaselineLineage(
+                    schema.schema_id,
+                    schema.version,
+                    snapshot_id,
+                    campaign.spec.experiment_id,
+                    doubled_trial_id,
+                    code_version,
+                ),
+                replace(
+                    baseline_config,
+                    commission_bps=config.commission_bps * multiplier,
+                    sell_tax_bps=config.sell_tax_bps * multiplier,
+                    slippage_bps=config.slippage_bps * multiplier,
+                    impact_coefficient_bps=config.impact_coefficient_bps * multiplier,
+                ),
+                initial_nav=config.initial_nav,
+            )
         raw_sharpe = _raw_sharpe(report)
         score = ExecutionCandidateScore(
             schema_id=schema.schema_id,
@@ -408,61 +514,160 @@ def run_discovery_execution(
             net_total_return=report.metrics.net_total_return,
             max_drawdown=report.metrics.max_drawdown,
             total_cost=report.metrics.total_cost,
+            capacity_clipped_notional=report.metrics.capacity_clipped_notional,
+            doubled_cost_trial_id=doubled_trial_id,
+            doubled_cost_annualized_net_sharpe=(
+                doubled_report.metrics.net_sharpe if doubled_report is not None else None
+            ),
+            doubled_cost_net_total_return=(
+                doubled_report.metrics.net_total_return if doubled_report is not None else None
+            ),
+            doubled_cost_max_drawdown=(
+                doubled_report.metrics.max_drawdown if doubled_report is not None else None
+            ),
+            doubled_cost_total_cost=(
+                doubled_report.metrics.total_cost if doubled_report is not None else None
+            ),
+            doubled_cost_capacity_clipped_notional=(
+                doubled_report.metrics.capacity_clipped_notional
+                if doubled_report is not None
+                else None
+            ),
         )
         reports[schema.fingerprint] = report
+        if doubled_report is not None:
+            reports[f"{schema.fingerprint}::double_cost"] = doubled_report
         scores.append(score)
         registry.record_trial_result(
             trial_id,
             json.dumps(asdict(score), separators=(",", ":"), sort_keys=True),
         )
+        if doubled_trial_id is not None:
+            registry.record_trial_result(
+                doubled_trial_id,
+                json.dumps(
+                    {
+                        "fingerprint": schema.fingerprint,
+                        "cost_multiplier": config.doubled_cost_multiplier,
+                        "metrics": asdict(doubled_report.metrics),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                ),
+            )
 
     winner = max(scores, key=lambda item: (item.raw_net_sharpe, item.fingerprint))
-    winner_schema = candidate_by_fingerprint[winner.fingerprint].schema
     recorded_trials = prior_inferential_trials + registry.global_trial_count()
-    dsr = deflated_sharpe_ratio(
-        observed_sharpe=winner.raw_net_sharpe,
-        trial_sharpes=[item.raw_net_sharpe for item in scores],
-        recorded_trial_count=recorded_trials,
-        observations=winner.periods,
-    )
-    placebo_rows = _evaluation_rows(
-        observations[winner.fingerprint], winner_schema.horizon
-    )
-    signal_placebo = run_placebo(
-        placebo_rows,
-        horizon=winner_schema.horizon,
-        direction=winner_schema.direction,
-        method="signal_shuffle",
-        seed=seed,
-        repetitions=config.placebo_repetitions,
-    )
-    return_placebo = run_placebo(
-        placebo_rows,
-        horizon=winner_schema.horizon,
-        direction=winner_schema.direction,
-        method="return_permutation",
-        seed=seed + 1,
-        repetitions=config.placebo_repetitions,
-    )
-    alpha_court = build_alpha_court_report(
-        FalsificationLineage(
-            winner_schema.schema_id,
-            winner_schema.version,
-            snapshot_id,
-            campaign.spec.experiment_id,
-            winner.trial_id,
-            code_version,
-        ),
-        signal_placebo,
-        return_placebo,
-        dsr,
-        cpcv.pbo,
-        recorded_trial_count=recorded_trials,
-        thresholds=AuditThresholds(
-            max_placebo_p_value=config.max_placebo_p_value,
-            min_dsr_probability=config.min_dsr_probability,
-            max_pbo=config.maximum_pbo,
-        ),
+    candidate_courts: list[CandidateCourtScore] = []
+    court_targets = scores if config.all_candidate_court else [winner]
+    cpcv_by_fingerprint = {item.fingerprint: item for item in cpcv.configurations}
+    for candidate_score in court_targets:
+        schema = candidate_by_fingerprint[candidate_score.fingerprint].schema
+        baseline = reports[candidate_score.fingerprint]
+        skewness, excess_kurtosis = (
+            _empirical_moments(baseline) if config.all_candidate_court else (0.0, 0.0)
+        )
+        dsr = deflated_sharpe_ratio(
+            observed_sharpe=candidate_score.raw_net_sharpe,
+            trial_sharpes=[item.raw_net_sharpe for item in scores],
+            recorded_trial_count=recorded_trials,
+            observations=candidate_score.periods,
+            skewness=skewness,
+            excess_kurtosis=excess_kurtosis,
+        )
+        placebo_rows = _evaluation_rows(observations[candidate_score.fingerprint], schema.horizon)
+        placebo_runner = run_rank_placebo_fast if config.all_candidate_court else run_placebo
+        signal_placebo = placebo_runner(
+            placebo_rows,
+            horizon=schema.horizon,
+            direction=schema.direction,
+            method="signal_shuffle",
+            seed=seed,
+            repetitions=config.placebo_repetitions,
+        )
+        return_placebo = placebo_runner(
+            placebo_rows,
+            horizon=schema.horizon,
+            direction=schema.direction,
+            method="return_permutation",
+            seed=seed + 1,
+            repetitions=config.placebo_repetitions,
+        )
+        court = build_alpha_court_report(
+            FalsificationLineage(
+                schema.schema_id,
+                schema.version,
+                snapshot_id,
+                campaign.spec.experiment_id,
+                candidate_score.trial_id,
+                code_version,
+            ),
+            signal_placebo,
+            return_placebo,
+            dsr,
+            cpcv.pbo,
+            recorded_trial_count=recorded_trials,
+            thresholds=AuditThresholds(
+                max_placebo_p_value=config.max_placebo_p_value,
+                min_dsr_probability=config.min_dsr_probability,
+                max_pbo=config.maximum_pbo,
+            ),
+        )
+        economic_checks = (
+            ("cpcv_signal_gate", cpcv.signal_gate_passed),
+            (
+                "cpcv_positive_paths",
+                config.minimum_candidate_positive_paths is None
+                or cpcv_by_fingerprint[candidate_score.fingerprint].positive_paths
+                >= config.minimum_candidate_positive_paths,
+            ),
+            (
+                "annualized_net_sharpe",
+                config.minimum_annualized_sharpe is None
+                or (
+                    candidate_score.annualized_net_sharpe is not None
+                    and candidate_score.annualized_net_sharpe
+                    >= config.minimum_annualized_sharpe
+                ),
+            ),
+            (
+                "maximum_drawdown",
+                config.maximum_drawdown is None
+                or candidate_score.max_drawdown >= -config.maximum_drawdown,
+            ),
+            ("capacity", candidate_score.capacity_clipped_notional <= 1e-9),
+            (
+                "doubled_cost_positive_return",
+                not config.all_candidate_court
+                or (
+                    candidate_score.doubled_cost_net_total_return is not None
+                    and candidate_score.doubled_cost_net_total_return > 0
+                ),
+            ),
+            (
+                "doubled_cost_capacity",
+                not config.all_candidate_court
+                or (
+                    candidate_score.doubled_cost_capacity_clipped_notional is not None
+                    and candidate_score.doubled_cost_capacity_clipped_notional <= 1e-9
+                ),
+            ),
+        )
+        candidate_courts.append(
+            CandidateCourtScore(
+                schema.schema_id,
+                candidate_score.fingerprint,
+                court,
+                skewness,
+                excess_kurtosis,
+                economic_checks,
+                court.decision.passed and all(passed for _, passed in economic_checks),
+            )
+        )
+    alpha_court = next(
+        item.alpha_court
+        for item in candidate_courts
+        if item.fingerprint == winner.fingerprint
     )
     walk_forward, walk_forward_report = _walk_forward(
         tuple(item.fingerprint for item in ranked),
@@ -480,22 +685,12 @@ def run_discovery_execution(
         config=config,
     )
     reports["__walk_forward__"] = walk_forward_report
-    economic_quality_passed = (
-        (
-            config.minimum_annualized_sharpe is None
-            or (
-                winner.annualized_net_sharpe is not None
-                and winner.annualized_net_sharpe >= config.minimum_annualized_sharpe
-            )
-        )
-        and (
-            config.maximum_drawdown is None
-            or winner.max_drawdown >= -config.maximum_drawdown
-        )
+    winner_court = next(
+        item for item in candidate_courts if item.fingerprint == winner.fingerprint
     )
     decision = (
         "PASS_ALPHA_COURT"
-        if alpha_court.decision.passed and walk_forward.passed and economic_quality_passed
+        if winner_court.passed and walk_forward.passed
         else "REJECT_EXECUTION_QUALITY"
         if alpha_court.decision.passed and walk_forward.passed
         else "REJECT_WALK_FORWARD"
@@ -510,6 +705,7 @@ def run_discovery_execution(
             configurations=tuple(scores),
             selected_fingerprint=winner.fingerprint,
             alpha_court=alpha_court,
+            candidate_courts=tuple(candidate_courts),
             walk_forward=walk_forward,
             decision=decision,
         ),

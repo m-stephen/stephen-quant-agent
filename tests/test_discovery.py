@@ -488,7 +488,11 @@ def test_cpcv_rejects_an_impossible_positive_path_threshold() -> None:
         ).validate()
 
 
-def test_execution_tournament_counts_trials_and_builds_alpha_court(tmp_path: Path) -> None:
+@pytest.mark.parametrize("all_candidate_court", [False, True])
+def test_execution_tournament_counts_trials_and_builds_alpha_court(
+    tmp_path: Path,
+    all_candidate_court: bool,
+) -> None:
     registry, experiment_id = _experiment(tmp_path)
     campaign = SearchCampaign(
         registry,
@@ -585,12 +589,36 @@ def test_execution_tournament_counts_trials_and_builds_alpha_court(tmp_path: Pat
             "2026-12-31",
         ),
         horizon_sessions=1,
-        config=DiscoveryExecutionConfig(top_k=3, placebo_repetitions=19),
+        config=DiscoveryExecutionConfig(
+            top_k=3,
+            placebo_repetitions=19,
+            all_candidate_court=all_candidate_court,
+            minimum_annualized_sharpe=1_000.0,
+            maximum_drawdown=0.01,
+        ),
         prior_inferential_trials=52,
     )
     assert len(report.configurations) == 2
-    assert len(baselines) == 3
+    assert len(baselines) == (5 if all_candidate_court else 3)
+    assert len(report.candidate_courts) == (2 if all_candidate_court else 1)
+    assert all(
+        bool(score.doubled_cost_trial_id) is all_candidate_court
+        for score in report.configurations
+    )
+    assert all(
+        (score.doubled_cost_net_total_return is not None) is all_candidate_court
+        for score in report.configurations
+    )
+    if all_candidate_court:
+        assert any(
+            abs(score.empirical_skewness) > 0
+            for score in report.candidate_courts
+        )
+    else:
+        assert report.candidate_courts[0].empirical_skewness == 0
+        assert report.candidate_courts[0].empirical_excess_kurtosis == 0
     assert report.walk_forward.blocks
     assert report.walk_forward.periods > 0
-    assert report.alpha_court.recorded_trial_count == 54
-    assert registry.trial_count(experiment_id) == 2
+    assert report.walk_forward.passed is False
+    assert report.alpha_court.recorded_trial_count == (56 if all_candidate_court else 54)
+    assert registry.trial_count(experiment_id) == (4 if all_candidate_court else 2)
