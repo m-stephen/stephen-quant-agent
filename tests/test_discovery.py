@@ -412,7 +412,8 @@ def test_shortlist_runs_audited_cpcv_and_registers_new_trials(tmp_path: Path) ->
         config=DiscoveryCpcvConfig(groups=6, test_groups=3, embargo_days=0),
     )
     assert report.hygiene_passed is True
-    assert report.signal_gate_passed is True
+    assert report.signal_gate_passed is False
+    assert report.decision == "REJECT_DEGENERATE_CPCV_PATHS"
     assert report.validation_window_opened is False
     assert report.pbo.paths == 10
     assert registry.trial_count(experiment_id) == 4

@@ -62,6 +62,7 @@ from .workflows import (
     V61_VERSION,
     V62_VERSION,
     V63_VERSION,
+    V70_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -143,6 +144,7 @@ from .workflows import (
     run_v61_research_memory,
     run_v62_auto_alpha_court,
     run_v63_forward_shadow,
+    run_v70_discover_alpha,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -523,6 +525,11 @@ def build_parser() -> argparse.ArgumentParser:
     v63_shadow.add_argument("--protocol")
     v63_shadow.add_argument("--ledger")
     v63_shadow.add_argument("--output", default="reports/v6.3-forward-shadow")
+
+    v70_discover = sub.add_parser("discover-alpha")
+    v70_discover.add_argument("--paths-config", required=True)
+    v70_discover.add_argument("--output", default="reports/v7.0-discover-alpha")
+    v70_discover.add_argument("--metadata-only", action="store_true")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2347,6 +2354,19 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V63_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "discover-alpha":
+        report = run_v70_discover_alpha(
+            args.paths_config,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            metadata_only=args.metadata_only,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V70_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
