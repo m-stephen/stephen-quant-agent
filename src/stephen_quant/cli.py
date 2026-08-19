@@ -55,6 +55,7 @@ from .v2 import (
 from .workflows import (
     V55_VERSION,
     V56_VERSION,
+    V57_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -129,6 +130,7 @@ from .workflows import (
     run_v54_alpha_conversion,
     run_v55_semantic_router,
     run_v56_typed_dsl,
+    run_v57_proposal_generator,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -477,6 +479,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     v56_dsl = sub.add_parser("v5.6-typed-dsl")
     v56_dsl.add_argument("--output", default="reports/v5.6-typed-dsl")
+
+    v57_proposals = sub.add_parser("v5.7-generate-proposals")
+    v57_proposals.add_argument("--budget", type=int, default=256)
+    v57_proposals.add_argument("--llm-proposals")
+    v57_proposals.add_argument("--llm-provider-id")
+    v57_proposals.add_argument("--output", default="reports/v5.7-proposals")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2243,6 +2251,18 @@ def main() -> None:
         report = run_v56_typed_dsl(args.output)
         payload = json.loads(report.to_json())
         payload["cli_version"] = V56_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v5.7-generate-proposals":
+        report = run_v57_proposal_generator(
+            args.output,
+            budget=args.budget,
+            llm_proposals_path=args.llm_proposals,
+            llm_provider_id=args.llm_provider_id,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V57_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

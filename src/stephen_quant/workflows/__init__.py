@@ -412,6 +412,12 @@ from .v56_typed_dsl import (
     V56Report,
     run_v56_typed_dsl,
 )
+from .v57_proposal_generator import (
+    V57_VERSION,
+    ProposalCoverage,
+    V57Report,
+    run_v57_proposal_generator,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -481,6 +487,7 @@ __all__ = [
     "V54_VERSION",
     "V55_VERSION",
     "V56_VERSION",
+    "V57_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -539,6 +546,7 @@ __all__ = [
     "PriceCandidate",
     "PriceDiscoveryConfig",
     "PriceDiscoveryReport",
+    "ProposalCoverage",
     "QmtBacktestRun",
     "QmtBacktestRunConfig",
     "QmtDatValidationConfig",
@@ -636,6 +644,7 @@ __all__ = [
     "V54Report",
     "V55Report",
     "V56Report",
+    "V57Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -719,6 +728,7 @@ __all__ = [
     "run_v54_alpha_conversion",
     "run_v55_semantic_router",
     "run_v56_typed_dsl",
+    "run_v57_proposal_generator",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
