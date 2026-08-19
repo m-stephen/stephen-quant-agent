@@ -56,6 +56,7 @@ from .workflows import (
     V55_VERSION,
     V56_VERSION,
     V57_VERSION,
+    V58_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -131,6 +132,7 @@ from .workflows import (
     run_v55_semantic_router,
     run_v56_typed_dsl,
     run_v57_proposal_generator,
+    run_v58_screening_funnel,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -485,6 +487,10 @@ def build_parser() -> argparse.ArgumentParser:
     v57_proposals.add_argument("--llm-proposals")
     v57_proposals.add_argument("--llm-provider-id")
     v57_proposals.add_argument("--output", default="reports/v5.7-proposals")
+
+    v58_funnel = sub.add_parser("v5.8-screening-funnel")
+    v58_funnel.add_argument("--evidence")
+    v58_funnel.add_argument("--output", default="reports/v5.8-screening-funnel")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2263,6 +2269,13 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V57_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v5.8-screening-funnel":
+        report = run_v58_screening_funnel(args.output, evidence_path=args.evidence)
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V58_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

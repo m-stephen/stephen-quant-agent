@@ -1,5 +1,15 @@
 # Stephen Quant Agent
 
+## V5.8 staged screening funnel
+
+V5.8 introduces a monotone 256→192→96→16→4 proposal, data-quality, training, CPCV and execution
+funnel. Coverage, missingness, variance and turnover-proxy failures spend no inferential Trial;
+training, CPCV and execution evidence are counted cumulatively. The metadata-only planning run sees
+185 typed proposals and remains `READY_FOR_DATA_EVIDENCE` with zero Trial spend.
+
+See the [English result](docs/V5_8_RESULT_EN.md), [中文报告](docs/V5_8_RESULT_ZH.md), and
+[design specification](docs/V5_8_SPEC.md).
+
 ## V5.7 automatic candidate proposals
 
 V5.7 replaces a purely hand-authored candidate list with a deterministic symbolic enumerator and an
