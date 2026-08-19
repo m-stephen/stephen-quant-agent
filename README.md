@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V6.2 automatic Alpha Court
+
+V6.2 generalizes the sealed Alpha Court into a candidate-independent frozen protocol. Candidate,
+snapshot, code, cost model, total Trial count, evaluation window and thresholds are hashed before
+evidence is accepted. DSR 0.95, PBO/placebo 0.05, path, cost and CNY 3 million capacity gates can be
+tightened but never weakened; a PASS requires every gate.
+
+The planning result is `READY_FOR_FROZEN_PROTOCOL`. See the
+[English result](docs/V6_2_RESULT_EN.md), [中文报告](docs/V6_2_RESULT_ZH.md), and
+[design specification](docs/V6_2_SPEC.md).
+
 ## V6.1 tamper-evident research memory
 
 V6.1 records research-only outcomes in an append-only SHA-256 hash chain keyed by semantic identity,
