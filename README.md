@@ -1,5 +1,15 @@
 # Stephen Quant Agent
 
+## V5.9 budget-aware search controller
+
+V5.9 chooses bounded EXPLORE, MUTATE, REPAIR or STOP actions from research-only family state. It
+reserves 32 of 256 Trials, prices each action by expected downstream cost, penalizes repeated failure
+patterns and rejects validation/final-test feedback. The baseline plan selects a 16-proposal price
+family exploration batch with at most 20 incremental Trials; choosing the action itself costs zero.
+
+See the [English result](docs/V5_9_RESULT_EN.md), [中文报告](docs/V5_9_RESULT_ZH.md), and
+[design specification](docs/V5_9_SPEC.md).
+
 ## V5.8 staged screening funnel
 
 V5.8 introduces a monotone 256→192→96→16→4 proposal, data-quality, training, CPCV and execution

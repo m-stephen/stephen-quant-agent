@@ -57,6 +57,7 @@ from .workflows import (
     V56_VERSION,
     V57_VERSION,
     V58_VERSION,
+    V59_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -133,6 +134,7 @@ from .workflows import (
     run_v56_typed_dsl,
     run_v57_proposal_generator,
     run_v58_screening_funnel,
+    run_v59_search_controller,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -491,6 +493,10 @@ def build_parser() -> argparse.ArgumentParser:
     v58_funnel = sub.add_parser("v5.8-screening-funnel")
     v58_funnel.add_argument("--evidence")
     v58_funnel.add_argument("--output", default="reports/v5.8-screening-funnel")
+
+    v59_controller = sub.add_parser("v5.9-search-controller")
+    v59_controller.add_argument("--state")
+    v59_controller.add_argument("--output", default="reports/v5.9-search-controller")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2276,6 +2282,13 @@ def main() -> None:
         report = run_v58_screening_funnel(args.output, evidence_path=args.evidence)
         payload = json.loads(report.to_json())
         payload["cli_version"] = V58_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v5.9-search-controller":
+        report = run_v59_search_controller(args.output, state_path=args.state)
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V59_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

@@ -423,6 +423,11 @@ from .v58_screening_funnel import (
     V58Report,
     run_v58_screening_funnel,
 )
+from .v59_search_controller import (
+    V59_VERSION,
+    V59Report,
+    run_v59_search_controller,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -494,6 +499,7 @@ __all__ = [
     "V56_VERSION",
     "V57_VERSION",
     "V58_VERSION",
+    "V59_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -652,6 +658,7 @@ __all__ = [
     "V56Report",
     "V57Report",
     "V58Report",
+    "V59Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -737,6 +744,7 @@ __all__ = [
     "run_v56_typed_dsl",
     "run_v57_proposal_generator",
     "run_v58_screening_funnel",
+    "run_v59_search_controller",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
