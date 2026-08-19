@@ -1,5 +1,17 @@
 # Stephen Quant Agent
 
+## V5.4 Alpha conversion diagnostics
+
+V5.4 tests why positive RankIC has not become tradable Alpha. A frozen 36-cell grid covers three
+prior signals, 1/5/10/20-session horizons and Top20/50/100 breadths. Every cell is negative after
+standard costs; the best is +1.72% gross and -1.69% net. A separate direction-complete generator
+tests 12 new margin, auction and limit-event hypotheses. It finds no stable candidate, although
+negative margin net demand remains a diagnostic lead with +12.72% gross and +2.12% net over three
+years but negative net returns in both 2023 and 2024.
+
+The decision is `NO_CONVERTIBLE_ALPHA`. See the [English result](docs/V5_4_RESULT_EN.md),
+[中文报告](docs/V5_4_RESULT_ZH.md), and [frozen protocol](docs/V5_4_SPEC.md).
+
 ## V5.2/V5.3 dual-track research
 
 V5.2 keeps the V5.1 candidate frozen for append-only forward monitoring. As of 2026-08-19,

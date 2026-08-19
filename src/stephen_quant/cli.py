@@ -73,6 +73,7 @@ from .workflows import (
     V51Config,
     V52ForwardConfig,
     V53Config,
+    V54Config,
     build_factor_family_validation_report,
     build_v26_validation_panel,
     load_automated_discovery_config,
@@ -123,6 +124,7 @@ from .workflows import (
     run_v51_candidate_audit,
     run_v52_forward_monitor,
     run_v53_independent_search,
+    run_v54_alpha_conversion,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -458,6 +460,13 @@ def build_parser() -> argparse.ArgumentParser:
     v53_search.add_argument("--tiers-jsonl", required=True)
     v53_search.add_argument("--prior-inferential-trials", type=int, default=1218)
     v53_search.add_argument("--output", default="reports/v5.3-independent-search")
+
+    v54_conversion = sub.add_parser("v5.4-alpha-conversion")
+    v54_conversion.add_argument("--paths-config", required=True)
+    v54_conversion.add_argument("--screening-membership-jsonl", required=True)
+    v54_conversion.add_argument("--membership-jsonl", required=True)
+    v54_conversion.add_argument("--prior-inferential-trials", type=int, default=1280)
+    v54_conversion.add_argument("--output", default="reports/v5.4-alpha-conversion")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2187,6 +2196,29 @@ def main() -> None:
             )
         except (PathConfigError, QmtDataError, ValueError) as exc:
             raise SystemExit(f"v5.3-independent-search failed: {exc}") from exc
+        print(report.to_json())
+        return
+
+    if args.command == "v5.4-alpha-conversion":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            report = run_v54_alpha_conversion(
+                local_paths.choose("qd_daily_dir", None, "--daily-dir"),
+                args.screening_membership_jsonl,
+                args.membership_jsonl,
+                auction_dir=local_paths.choose("qd_auction_dir", None, "--auction-dir"),
+                margin_dir=local_paths.choose("qd_margin_dir", None, "--margin-dir"),
+                limit_event_dir=local_paths.choose(
+                    "qd_limit_event_dir", None, "--limit-event-dir"
+                ),
+                registry=registry,
+                output_dir=args.output,
+                code_version=_git_head(),
+                config=V54Config(),
+                prior_inferential_trials=args.prior_inferential_trials,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(f"v5.4-alpha-conversion failed: {exc}") from exc
         print(report.to_json())
         return
 
