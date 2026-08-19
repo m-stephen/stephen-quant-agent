@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V5.6 typed factor DSL
+
+V5.6 adds static unit, type, frequency, availability, field-provenance and automatic-lookback
+validation above the safe expression grammar. All 164 semantically unique V5.5 candidates compile;
+adversarial tests prove that incompatible units, stale route bindings and lookbacks above 252
+sessions fail closed before consuming inferential trial budget.
+
+The decision is `READY_FOR_AUTOMATIC_PROPOSALS`. See the
+[English result](docs/V5_6_RESULT_EN.md), [中文报告](docs/V5_6_RESULT_ZH.md), and
+[design specification](docs/V5_6_SPEC.md).
+
 ## V5.5 semantic catalog and research-form routing
 
 V5.5 is the first automatic-discovery foundation milestone. It declares type, unit, timing,
