@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V5.7 automatic candidate proposals
+
+V5.7 replaces a purely hand-authored candidate list with a deterministic symbolic enumerator and an
+optional untrusted-JSON LLM proposal boundary. Both origins compile through the V5.5 semantic router
+and V5.6 typed DSL; neither can access labels or submit executable code. The baseline run produced
+185 typed proposals spanning continuous ranking and sparse event studies without adding a Trial.
+
+The decision is `READY_FOR_STAGED_SCREENING`. See the
+[English result](docs/V5_7_RESULT_EN.md), [中文报告](docs/V5_7_RESULT_ZH.md), and
+[design specification](docs/V5_7_SPEC.md).
+
 ## V5.6 typed factor DSL
 
 V5.6 adds static unit, type, frequency, availability, field-provenance and automatic-lookback
