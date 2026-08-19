@@ -92,15 +92,24 @@ from .stability import (
     register_capacity_stress_trials,
     run_stability_diagnostics,
 )
+from .typed_dsl import (
+    MAX_AUTOMATIC_LOOKBACK,
+    TYPED_DSL_VERSION,
+    TypedFormulaAnalysis,
+    TypedValue,
+    type_check_schema,
+)
 
 __all__ = [
     "FACTOR_ATTRIBUTION_VERSION",
+    "MAX_AUTOMATIC_LOOKBACK",
     "PORTFOLIO_USAGE_VERSION",
     "REFERENCE_PORTFOLIO_VERSION",
     "RESEARCH_MEMORY_VERSION",
     "SEMANTIC_CATALOG_VERSION",
     "SIGNAL_PORTFOLIO_PROTOCOL_VERSION",
     "STABILITY_DIAGNOSTICS_VERSION",
+    "TYPED_DSL_VERSION",
     "AlphaCard",
     "AttributionRegistration",
     "AttributionThresholds",
@@ -141,6 +150,8 @@ __all__ = [
     "SearchRecommendation",
     "SliceScore",
     "StabilityDiagnosticsReport",
+    "TypedFormulaAnalysis",
+    "TypedValue",
     "WalkForwardBlock",
     "WalkForwardSummary",
     "authorize_portfolio_signal",
@@ -165,6 +176,7 @@ __all__ = [
     "run_stability_diagnostics",
     "run_training_screen",
     "seed_generation_plan",
+    "type_check_schema",
     "v21_mechanism_generation_plan",
     "v30_continuous_generation_plan",
     "v30_epoch_five_generation_plan",

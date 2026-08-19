@@ -406,6 +406,12 @@ from .v55_semantic_router import (
     V55Report,
     run_v55_semantic_router,
 )
+from .v56_typed_dsl import (
+    V56_VERSION,
+    TypedCandidateResult,
+    V56Report,
+    run_v56_typed_dsl,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -474,6 +480,7 @@ __all__ = [
     "V53_VERSION",
     "V54_VERSION",
     "V55_VERSION",
+    "V56_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -546,6 +553,7 @@ __all__ = [
     "StabilityScore",
     "StressResult",
     "TurnoverAttribution",
+    "TypedCandidateResult",
     "UsageScore",
     "V4Config",
     "V4Report",
@@ -627,6 +635,7 @@ __all__ = [
     "V54Config",
     "V54Report",
     "V55Report",
+    "V56Report",
     "VariantResult",
     "YearEvidence",
     "apply_v25_policy",
@@ -709,6 +718,7 @@ __all__ = [
     "run_v53_independent_search",
     "run_v54_alpha_conversion",
     "run_v55_semantic_router",
+    "run_v56_typed_dsl",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",
