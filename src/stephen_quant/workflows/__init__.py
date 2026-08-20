@@ -458,6 +458,15 @@ from .v73_candidate_court import (
     frozen_v73_generation_plan,
     run_v73_candidate_court,
 )
+from .v74_novel_mechanisms import (
+    V74_EPOCH_TWO_PRIOR_INFERENTIAL_TRIALS,
+    V74_EPOCH_TWO_VERSION,
+    V74_FAMILY_BUDGETS,
+    V74_PRIOR_INFERENTIAL_TRIALS,
+    V74_VERSION,
+    run_v74_epoch_two_search,
+    run_v74_novel_mechanism_search,
+)
 
 __all__ = [
     "AUTOMATED_DISCOVERY_SUITE_VERSION",
@@ -541,6 +550,11 @@ __all__ = [
     "V73_FROZEN_TEMPLATE_IDS",
     "V73_PRIOR_INFERENTIAL_TRIALS",
     "V73_VERSION",
+    "V74_EPOCH_TWO_PRIOR_INFERENTIAL_TRIALS",
+    "V74_EPOCH_TWO_VERSION",
+    "V74_FAMILY_BUDGETS",
+    "V74_PRIOR_INFERENTIAL_TRIALS",
+    "V74_VERSION",
     "VALIDATION_VERSION",
     "WORKFLOW_VERSION",
     "AccountingSummary",
@@ -801,6 +815,8 @@ __all__ = [
     "run_v71_discover_alpha",
     "run_v72_discover_alpha",
     "run_v73_candidate_court",
+    "run_v74_epoch_two_search",
+    "run_v74_novel_mechanism_search",
     "sample_return_moments",
     "select_mapping",
     "select_robust_candidate",

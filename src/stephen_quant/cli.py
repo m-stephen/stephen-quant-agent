@@ -63,6 +63,7 @@ from .workflows import (
     V62_VERSION,
     V63_VERSION,
     V72_VERSION,
+    V74_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -146,6 +147,8 @@ from .workflows import (
     run_v63_forward_shadow,
     run_v72_discover_alpha,
     run_v73_candidate_court,
+    run_v74_epoch_two_search,
+    run_v74_novel_mechanism_search,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -535,6 +538,14 @@ def build_parser() -> argparse.ArgumentParser:
     v73_court = sub.add_parser("test-alpha-candidates")
     v73_court.add_argument("--paths-config", required=True)
     v73_court.add_argument("--output", default="reports/v7.3-candidate-court")
+
+    v74_search = sub.add_parser("discover-novel-alpha")
+    v74_search.add_argument("--paths-config", required=True)
+    v74_search.add_argument("--output", default="reports/v7.4-novel-mechanisms")
+
+    v74_epoch_two = sub.add_parser("discover-cross-source-alpha")
+    v74_epoch_two.add_argument("--paths-config", required=True)
+    v74_epoch_two.add_argument("--output", default="reports/v7.4-cross-source-epoch2")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2377,6 +2388,28 @@ def main() -> None:
 
     if args.command == "test-alpha-candidates":
         run = run_v73_candidate_court(
+            args.paths_config,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+        )
+        print(run.report.to_json())
+        return
+
+    if args.command == "discover-novel-alpha":
+        run = run_v74_novel_mechanism_search(
+            args.paths_config,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+        )
+        payload = json.loads(run.report.to_json())
+        payload["cli_version"] = V74_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "discover-cross-source-alpha":
+        run = run_v74_epoch_two_search(
             args.paths_config,
             registry=registry,
             output_dir=args.output,

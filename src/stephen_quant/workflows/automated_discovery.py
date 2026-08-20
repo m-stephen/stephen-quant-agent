@@ -168,6 +168,8 @@ class AutomatedDiscoveryConfig:
             "v7.1",
             "v7.2",
             "v7.3",
+            "v7.4",
+            "v7.4-epoch2",
         }:
             raise ValueError("unsupported automated-discovery search_profile")
         if self.prior_inferential_trials < 0:
@@ -722,16 +724,29 @@ def run_automated_discovery(
             ),
         )
     observations: dict[str, tuple] = {}
+    # Direction is applied by screening/CPCV/execution. Direction-complete
+    # candidates therefore share the same raw formula panel exactly; caching it
+    # avoids evaluating every formula twice without changing any inference.
+    formula_observation_cache: dict[tuple[str, tuple[str, ...], tuple[str, ...]], tuple] = {}
     for item in candidates:
         if item.unique and item.schema.data_sources == ("qd_daily",):
-            observations[item.schema.fingerprint] = build_qmt_factor_observations(
-                dataset.bars,
-                item.schema.compile(),
-                test_start=config.research_start,
-                test_end=config.research_end,
-                horizon_sessions=HORIZON_SESSIONS[config.horizon],
-                eligible_by_execution_date=eligibility,
+            cache_key = (
+                item.schema.formula,
+                item.schema.data_sources,
+                item.schema.required_fields,
             )
+            rows = formula_observation_cache.get(cache_key)
+            if rows is None:
+                rows = build_qmt_factor_observations(
+                    dataset.bars,
+                    item.schema.compile(),
+                    test_start=config.research_start,
+                    test_end=config.research_end,
+                    horizon_sessions=HORIZON_SESSIONS[config.horizon],
+                    eligible_by_execution_date=eligibility,
+                )
+                formula_observation_cache[cache_key] = rows
+            observations[item.schema.fingerprint] = rows
     if observations:
         anchor = next(iter(observations.values()))
     else:
@@ -757,25 +772,34 @@ def run_automated_discovery(
     for item in candidates:
         if not item.unique or item.schema.data_sources == ("qd_daily",):
             continue
-        if len(item.schema.data_sources) == 1:
-            source = item.schema.data_sources[0]
-            observations[item.schema.fingerprint] = build_alternative_factor_observations(
-                alternative_datasets[source].observations,
-                item.schema.compile(),
-                anchor,
-            )
-        else:
-            sources = {
-                source: alternative_datasets[source].observations
-                for source in item.schema.data_sources
-                if source != "qd_daily"
-            }
-            observations[item.schema.fingerprint] = build_multisource_factor_observations(
-                dataset.bars,
-                sources,
-                item.schema.compile(),
-                anchor,
-            )
+        cache_key = (
+            item.schema.formula,
+            item.schema.data_sources,
+            item.schema.required_fields,
+        )
+        rows = formula_observation_cache.get(cache_key)
+        if rows is None:
+            if len(item.schema.data_sources) == 1:
+                source = item.schema.data_sources[0]
+                rows = build_alternative_factor_observations(
+                    alternative_datasets[source].observations,
+                    item.schema.compile(),
+                    anchor,
+                )
+            else:
+                sources = {
+                    source: alternative_datasets[source].observations
+                    for source in item.schema.data_sources
+                    if source != "qd_daily"
+                }
+                rows = build_multisource_factor_observations(
+                    dataset.bars,
+                    sources,
+                    item.schema.compile(),
+                    anchor,
+                )
+            formula_observation_cache[cache_key] = rows
+        observations[item.schema.fingerprint] = rows
     if config.search_profile in {
         "v1.8.17",
         "v1.8.18",
@@ -785,6 +809,8 @@ def run_automated_discovery(
         "v7.1",
         "v7.2",
         "v7.3",
+        "v7.4",
+        "v7.4-epoch2",
     }:
         observations = {
             fingerprint: _trim_leading_warmup(normalize_cross_sectional_observations(rows))
@@ -1034,7 +1060,11 @@ def run_automated_discovery(
     )
     report = AutomatedDiscoveryReport(
         method_version=(
-            "v7.2-source-balanced-automatic-alpha-discovery-1.0.0"
+            "v7.4-cross-source-confirmation-epoch2-1.0.0"
+            if config.search_profile == "v7.4-epoch2"
+            else "v7.4-novel-mechanism-automatic-alpha-discovery-1.0.0"
+            if config.search_profile == "v7.4"
+            else "v7.2-source-balanced-automatic-alpha-discovery-1.0.0"
             if config.search_profile == "v7.2"
             else "v7.1-nondegenerate-automatic-alpha-discovery-1.0.0"
             if config.search_profile == "v7.1"
