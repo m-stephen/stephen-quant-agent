@@ -148,6 +148,14 @@ def _family(schema_id: str) -> str:
     return normalized
 
 
+def _budget_family(
+    schema_id: str, event: str, family_budgets: dict[str, int]
+) -> str:
+    """Use the explicit semantic family when the frozen budget names it."""
+
+    return event if event in family_budgets else _family(schema_id)
+
+
 def _stability_and_turnover(
     rows: tuple[EvaluationObservation, ...], direction: int, minimum_cross_section: int
 ) -> tuple[float | None, float | None]:
@@ -282,7 +290,9 @@ def run_training_screen(
     family_budgets = dict(config.family_budgets)
     scores: list[CandidateScreenScore] = []
     for item, evaluation, coverage, rank_ic, stability, turnover, objective in raw:
-        family = _family(item.schema.schema_id)
+        family = _budget_family(
+            item.schema.schema_id, item.schema.event, family_budgets
+        )
         correlations: list[float] = []
         for peer_item, peer_rows in selected:
             correlation, _ = peer_rank_correlation(

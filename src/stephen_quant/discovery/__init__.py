@@ -58,6 +58,13 @@ from .generator import (
     v30_epoch_two_generation_plan,
     v43_sparse_domain_inverse_plan,
 )
+from .mechanism_grammar import (
+    MECHANISM_GRAMMAR_VERSION,
+    MechanismRecipe,
+    generate_v74_epoch_two_plan,
+    generate_v74_mechanism_plan,
+    v74_mechanism_family_counts,
+)
 from .memory import (
     RESEARCH_MEMORY_VERSION,
     ResearchExperience,
@@ -175,6 +182,7 @@ __all__ = [
     "FACTOR_ATTRIBUTION_VERSION",
     "FORWARD_SHADOW_VERSION",
     "MAX_AUTOMATIC_LOOKBACK",
+    "MECHANISM_GRAMMAR_VERSION",
     "PORTFOLIO_OBJECTIVE_VERSION",
     "PORTFOLIO_USAGE_VERSION",
     "PROPOSAL_GENERATOR_VERSION",
@@ -222,6 +230,7 @@ __all__ = [
     "GeneratedCandidate",
     "GeneratedProposal",
     "GenerationPlan",
+    "MechanismRecipe",
     "MemoryLedgerRow",
     "PairwiseDependence",
     "PortfolioCandidateEvidence",
@@ -272,6 +281,8 @@ __all__ = [
     "frozen_portfolio_usage_config",
     "generate_candidates",
     "generate_symbolic_proposals",
+    "generate_v74_epoch_two_plan",
+    "generate_v74_mechanism_plan",
     "load_llm_proposals",
     "merge_proposals",
     "mutate_schema",
@@ -302,4 +313,5 @@ __all__ = [
     "v30_epoch_three_generation_plan",
     "v30_epoch_two_generation_plan",
     "v43_sparse_domain_inverse_plan",
+    "v74_mechanism_family_counts",
 ]

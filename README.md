@@ -1,5 +1,16 @@
 # Stephen Quant Agent
 
+## V7.4 novel-mechanism automatic discovery
+
+V7.4 adds a direction-complete mechanism grammar, cross-source confirmation formulas, and raw-panel
+reuse across opposite directions. Two bounded epochs tested 80 directional candidates on the sealed
+2022–2024 research window, with every failed attempt retained in the multiplicity ledger. Statistical
+signals improved, including candidates with 35/35 positive CPCV paths, but neither epoch produced a
+deployable alpha: PBO and DSR failed, and net portfolio Sharpe/drawdown remained unacceptable.
+
+Run the two frozen entry points with `discover-novel-alpha` and `discover-cross-source-alpha`. See
+the [English report](docs/V7_4_RESULT_EN.md) and [中文报告](docs/V7_4_RESULT_ZH.md).
+
 ## V7.3 frozen survivor full Alpha Court
 
 V7.3 freezes and deduplicates every V7.1/V7.2 CPCV survivor, then evaluates all 16 candidates under
