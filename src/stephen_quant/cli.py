@@ -169,6 +169,10 @@ from .workflows import (
     verify_v27_m2_replay,
     write_factor_family_validation_report,
 )
+from .workflows.warehouse_factor_test import (
+    WarehouseFactorTestConfig,
+    run_warehouse_factor_test,
+)
 
 
 def _git_head() -> str:
@@ -211,6 +215,19 @@ def build_parser() -> argparse.ArgumentParser:
     warehouse_verify.add_argument("--paths-config")
     warehouse_verify.add_argument("--warehouse-root")
     warehouse_verify.add_argument("--snapshot", required=True)
+
+    warehouse_factor = sub.add_parser("data-warehouse-factor-test")
+    warehouse_factor.add_argument("--paths-config")
+    warehouse_factor.add_argument("--warehouse-root")
+    warehouse_factor.add_argument("--output", default="artifacts/v8.4-warehouse-factor-test")
+    warehouse_factor.add_argument("--factor", default="ret_20")
+    warehouse_factor.add_argument("--top-n", type=int, default=200)
+    warehouse_factor.add_argument("--universe-start", default="2021-01-01")
+    warehouse_factor.add_argument("--universe-end", default="2021-12-31")
+    warehouse_factor.add_argument("--data-start", default="2021-10-01")
+    warehouse_factor.add_argument("--data-end", default="2023-01-10")
+    warehouse_factor.add_argument("--evaluation-start", default="2022-01-04")
+    warehouse_factor.add_argument("--evaluation-end", default="2022-12-30")
 
     weekly = sub.add_parser("data-update-weekly")
     weekly.add_argument("--paths-config")
@@ -753,6 +770,7 @@ def main() -> None:
         "data-ingest",
         "data-warehouse-verify",
         "data-update-weekly",
+        "data-warehouse-factor-test",
     }:
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -765,6 +783,24 @@ def main() -> None:
                 result = initialize_warehouse(warehouse_root)
             elif args.command == "data-warehouse-verify":
                 result = verify_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-warehouse-factor-test":
+                report = run_warehouse_factor_test(
+                    warehouse_root,
+                    registry=registry,
+                    output_dir=args.output,
+                    code_version=_git_head(),
+                    config=WarehouseFactorTestConfig(
+                        universe_start=args.universe_start,
+                        universe_end=args.universe_end,
+                        data_start=args.data_start,
+                        data_end=args.data_end,
+                        evaluation_start=args.evaluation_start,
+                        evaluation_end=args.evaluation_end,
+                        top_n=args.top_n,
+                        factor_id=args.factor,
+                    ),
+                )
+                result = asdict(report)
             else:
                 asset_root = local_paths.choose(
                     "qd_asset_root", getattr(args, "asset_root", None), "--asset-root"

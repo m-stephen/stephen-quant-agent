@@ -32,7 +32,13 @@ stephen-quant data-asset-inventory --paths-config configs/qd-warehouse-paths.loc
 stephen-quant data-warehouse-init --paths-config configs/qd-warehouse-paths.local.json
 stephen-quant data-update-weekly --paths-config configs/qd-warehouse-paths.local.json
 stephen-quant data-warehouse-verify --paths-config configs/qd-warehouse-paths.local.json --snapshot <ID>
+stephen-quant data-warehouse-factor-test --paths-config configs/qd-warehouse-paths.local.json
 ```
+
+`data-warehouse-factor-test` is the read-only bridge from the DuckDB `qd_daily_current` view to
+the existing factor engine. It verifies the current snapshot, selects an explicit universe from a
+strictly prior liquidity window, registers one inferential Trial and writes JSON plus Chinese and
+English reports. It is a connectivity and calculation test, not an Alpha Court shortcut.
 
 For `.7z` archives, set `qd_7zip_executable` in the ignored local path config. The adapter uses
 7-Zip structured listing and stdout extraction because Windows `tar.exe` may lack the required

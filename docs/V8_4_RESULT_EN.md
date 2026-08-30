@@ -22,7 +22,7 @@
   inconsistent highs), about 0.0014% of current history. None entered canonical data and all evidence
   is snapshot-bound.
 - Storage: 429 active Parquet files totaling 1,015,672,869 bytes; DuckDB catalog about 7.9MB.
-- Regression suite: **582 passed, 1 skipped**; Ruff passed.
+- Regression suite: **583 passed, 1 skipped**; Ruff passed.
 
 ## Known limitations
 
@@ -62,3 +62,18 @@
 - New asset snapshot: `028dd17afe26d8c4efcf729bf8b7a3c6477e4b68680a337376ff9c42b1eb01e3`.
 - Warehouse replay remained `REPLAY_NOOP`: zero new sources and revisions, with the warehouse
   snapshot and current keys unchanged.
+
+## Direct warehouse-to-factor acceptance
+
+- A read-only DuckDB research adapter now queries `qd_daily_current` directly; this path no longer
+  scans the daily CSV directory.
+- The warehouse snapshot was fully verified before reading. The 200-stock universe used only 2021
+  mean traded value; the 2022 evaluation window did not influence selection. The only predeclared
+  factor was `ret_20@1.0.0`, recorded as one Trial.
+- The run read 61,699 rows and produced 48,048 observations over 242 evaluation sessions.
+- Path verdict: `DATABASE_FACTOR_PATH_OPERATIONAL`.
+- Factor diagnostic: mean RankIC -0.015806, RankICIR -1.019630, 44.63% positive RankIC sessions,
+  and -0.078881% mean gross top-minus-bottom daily return. `ret_20` is not a usable alpha in this
+  frozen window.
+- This command tests connectivity, PIT signal construction and forward labels only. It does not
+  replace CPCV, placebo, DSR/PBO, cost or Alpha Court gates.
