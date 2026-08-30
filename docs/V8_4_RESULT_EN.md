@@ -22,7 +22,7 @@
   inconsistent highs), about 0.0014% of current history. None entered canonical data and all evidence
   is snapshot-bound.
 - Storage: 429 active Parquet files totaling 1,015,672,869 bytes; DuckDB catalog about 7.9MB.
-- Regression suite: **580 passed, 1 skipped**; Ruff passed.
+- Regression suite: **581 passed, 1 skipped**; Ruff passed.
 
 ## Known limitations
 
@@ -32,3 +32,19 @@
   but require explicit schemas and PIT availability contracts before canonical ingestion.
 - Deletion is historical, not destructive: a missing source file never erases an existing revision.
   Corrections append a revision and the current view selects the latest one.
+
+## 2026-08-31 full-folder replacement update
+
+- New inventory: 11,469 files and 93,861,393,606 bytes; 429 raw archives, 5,546 extracted
+  copies and 5,494 standalone source files.
+- Asset snapshot: `2f8e3160b09337799a76b7a1668c4d67139a90082eb572c71b84c55b1a049305`.
+- Fifteen daily sources produced 83,132 revisions. Ten dates from 2026-08-17 through 2026-08-28
+  were new; five dates from 2026-08-10 through 2026-08-14 were overlapping metadata revisions.
+- Overlapping sources changed zero OHLC, volume, amount or adjustment values. Eighteen names and
+  five industry labels changed.
+- Coverage now ends on 2026-08-28: 8,714 trading dates, 5,892 instruments and 18,168,503 current
+  keys, with zero duplicate current keys and zero PIT timing violations.
+- Warehouse snapshot: `9ba3320edf76036e5431c0360eed5bf54ca641936a3fa2f1ab12064019cfebd5`.
+- No-change replay added zero files and zero revisions and retained both snapshots.
+- Cross-manifest extracted lineage is regression-tested: removing an extracted copy while retaining
+  the same archive no longer reimports the complete historical archive.

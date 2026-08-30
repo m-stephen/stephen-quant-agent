@@ -109,10 +109,15 @@ def _archive_members(path: Path) -> list[tuple[str, int, str | None]]:
     return result
 
 
-def _manifest_hash(entries: Iterable[InventoryEntry], archive_members: list[dict[str, object]]) -> str:
+def _manifest_hash(
+    entries: Iterable[InventoryEntry],
+    archive_members: list[dict[str, object]],
+    extracted_history: list[dict[str, str]],
+) -> str:
     stable = {
         "entries": [asdict(entry) for entry in entries],
         "archive_members": archive_members,
+        "previously_extracted_archive_members": extracted_history,
     }
     payload = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -152,6 +157,7 @@ def inventory_assets(
     archive_errors: list[dict[str, str]] = []
     previous_members: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     previous_errors: dict[tuple[str, str], dict[str, str]] = {}
+    extracted_history_keys: set[tuple[str, str, str]] = set()
     previous_manifests = list(target.glob("asset-inventory-*.json"))
     if previous_manifests:
         try:
@@ -171,6 +177,32 @@ def inventory_assets(
         except (OSError, KeyError, TypeError, json.JSONDecodeError):
             previous_members.clear()
             previous_errors.clear()
+    for prior_path in previous_manifests:
+        try:
+            prior = json.loads(prior_path.read_text(encoding="utf-8"))
+            archive_hashes = {
+                str(entry["relative_path"]): str(entry["sha256"])
+                for entry in prior.get("entries", [])
+                if entry.get("status") == RAW_ARCHIVE
+            }
+            for item in prior.get("previously_extracted_archive_members", []):
+                extracted_history_keys.add(
+                    (
+                        str(item["archive_relative_path"]),
+                        str(item["archive_sha256"]),
+                        str(item["member_path"]),
+                    )
+                )
+            for entry in prior.get("entries", []):
+                if entry.get("status") != EXTRACTED_FROM_ARCHIVE:
+                    continue
+                archive_rel = str(entry.get("archive_relative_path", ""))
+                member_path = str(entry.get("archive_member_path", ""))
+                archive_sha = archive_hashes.get(archive_rel)
+                if archive_sha and member_path:
+                    extracted_history_keys.add((archive_rel, archive_sha, member_path))
+        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+            continue
     if inspect_archives:
         for path, archive_sha, _, _ in raw:
             if path.suffix.lower() not in ARCHIVE_SUFFIXES:
@@ -252,7 +284,27 @@ def inventory_assets(
             str(item["member_path"]).casefold(),
         )
     )
-    snapshot_sha = _manifest_hash(entries, archive_members)
+    archive_hashes = {
+        entry.relative_path: entry.sha256 for entry in entries if entry.status == RAW_ARCHIVE
+    }
+    for entry in entries:
+        if entry.status != EXTRACTED_FROM_ARCHIVE:
+            continue
+        if entry.archive_relative_path and entry.archive_member_path:
+            archive_sha = archive_hashes.get(entry.archive_relative_path)
+            if archive_sha:
+                extracted_history_keys.add(
+                    (entry.archive_relative_path, archive_sha, entry.archive_member_path)
+                )
+    extracted_history = [
+        {
+            "archive_relative_path": archive_rel,
+            "archive_sha256": archive_sha,
+            "member_path": member_path,
+        }
+        for archive_rel, archive_sha, member_path in sorted(extracted_history_keys)
+    ]
+    snapshot_sha = _manifest_hash(entries, archive_members, extracted_history)
     counts = Counter(entry.status for entry in entries)
     manifest = {
         "schema_version": 1,
@@ -264,6 +316,7 @@ def inventory_assets(
         "hash_cache_reused": reused_count,
         "archive_errors": archive_errors,
         "archive_members": archive_members,
+        "previously_extracted_archive_members": extracted_history,
         "entries": [asdict(entry) for entry in entries],
     }
     json_path = target / f"asset-inventory-{snapshot_sha}.json"

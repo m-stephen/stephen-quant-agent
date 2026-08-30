@@ -135,6 +135,30 @@ def test_weekly_update_reads_new_csv_directly_from_zip(tmp_path: Path) -> None:
     assert second["ingest"]["status"] == "REPLAY_NOOP"
 
 
+def test_removing_extracted_copy_does_not_reingest_unchanged_archive_member(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    daily = source / "股票日K_按日期"
+    daily.mkdir(parents=True)
+    raw = (
+        HEADER + "20260105,000001,平安银行,银行,10,12,9,11,1000,11000,1\n"
+    ).encode("gb18030")
+    extracted = daily / "20260105.csv"
+    extracted.write_bytes(raw)
+    with zipfile.ZipFile(daily / "history.zip", "w") as archive:
+        archive.writestr("20260105.csv", raw)
+    warehouse = tmp_path / "warehouse"
+    first = weekly_update(source, warehouse)
+    assert first["ingest"]["new_source_files"] == 1
+
+    extracted.unlink()
+    second = weekly_update(source, warehouse)
+
+    assert second["ingest"]["status"] == "REPLAY_NOOP"
+    assert second["ingest"]["new_revisions"] == 0
+
+
 def test_manifest_carries_no_absolute_source_root(tmp_path: Path) -> None:
     source = tmp_path / "source"
     warehouse = tmp_path / "warehouse"

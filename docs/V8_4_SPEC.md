@@ -40,6 +40,10 @@ ZIP/7z/RAR may remain compressed: accepted daily CSV members are streamed into w
 without modifying the source tree. If an identical extracted copy is already present, archive
 lineage prevents double ingestion.
 
+Archive lineage is retained across inventory snapshots. If an extracted CSV disappears because a
+user replaces the folder with the original archive, an unchanged archive member remains recognized
+as already ingested. A packaging-only change therefore cannot trigger a full historical reimport.
+
 每周命令会重新盘点源目录，对未变化文件复用哈希缓存，仅导入未见过的
 `(relative_path, sha256)` 文件身份，并自动验证新快照。
 

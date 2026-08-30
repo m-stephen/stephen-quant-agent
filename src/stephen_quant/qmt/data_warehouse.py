@@ -202,6 +202,14 @@ def _inventory_files(manifest_path: Path, source_root: Path, start: date | None,
         for entry in manifest.get("entries", [])
         if entry.get("status") == "extracted_from_archive"
     }
+    historical_extracted_members = {
+        (
+            item.get("archive_relative_path"),
+            item.get("archive_sha256"),
+            item.get("member_path"),
+        )
+        for item in manifest.get("previously_extracted_archive_members", [])
+    }
     for entry in manifest.get("entries", []):
         relative = str(entry.get("relative_path", ""))
         if not relative.startswith(prefix) or not relative.lower().endswith(".csv"):
@@ -228,7 +236,12 @@ def _inventory_files(manifest_path: Path, source_root: Path, start: date | None,
     for member in manifest.get("archive_members", []):
         archive_relative = str(member.get("archive_relative_path", ""))
         member_path = str(member.get("member_path", ""))
-        if not archive_relative.startswith(prefix) or (archive_relative, member_path) in extracted_members:
+        archive_sha = str(member.get("archive_sha256", ""))
+        if (
+            not archive_relative.startswith(prefix)
+            or (archive_relative, member_path) in extracted_members
+            or (archive_relative, archive_sha, member_path) in historical_extracted_members
+        ):
             continue
         member_name = Path(member_path).name
         if not member_name.lower().endswith(".csv"):
@@ -321,11 +334,14 @@ def ingest_daily(
     initialize_warehouse(warehouse)
     manifest_path = Path(inventory_manifest).expanduser().resolve()
     manifest, files = _inventory_files(manifest_path, source, start_date, end_date)
-    if not files:
-        raise QmtDataError("inventory contains no accepted qd_daily CSV files for the requested range")
     connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
     batch_id = uuid.uuid4().hex
     started = datetime.now(timezone.utc)
+    connection.execute(
+        "UPDATE ingest_batches SET completed_at=?, status='INTERRUPTED', "
+        "error='recovered after an interrupted local process' WHERE status='RUNNING'",
+        [started],
+    )
     connection.execute(
         "INSERT INTO ingest_batches VALUES (?, ?, NULL, ?, 'RUNNING', 0, 0, NULL, NULL)",
         [batch_id, started, manifest["snapshot_sha256"]],
@@ -353,6 +369,10 @@ def ingest_daily(
             latest = connection.execute(
                 "SELECT snapshot_id FROM snapshots ORDER BY created_at DESC LIMIT 1"
             ).fetchone()
+            if latest is None:
+                raise QmtDataError(
+                    "inventory contains no accepted qd_daily CSV files for the requested range"
+                )
             connection.execute(
                 "UPDATE ingest_batches SET completed_at=?, status='REPLAY_NOOP', snapshot_id=? WHERE batch_id=?",
                 [datetime.now(timezone.utc), latest[0] if latest else None, batch_id],
