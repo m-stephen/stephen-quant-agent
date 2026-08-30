@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "paths": {
+    "qd_asset_root": "D:/replace-with-your-QD-source-folder",
+    "qd_warehouse_root": "D:/replace-with-your-local-warehouse-folder"
+  }
+}

@@ -10,8 +10,12 @@ __pycache__/
 configs/*.local.json
 *.sqlite3
 *.db
+*.duckdb
+*.duckdb.wal
 artifacts/
 reports/
 data/raw/
 data/processed/
+data/canonical/
+data/warehouse/
 !data/.gitkeep

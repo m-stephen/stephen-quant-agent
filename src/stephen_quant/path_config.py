@@ -33,6 +33,8 @@ ALLOWED_PATH_KEYS = frozenset(
         "qd_margin_dir",
         "qd_chip_dir",
         "qd_limit_event_dir",
+        "qd_asset_root",
+        "qd_warehouse_root",
     }
 )
 
