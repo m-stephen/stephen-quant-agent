@@ -34,6 +34,10 @@ stephen-quant data-update-weekly --paths-config configs/qd-warehouse-paths.local
 stephen-quant data-warehouse-verify --paths-config configs/qd-warehouse-paths.local.json --snapshot <ID>
 ```
 
+For `.7z` archives, set `qd_7zip_executable` in the ignored local path config. The adapter uses
+7-Zip structured listing and stdout extraction because Windows `tar.exe` may lack the required
+LZMA/LZMA2 codec. The executable path is never recorded in a committed manifest.
+
 The weekly command inventories the source folder, reuses cached hashes for unchanged files,
 imports only unseen `(relative_path, sha256)` identities and verifies the resulting snapshot. A new
 ZIP/7z/RAR may remain compressed: accepted daily CSV members are streamed into warehouse staging
@@ -63,3 +67,4 @@ V8.4 首先完整支持 `qd_daily`（股票日K_按日期）。其他 QD 目录�
   snapshot. Isolated row-level numeric/OHLC defects are excluded and hash-bound in quarantine.
 - Snapshot or Parquet hash mismatch: verification fails.
 - Replaying the same source manifest: zero new revisions and the same snapshot ID.
+- A missing or failing 7-Zip executable: explicit archive error; never silently treated as empty.

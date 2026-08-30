@@ -271,7 +271,9 @@ def _inventory_files(manifest_path: Path, source_root: Path, start: date | None,
     return manifest, sorted(selected, key=lambda item: item.identity.casefold())
 
 
-def _candidate_bytes(candidate: _SourceCandidate) -> tuple[bytes, str]:
+def _candidate_bytes(
+    candidate: _SourceCandidate, seven_zip_executable: str | Path | None = None
+) -> tuple[bytes, str]:
     if (
         candidate.container.stat().st_size != candidate.expected_container_size
         or _sha256(candidate.container) != candidate.expected_container_sha256
@@ -282,6 +284,25 @@ def _candidate_bytes(candidate: _SourceCandidate) -> tuple[bytes, str]:
     elif candidate.container.suffix.lower() == ".zip":
         with zipfile.ZipFile(candidate.container) as archive:
             raw = archive.read(candidate.member_path)
+    elif candidate.container.suffix.lower() == ".7z":
+        executable = Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
+        if executable is None or not executable.is_file():
+            raise QmtDataError("7z archive requires a configured qd_7zip_executable")
+        try:
+            raw = subprocess.run(
+                [
+                    str(executable),
+                    "x",
+                    "-so",
+                    "-y",
+                    str(candidate.container),
+                    candidate.member_path,
+                ],
+                check=True,
+                capture_output=True,
+            ).stdout
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise QmtDataError(f"cannot read 7z archive member: {candidate.identity}") from exc
     else:
         try:
             raw = subprocess.run(
@@ -328,6 +349,7 @@ def ingest_daily(
     *,
     start_date: date | None = None,
     end_date: date | None = None,
+    seven_zip_executable: str | Path | None = None,
 ) -> dict[str, object]:
     source = Path(source_root).expanduser().resolve()
     warehouse = Path(warehouse_root).expanduser().resolve()
@@ -396,7 +418,7 @@ def ingest_daily(
         for (year, month), month_candidates in sorted(pending_by_month.items()):
             month_rows: list[dict[str, object]] = []
             for candidate in month_candidates:
-                raw, member_sha = _candidate_bytes(candidate)
+                raw, member_sha = _candidate_bytes(candidate, seven_zip_executable)
                 if (candidate.identity, member_sha) in known:
                     continue
                 parsed_rows, quarantined = _read_csv_bytes(
@@ -620,17 +642,24 @@ def weekly_update(
     rehash_all: bool = False,
     start_date: date | None = None,
     end_date: date | None = None,
+    seven_zip_executable: str | Path | None = None,
 ) -> dict[str, object]:
     from .asset_inventory import inventory_assets
 
     warehouse = Path(warehouse_root).expanduser().resolve()
-    inventory = inventory_assets(source_root, warehouse / "inventory", rehash_all=rehash_all)
+    inventory = inventory_assets(
+        source_root,
+        warehouse / "inventory",
+        rehash_all=rehash_all,
+        seven_zip_executable=seven_zip_executable,
+    )
     ingest = ingest_daily(
         source_root,
         warehouse,
         inventory["manifest_path"],
         start_date=start_date,
         end_date=end_date,
+        seven_zip_executable=seven_zip_executable,
     )
     verification = verify_snapshot(warehouse, str(ingest["snapshot_id"])) if ingest["snapshot_id"] else None
     return {"inventory": inventory, "ingest": ingest, "verification": verification}

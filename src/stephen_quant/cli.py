@@ -756,6 +756,8 @@ def main() -> None:
     }:
         try:
             local_paths = load_local_path_config(args.paths_config)
+            seven_zip_path = local_paths.paths.get("qd_7zip_executable")
+            seven_zip_executable = str(seven_zip_path) if seven_zip_path else None
             warehouse_root = local_paths.choose(
                 "qd_warehouse_root", getattr(args, "warehouse_root", None), "--warehouse-root"
             )
@@ -774,6 +776,7 @@ def main() -> None:
                         output,
                         rehash_all=args.rehash_all,
                         inspect_archives=not args.skip_archive_members,
+                        seven_zip_executable=seven_zip_executable,
                     )
                 elif args.command == "data-ingest":
                     result = ingest_daily(
@@ -782,6 +785,7 @@ def main() -> None:
                         args.inventory,
                         start_date=date.fromisoformat(args.start_date) if args.start_date else None,
                         end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        seven_zip_executable=seven_zip_executable,
                     )
                 else:
                     result = weekly_update(
@@ -790,6 +794,7 @@ def main() -> None:
                         rehash_all=args.rehash_all,
                         start_date=date.fromisoformat(args.start_date) if args.start_date else None,
                         end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        seven_zip_executable=seven_zip_executable,
                     )
             print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
             if args.command == "data-warehouse-verify" and not result["passed"]:

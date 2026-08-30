@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from stephen_quant.qmt.asset_inventory import inventory_assets
+from stephen_quant.qmt.asset_inventory import _parse_seven_zip_slt, inventory_assets
 from stephen_quant.qmt.models import QmtDataError
 
 
@@ -44,3 +44,22 @@ def test_inventory_rejects_output_inside_source(tmp_path: Path) -> None:
     source.mkdir()
     with pytest.raises(QmtDataError, match="outside"):
         inventory_assets(source, source / "output")
+
+
+def test_parse_seven_zip_slt_excludes_directories_and_preserves_crc() -> None:
+    output = """Path = archive.7z
+Type = 7z
+
+Path = bars
+Size = 0
+Attributes = D
+
+Path = bars/20260828.csv
+Size = 123
+Attributes = A
+CRC = A1B2C3D4
+
+"""
+    assert _parse_seven_zip_slt(output) == [
+        ("bars/20260828.csv", 123, "a1b2c3d4")
+    ]

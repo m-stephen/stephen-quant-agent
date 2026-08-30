@@ -22,7 +22,7 @@
   inconsistent highs), about 0.0014% of current history. None entered canonical data and all evidence
   is snapshot-bound.
 - Storage: 429 active Parquet files totaling 1,015,672,869 bytes; DuckDB catalog about 7.9MB.
-- Regression suite: **581 passed, 1 skipped**; Ruff passed.
+- Regression suite: **582 passed, 1 skipped**; Ruff passed.
 
 ## Known limitations
 
@@ -48,3 +48,17 @@
 - No-change replay added zero files and zero revisions and retained both snapshots.
 - Cross-manifest extracted lineage is regression-tested: removing an extracted copy while retaining
   the same archive no longer reimports the complete historical archive.
+
+## 7z archive repair and organization
+
+- Root cause: Windows `tar.exe` lacks the LZMA/LZMA2 codec used by these archives; none of the six
+  files was corrupt.
+- The adapter now resolves 7-Zip through ignored local configuration and uses structured listing and
+  stdout extraction without writing into the source tree.
+- All six archives passed 7-Zip CRC tests and yielded 27,141 members with 28,764,610,441
+  uncompressed bytes.
+- The complete inventory now indexes 4,516,991 archive members and `archive_error_count` fell from
+  six to zero.
+- New asset snapshot: `028dd17afe26d8c4efcf729bf8b7a3c6477e4b68680a337376ff9c42b1eb01e3`.
+- Warehouse replay remained `REPLAY_NOOP`: zero new sources and revisions, with the warehouse
+  snapshot and current keys unchanged.

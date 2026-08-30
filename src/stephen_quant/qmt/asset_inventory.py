@@ -22,6 +22,7 @@ UNKNOWN_REVIEW = "unknown_review"
 ARCHIVE_SUFFIXES = {".zip", ".7z", ".rar"}
 SOURCE_SUFFIXES = {".csv", ".xlsx", ".xls", ".txt", ".json", ".jsonl"}
 GENERATED_MARKERS = ("manifest", "report", "backtest", "normalized", "converted", "stephen_quant")
+ARCHIVE_INSPECTOR_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,38 @@ class HashCache:
         self.connection.close()
 
 
-def _archive_members(path: Path) -> list[tuple[str, int, str | None]]:
+def _parse_seven_zip_slt(output: str) -> list[tuple[str, int, str | None]]:
+    blocks: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+    for line in output.splitlines():
+        if not line.strip():
+            if current:
+                blocks.append(current)
+                current = {}
+            continue
+        if " = " in line:
+            key, value = line.split(" = ", 1)
+            current[key.strip()] = value.strip()
+    if current:
+        blocks.append(current)
+    members: list[tuple[str, int, str | None]] = []
+    for block in blocks:
+        member = block.get("Path")
+        attributes = block.get("Attributes")
+        if not member or attributes is None or "D" in attributes:
+            continue
+        try:
+            size = int(block.get("Size", "-1"))
+        except ValueError:
+            size = -1
+        crc = block.get("CRC") or None
+        members.append((member.replace("\\", "/"), size, crc.lower() if crc else None))
+    return members
+
+
+def _archive_members(
+    path: Path, seven_zip_executable: Path | None = None
+) -> list[tuple[str, int, str | None]]:
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as archive:
             return [
@@ -87,6 +119,24 @@ def _archive_members(path: Path) -> list[tuple[str, int, str | None]]:
                 for item in archive.infolist()
                 if not item.is_dir()
             ]
+    if path.suffix.lower() == ".7z":
+        if seven_zip_executable is None or not seven_zip_executable.is_file():
+            raise QmtDataError("7z archive requires a configured qd_7zip_executable")
+        try:
+            completed = subprocess.run(
+                [
+                    str(seven_zip_executable),
+                    "l",
+                    "-slt",
+                    "-sccUTF-8",
+                    str(path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise QmtDataError(f"cannot inspect 7z archive {path.name}: {exc}") from exc
+        return _parse_seven_zip_slt(completed.stdout.decode("utf-8", errors="replace"))
     try:
         names = subprocess.run(
             ["tar", "-tf", str(path)], check=True, capture_output=True, text=True, errors="replace"
@@ -113,11 +163,13 @@ def _manifest_hash(
     entries: Iterable[InventoryEntry],
     archive_members: list[dict[str, object]],
     extracted_history: list[dict[str, str]],
+    archive_inspector_version: int,
 ) -> str:
     stable = {
         "entries": [asdict(entry) for entry in entries],
         "archive_members": archive_members,
         "previously_extracted_archive_members": extracted_history,
+        "archive_inspector_version": archive_inspector_version,
     }
     payload = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -129,9 +181,13 @@ def inventory_assets(
     *,
     rehash_all: bool = False,
     inspect_archives: bool = True,
+    seven_zip_executable: str | Path | None = None,
 ) -> dict[str, object]:
     source_root = Path(root).expanduser().resolve()
     target = Path(output_dir).expanduser().resolve()
+    seven_zip = (
+        Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
+    )
     if not source_root.is_dir():
         raise QmtDataError(f"asset root does not exist: {source_root}")
     if source_root == target or source_root in target.parents:
@@ -170,10 +226,11 @@ def inventory_assets(
             for item in previous.get("archive_members", []):
                 key = (str(item["archive_relative_path"]), str(item["archive_sha256"]))
                 previous_members[key].append(item)
-            for item in previous.get("archive_errors", []):
-                rel = str(item.get("relative_path", ""))
-                if rel in previous_hashes:
-                    previous_errors[(rel, previous_hashes[rel])] = item
+            if previous.get("archive_inspector_version") == ARCHIVE_INSPECTOR_VERSION:
+                for item in previous.get("archive_errors", []):
+                    rel = str(item.get("relative_path", ""))
+                    if rel in previous_hashes:
+                        previous_errors[(rel, previous_hashes[rel])] = item
         except (OSError, KeyError, TypeError, json.JSONDecodeError):
             previous_members.clear()
             previous_errors.clear()
@@ -224,7 +281,7 @@ def inventory_assets(
                 archive_errors.append(cached_error)
                 continue
             try:
-                for member, size, crc in _archive_members(path):
+                for member, size, crc in _archive_members(path, seven_zip):
                     member_index[(PurePosixPath(member).name.casefold(), size)].append((rel, member, crc))
                     archive_members.append(
                         {
@@ -304,10 +361,14 @@ def inventory_assets(
         }
         for archive_rel, archive_sha, member_path in sorted(extracted_history_keys)
     ]
-    snapshot_sha = _manifest_hash(entries, archive_members, extracted_history)
+    snapshot_sha = _manifest_hash(
+        entries, archive_members, extracted_history, ARCHIVE_INSPECTOR_VERSION
+    )
     counts = Counter(entry.status for entry in entries)
     manifest = {
         "schema_version": 1,
+        "archive_inspector_version": ARCHIVE_INSPECTOR_VERSION,
+        "seven_zip_configured": seven_zip is not None and seven_zip.is_file(),
         "snapshot_sha256": snapshot_sha,
         "source_root_name": source_root.name,
         "file_count": len(entries),
