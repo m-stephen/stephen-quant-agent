@@ -70,6 +70,10 @@ from stephen_quant.qmt import (
     normalize_cross_sectional_observations,
     select_qd_daily_files,
 )
+from stephen_quant.qmt.warehouse_adapter import (
+    latest_warehouse_snapshot,
+    load_qd_warehouse_daily,
+)
 
 AUTOMATED_DISCOVERY_VERSION = "v1.8.16-automated-discovery-1.0.0"
 HORIZON_SESSIONS = {"next_open": 1, "1d": 1, "5d": 5, "20d": 20}
@@ -555,7 +559,7 @@ def _memberships_through(
 
 
 def run_automated_discovery(
-    daily_dir: str | Path,
+    daily_dir: str | Path | None,
     instruments: tuple[str, ...],
     *,
     registry: ExperimentRegistry,
@@ -566,6 +570,7 @@ def run_automated_discovery(
     dynamic_membership_path: str | Path | None = None,
     ingested_at: str = "1970-01-01T00:00:00+00:00",
     generation_plan: GenerationPlan | None = None,
+    warehouse_root: str | Path | None = None,
 ) -> AutomatedDiscoveryRun:
     """Run bounded generation, training-only screening and CPCV without opening reserves."""
 
@@ -586,9 +591,20 @@ def run_automated_discovery(
         )
     if len(instruments) < 3:
         raise ValueError("automated discovery requires at least three instruments")
-    root = Path(daily_dir).expanduser().resolve()
-    files = select_qd_daily_files(root, start_date=config.data_start, end_date=config.research_end)
-    daily_manifest = build_selected_files_snapshot_manifest(root, files)
+    if (daily_dir is None) == (warehouse_root is None):
+        raise ValueError("provide exactly one daily source: daily_dir or warehouse_root")
+    verified_warehouse_snapshot: str | None = None
+    if warehouse_root is not None:
+        verified_warehouse_snapshot = latest_warehouse_snapshot(warehouse_root)
+        daily_snapshot_sha256 = verified_warehouse_snapshot
+    else:
+        root = Path(daily_dir).expanduser().resolve()  # type: ignore[arg-type]
+        files = select_qd_daily_files(
+            root, start_date=config.data_start, end_date=config.research_end
+        )
+        daily_snapshot_sha256 = build_selected_files_snapshot_manifest(
+            root, files
+        ).snapshot_sha256
     alternative_paths = alternative_paths or {}
     alternative_datasets = _alternative_datasets(
         alternative_paths,
@@ -596,7 +612,7 @@ def run_automated_discovery(
         ingested_at=ingested_at,
         instruments=tuple(sorted(set(instruments))),
     )
-    snapshot_components = {"qd_daily": daily_manifest.snapshot_sha256}
+    snapshot_components = {"qd_daily": daily_snapshot_sha256}
     snapshot_components.update(
         {source: dataset.audit.source_sha256 for source, dataset in alternative_datasets.items()}
     )
@@ -704,13 +720,23 @@ def run_automated_discovery(
         ),
     )
     candidates = generate_candidates(campaign, plan)
-    dataset = load_qd_daily_directory(
-        root,
-        start_date=config.data_start,
-        end_date=config.research_end,
-        instruments=tuple(sorted(set(instruments))),
-        adjustment="back_ratio",
-    )
+    if warehouse_root is not None:
+        dataset = load_qd_warehouse_daily(
+            warehouse_root,
+            start_date=config.data_start,
+            end_date=config.research_end,
+            instruments=tuple(sorted(set(instruments))),
+            adjustment="back_ratio",
+            verified_snapshot_id=verified_warehouse_snapshot,
+        )
+    else:
+        dataset = load_qd_daily_directory(
+            root,
+            start_date=config.data_start,
+            end_date=config.research_end,
+            instruments=tuple(sorted(set(instruments))),
+            adjustment="back_ratio",
+        )
     eligibility = None
     if dynamic_memberships is not None:
         eligibility = _execution_memberships(

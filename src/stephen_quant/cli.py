@@ -50,6 +50,7 @@ from .qmt.data_warehouse import (
     verify_snapshot,
     weekly_update,
 )
+from .qmt.minute_warehouse import ingest_minute_archives, verify_minute_snapshot
 from .v2 import (
     ShadowBudgetError,
     ShadowLoopStopped,
@@ -70,6 +71,7 @@ from .workflows import (
     V61_VERSION,
     V62_VERSION,
     V63_VERSION,
+    V71_VERSION,
     V72_VERSION,
     V74_VERSION,
     CompositeCpcvConfig,
@@ -153,6 +155,7 @@ from .workflows import (
     run_v61_research_memory,
     run_v62_auto_alpha_court,
     run_v63_forward_shadow,
+    run_v71_discover_alpha,
     run_v72_discover_alpha,
     run_v73_candidate_court,
     run_v74_epoch_two_search,
@@ -236,6 +239,19 @@ def build_parser() -> argparse.ArgumentParser:
     weekly.add_argument("--start-date")
     weekly.add_argument("--end-date")
     weekly.add_argument("--rehash-all", action="store_true")
+
+    minute_ingest = sub.add_parser("data-minute-ingest")
+    minute_ingest.add_argument("--paths-config")
+    minute_ingest.add_argument("--asset-root")
+    minute_ingest.add_argument("--warehouse-root")
+    minute_ingest.add_argument("--start-date")
+    minute_ingest.add_argument("--end-date")
+    minute_ingest.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_verify = sub.add_parser("data-minute-verify")
+    minute_verify.add_argument("--paths-config")
+    minute_verify.add_argument("--warehouse-root")
+    minute_verify.add_argument("--snapshot", required=True)
 
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("root")
@@ -592,6 +608,9 @@ def build_parser() -> argparse.ArgumentParser:
     v70_discover.add_argument("--paths-config", required=True)
     v70_discover.add_argument("--output", default="reports/v7.0-discover-alpha")
     v70_discover.add_argument("--metadata-only", action="store_true")
+    v70_discover.add_argument(
+        "--profile", choices=("daily", "multi-source"), default="daily"
+    )
 
     v73_court = sub.add_parser("test-alpha-candidates")
     v73_court.add_argument("--paths-config", required=True)
@@ -771,6 +790,8 @@ def main() -> None:
         "data-warehouse-verify",
         "data-update-weekly",
         "data-warehouse-factor-test",
+        "data-minute-ingest",
+        "data-minute-verify",
     }:
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -801,6 +822,24 @@ def main() -> None:
                     ),
                 )
                 result = asdict(report)
+            elif args.command == "data-minute-verify":
+                result = verify_minute_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-minute-ingest":
+                asset_root = local_paths.choose(
+                    "qd_asset_root", args.asset_root, "--asset-root"
+                )
+                try:
+                    intervals = tuple(int(item.strip()) for item in args.intervals.split(","))
+                except ValueError as exc:
+                    raise QmtDataError("--intervals must be comma-separated integers") from exc
+                result = ingest_minute_archives(
+                    asset_root,
+                    warehouse_root,
+                    start_date=date.fromisoformat(args.start_date) if args.start_date else None,
+                    end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                    intervals=intervals,
+                    seven_zip_executable=seven_zip_executable,
+                )
             else:
                 asset_root = local_paths.choose(
                     "qd_asset_root", getattr(args, "asset_root", None), "--asset-root"
@@ -833,7 +872,9 @@ def main() -> None:
                         seven_zip_executable=seven_zip_executable,
                     )
             print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-            if args.command == "data-warehouse-verify" and not result["passed"]:
+            if args.command in {"data-warehouse-verify", "data-minute-verify"} and not result[
+                "passed"
+            ]:
                 raise SystemExit(1)
             return
         except (PathConfigError, QmtDataError, ValueError) as exc:
@@ -1970,7 +2011,12 @@ def main() -> None:
     if args.command == "v3-price-discovery":
         try:
             local_paths = load_local_path_config(args.paths_config)
-            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            warehouse_root = local_paths.paths.get("qd_warehouse_root")
+            daily_dir = (
+                None
+                if warehouse_root is not None
+                else local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            )
             membership_path = local_paths.choose(
                 "dynamic_membership_jsonl", None, "--membership-jsonl"
             )
@@ -2507,7 +2553,10 @@ def main() -> None:
         return
 
     if args.command == "discover-alpha":
-        report = run_v72_discover_alpha(
+        runner = (
+            run_v71_discover_alpha if args.profile == "daily" else run_v72_discover_alpha
+        )
+        report = runner(
             args.paths_config,
             registry=registry,
             output_dir=args.output,
@@ -2515,7 +2564,8 @@ def main() -> None:
             metadata_only=args.metadata_only,
         )
         payload = json.loads(report.to_json())
-        payload["cli_version"] = V72_VERSION
+        payload["cli_version"] = V71_VERSION if args.profile == "daily" else V72_VERSION
+        payload["source_profile"] = args.profile
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
@@ -2579,6 +2629,7 @@ def main() -> None:
                 "alternative_paths": alternative_paths,
                 "ingested_at": args.ingested_at,
                 "dynamic_membership_path": membership_path,
+                "warehouse_root": warehouse_root,
             }
             stocks = read_stock_file(stock_file) if stock_file else ()
             if args.command == "qd-auto-discover":

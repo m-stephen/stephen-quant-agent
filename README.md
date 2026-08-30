@@ -1,5 +1,17 @@
 # Stephen Quant Agent
 
+## V8.5 database-native research and minute bars
+
+V8.5 makes the verified DuckDB/Parquet warehouse the default daily-bar input for automatic factor
+discovery and adds content-addressed 1/5/15/30/60-minute Parquet partitions with DuckDB lineage,
+snapshot verification and idempotent archive replay. CSV remains an explicit compatibility path;
+local roots remain in Git-ignored configuration. `discover-alpha` defaults to the daily warehouse
+profile, while `--profile multi-source` fails closed until the alternative-data archives receive
+their own canonical warehouse schemas.
+
+See the [English result](docs/V8_5_RESULT_EN.md), [中文报告](docs/V8_5_RESULT_ZH.md), and
+[design specification](docs/V8_5_SPEC.md).
+
 ## V8.4 local incremental data warehouse
 
 V8.4 adds a read-only QD asset inventory, archive-to-extracted-file lineage, cached SHA-256

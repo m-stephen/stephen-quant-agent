@@ -99,7 +99,7 @@ def _suite_spec(source: str | Path) -> tuple[tuple[Path, ...], int]:
 
 
 def run_automated_discovery_suite(
-    daily_dir: str | Path,
+    daily_dir: str | Path | None,
     instruments: tuple[str, ...],
     *,
     registry: ExperimentRegistry,
@@ -109,6 +109,7 @@ def run_automated_discovery_suite(
     alternative_paths: dict[str, str] | None = None,
     dynamic_membership_path: str | Path | None = None,
     ingested_at: str,
+    warehouse_root: str | Path | None = None,
 ) -> AutomatedDiscoverySuiteRun:
     """Run each horizon as an independent Experiment under one global ledger."""
 
@@ -147,6 +148,7 @@ def run_automated_discovery_suite(
                 alternative_paths=alternative_paths,
                 dynamic_membership_path=dynamic_membership_path,
                 ingested_at=ingested_at,
+                warehouse_root=warehouse_root,
             )
         )
         if registry.global_trial_count() - starting_trials > frozen_budget:

@@ -14,6 +14,8 @@ from stephen_quant.discovery.proposal_generator import (
 )
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.path_config import LocalPathConfig, load_local_path_config
+from stephen_quant.qmt.data_warehouse import _duckdb
+from stephen_quant.qmt.warehouse_adapter import latest_warehouse_snapshot
 
 from .automated_discovery import (
     AutomatedDiscoveryConfig,
@@ -182,6 +184,36 @@ def _coverage(source: str, root: Path | None) -> tuple[SourceCoverage, set[str]]
     )
 
 
+def _warehouse_daily_coverage(root: Path) -> tuple[SourceCoverage, set[str]]:
+    snapshot = latest_warehouse_snapshot(root)
+    connection = _duckdb().connect(
+        str(root / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        rows = connection.execute(
+            "SELECT DISTINCT CAST(trade_date AS VARCHAR) FROM qd_daily_current ORDER BY 1"
+        ).fetchall()
+        partitions = connection.execute(
+            "SELECT count(*) FROM partitions WHERE dataset='qd_daily' AND active"
+        ).fetchone()[0]
+    finally:
+        connection.close()
+    sessions = {str(row[0]) for row in rows}
+    ordered = sorted(sessions)
+    return (
+        SourceCoverage(
+            "qd_daily",
+            "AVAILABLE",
+            int(partitions),
+            len(ordered),
+            ordered[0] if ordered else None,
+            ordered[-1] if ordered else None,
+            snapshot,
+        ),
+        sessions,
+    )
+
+
 def _direction_complete_plan(
     formula_pairs: int,
     *,
@@ -298,7 +330,10 @@ def run_v70_discover_alpha(
     coverages: list[SourceCoverage] = []
     sessions: dict[str, set[str]] = {}
     for source, key in _SOURCE_KEYS:
-        item, dated = _coverage(source, local.paths.get(key))
+        if source == "qd_daily" and local.paths.get("qd_warehouse_root") is not None:
+            item, dated = _warehouse_daily_coverage(local.paths["qd_warehouse_root"])
+        else:
+            item, dated = _coverage(source, local.paths.get(key))
         coverages.append(item)
         sessions[source] = dated
     core = set.intersection(
@@ -324,10 +359,14 @@ def run_v70_discover_alpha(
     )
     research = None
     if not metadata_only:
-        daily = local.paths.get("qd_daily_dir")
+        warehouse = local.paths.get("qd_warehouse_root")
+        daily = local.paths.get("qd_daily_dir") if warehouse is None else None
         membership = local.paths.get("dynamic_membership_jsonl")
-        if daily is None or membership is None:
-            raise ValueError("V7.0 research requires qd_daily_dir and dynamic_membership_jsonl")
+        if (daily is None and warehouse is None) or membership is None:
+            raise ValueError(
+                "V7.0 research requires qd_warehouse_root (preferred) or qd_daily_dir, "
+                "plus dynamic_membership_jsonl"
+            )
         run = run_automated_discovery(
             daily,
             (),
@@ -381,6 +420,7 @@ def run_v70_discover_alpha(
             },
             dynamic_membership_path=membership,
             generation_plan=plan,
+            warehouse_root=warehouse,
         )
         research = run.report
         release_match = re.search(r"v(\d+\.\d+)", method_version)
