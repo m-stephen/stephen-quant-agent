@@ -71,6 +71,13 @@ from .industry_proxy_audit import (
     build_industry_proxy_manifest,
     write_industry_proxy_audit,
 )
+from .minute_warehouse import (
+    MINUTE_INTERVALS,
+    MINUTE_SCHEMA_VERSION,
+    ingest_minute_archives,
+    initialize_minute_warehouse,
+    verify_minute_snapshot,
+)
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
 from .observations import (
     build_qmt_factor_observations,
@@ -218,6 +225,8 @@ __all__ = [
     "MANIFEST_VERSION",
     "MARKET_WIDE_UNIVERSE_VERSION",
     "MEMBERSHIP_ADAPTER_VERSION",
+    "MINUTE_INTERVALS",
+    "MINUTE_SCHEMA_VERSION",
     "PARSER_VERSION",
     "PLACEBO_AUDIT_VERSION",
     "PRICE_LIMIT_RULE_VERSION",
@@ -312,6 +321,8 @@ __all__ = [
     "export_qmt_daily_csv",
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
+    "ingest_minute_archives",
+    "initialize_minute_warehouse",
     "inventory_local_data",
     "latest_warehouse_snapshot",
     "load_point_in_time_memberships",
@@ -344,6 +355,7 @@ __all__ = [
     "validate_research_manifest_control",
     "verify_github_isolation_proof",
     "verify_github_maintenance_approval",
+    "verify_minute_snapshot",
     "verify_qmt_dat_manifest",
     "write_benchmark_comparison",
     "write_dynamic_universe",

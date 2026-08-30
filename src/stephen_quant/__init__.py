@@ -1,3 +1,3 @@
 """Stephen Quant Agent."""
 
-__version__ = "7.3.0"
+__version__ = "8.5.0"
