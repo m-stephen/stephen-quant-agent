@@ -1,5 +1,13 @@
 # Stephen Quant Agent
 
+## V8.4 local incremental data warehouse
+
+V8.4 adds a read-only QD asset inventory, archive-to-extracted-file lineage, cached SHA-256
+fingerprints, immutable monthly Parquet revisions, a DuckDB catalog and a one-command incremental
+weekly update. Local absolute paths stay in Git-ignored configuration. See
+[`docs/V8_4_SPEC.md`](docs/V8_4_SPEC.md) for the bilingual operating contract.
+
+
 ## V7.4 novel-mechanism automatic discovery
 
 V7.4 adds a direction-complete mechanism grammar, cross-source confirmation formulas, and raw-panel

@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 from dataclasses import asdict, replace
+from datetime import date
 from pathlib import Path
 
 from .baseline import BaselineConfig
@@ -41,6 +42,13 @@ from .qmt import (
     write_industry_proxy_audit,
     write_market_wide_universe,
     write_qd_universe,
+)
+from .qmt.asset_inventory import inventory_assets
+from .qmt.data_warehouse import (
+    ingest_daily,
+    initialize_warehouse,
+    verify_snapshot,
+    weekly_update,
 )
 from .v2 import (
     ShadowBudgetError,
@@ -161,6 +169,10 @@ from .workflows import (
     verify_v27_m2_replay,
     write_factor_family_validation_report,
 )
+from .workflows.warehouse_factor_test import (
+    WarehouseFactorTestConfig,
+    run_warehouse_factor_test,
+)
 
 
 def _git_head() -> str:
@@ -178,6 +190,52 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init-db")
+
+    asset_inventory = sub.add_parser("data-asset-inventory")
+    asset_inventory.add_argument("--paths-config")
+    asset_inventory.add_argument("--asset-root")
+    asset_inventory.add_argument("--output")
+    asset_inventory.add_argument("--rehash-all", action="store_true")
+    asset_inventory.add_argument("--skip-archive-members", action="store_true")
+
+    warehouse_init = sub.add_parser("data-warehouse-init")
+    warehouse_init.add_argument("--paths-config")
+    warehouse_init.add_argument("--warehouse-root")
+
+    data_ingest = sub.add_parser("data-ingest")
+    data_ingest.add_argument("--paths-config")
+    data_ingest.add_argument("--asset-root")
+    data_ingest.add_argument("--warehouse-root")
+    data_ingest.add_argument("--inventory", required=True)
+    data_ingest.add_argument("--dataset", choices=["qd_daily"], default="qd_daily")
+    data_ingest.add_argument("--start-date")
+    data_ingest.add_argument("--end-date")
+
+    warehouse_verify = sub.add_parser("data-warehouse-verify")
+    warehouse_verify.add_argument("--paths-config")
+    warehouse_verify.add_argument("--warehouse-root")
+    warehouse_verify.add_argument("--snapshot", required=True)
+
+    warehouse_factor = sub.add_parser("data-warehouse-factor-test")
+    warehouse_factor.add_argument("--paths-config")
+    warehouse_factor.add_argument("--warehouse-root")
+    warehouse_factor.add_argument("--output", default="artifacts/v8.4-warehouse-factor-test")
+    warehouse_factor.add_argument("--factor", default="ret_20")
+    warehouse_factor.add_argument("--top-n", type=int, default=200)
+    warehouse_factor.add_argument("--universe-start", default="2021-01-01")
+    warehouse_factor.add_argument("--universe-end", default="2021-12-31")
+    warehouse_factor.add_argument("--data-start", default="2021-10-01")
+    warehouse_factor.add_argument("--data-end", default="2023-01-10")
+    warehouse_factor.add_argument("--evaluation-start", default="2022-01-04")
+    warehouse_factor.add_argument("--evaluation-end", default="2022-12-30")
+
+    weekly = sub.add_parser("data-update-weekly")
+    weekly.add_argument("--paths-config")
+    weekly.add_argument("--asset-root")
+    weekly.add_argument("--warehouse-root")
+    weekly.add_argument("--start-date")
+    weekly.add_argument("--end-date")
+    weekly.add_argument("--rehash-all", action="store_true")
 
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("root")
@@ -705,6 +763,81 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     registry = ExperimentRegistry(args.db)
+
+    if args.command in {
+        "data-asset-inventory",
+        "data-warehouse-init",
+        "data-ingest",
+        "data-warehouse-verify",
+        "data-update-weekly",
+        "data-warehouse-factor-test",
+    }:
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            seven_zip_path = local_paths.paths.get("qd_7zip_executable")
+            seven_zip_executable = str(seven_zip_path) if seven_zip_path else None
+            warehouse_root = local_paths.choose(
+                "qd_warehouse_root", getattr(args, "warehouse_root", None), "--warehouse-root"
+            )
+            if args.command == "data-warehouse-init":
+                result = initialize_warehouse(warehouse_root)
+            elif args.command == "data-warehouse-verify":
+                result = verify_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-warehouse-factor-test":
+                report = run_warehouse_factor_test(
+                    warehouse_root,
+                    registry=registry,
+                    output_dir=args.output,
+                    code_version=_git_head(),
+                    config=WarehouseFactorTestConfig(
+                        universe_start=args.universe_start,
+                        universe_end=args.universe_end,
+                        data_start=args.data_start,
+                        data_end=args.data_end,
+                        evaluation_start=args.evaluation_start,
+                        evaluation_end=args.evaluation_end,
+                        top_n=args.top_n,
+                        factor_id=args.factor,
+                    ),
+                )
+                result = asdict(report)
+            else:
+                asset_root = local_paths.choose(
+                    "qd_asset_root", getattr(args, "asset_root", None), "--asset-root"
+                )
+                if args.command == "data-asset-inventory":
+                    output = args.output or str(Path(warehouse_root) / "inventory")
+                    result = inventory_assets(
+                        asset_root,
+                        output,
+                        rehash_all=args.rehash_all,
+                        inspect_archives=not args.skip_archive_members,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                elif args.command == "data-ingest":
+                    result = ingest_daily(
+                        asset_root,
+                        warehouse_root,
+                        args.inventory,
+                        start_date=date.fromisoformat(args.start_date) if args.start_date else None,
+                        end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                else:
+                    result = weekly_update(
+                        asset_root,
+                        warehouse_root,
+                        rehash_all=args.rehash_all,
+                        start_date=date.fromisoformat(args.start_date) if args.start_date else None,
+                        end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+            print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+            if args.command == "data-warehouse-verify" and not result["passed"]:
+                raise SystemExit(1)
+            return
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
 
     if args.command == "init-db":
         registry.initialize()
