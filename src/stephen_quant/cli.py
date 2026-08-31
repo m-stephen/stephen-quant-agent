@@ -51,6 +51,10 @@ from .qmt.data_warehouse import (
     weekly_update,
 )
 from .qmt.minute_warehouse import ingest_minute_archives, verify_minute_snapshot
+from .qmt.multisource_warehouse import (
+    ingest_multisource_assets,
+    verify_multisource_snapshot,
+)
 from .v2 import (
     ShadowBudgetError,
     ShadowLoopStopped,
@@ -252,6 +256,17 @@ def build_parser() -> argparse.ArgumentParser:
     minute_verify.add_argument("--paths-config")
     minute_verify.add_argument("--warehouse-root")
     minute_verify.add_argument("--snapshot", required=True)
+
+    multisource_ingest = sub.add_parser("data-multisource-ingest")
+    multisource_ingest.add_argument("--paths-config")
+    multisource_ingest.add_argument("--asset-root")
+    multisource_ingest.add_argument("--warehouse-root")
+    multisource_ingest.add_argument("--datasets")
+
+    multisource_verify = sub.add_parser("data-multisource-verify")
+    multisource_verify.add_argument("--paths-config")
+    multisource_verify.add_argument("--warehouse-root")
+    multisource_verify.add_argument("--snapshot", required=True)
 
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("root")
@@ -792,6 +807,8 @@ def main() -> None:
         "data-warehouse-factor-test",
         "data-minute-ingest",
         "data-minute-verify",
+        "data-multisource-ingest",
+        "data-multisource-verify",
     }:
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -840,6 +857,22 @@ def main() -> None:
                     intervals=intervals,
                     seven_zip_executable=seven_zip_executable,
                 )
+            elif args.command == "data-multisource-verify":
+                result = verify_multisource_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-multisource-ingest":
+                asset_root = local_paths.choose(
+                    "qd_asset_root", args.asset_root, "--asset-root"
+                )
+                result = ingest_multisource_assets(
+                    asset_root,
+                    warehouse_root,
+                    seven_zip_executable=seven_zip_executable,
+                    datasets=(
+                        tuple(item.strip() for item in args.datasets.split(",") if item.strip())
+                        if args.datasets
+                        else None
+                    ),
+                )
             else:
                 asset_root = local_paths.choose(
                     "qd_asset_root", getattr(args, "asset_root", None), "--asset-root"
@@ -872,9 +905,11 @@ def main() -> None:
                         seven_zip_executable=seven_zip_executable,
                     )
             print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-            if args.command in {"data-warehouse-verify", "data-minute-verify"} and not result[
-                "passed"
-            ]:
+            if args.command in {
+                "data-warehouse-verify",
+                "data-minute-verify",
+                "data-multisource-verify",
+            } and not result["passed"]:
                 raise SystemExit(1)
             return
         except (PathConfigError, QmtDataError, ValueError) as exc:
@@ -2604,7 +2639,12 @@ def main() -> None:
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:
         try:
             local_paths = load_local_path_config(args.paths_config)
-            daily_dir = local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            warehouse_root = local_paths.paths.get("qd_warehouse_root")
+            daily_dir = (
+                None
+                if warehouse_root is not None
+                else local_paths.choose("qd_daily_dir", None, "--daily-dir")
+            )
             membership_path = local_paths.paths.get("dynamic_membership_jsonl")
             stock_file = None
             if membership_path is None:

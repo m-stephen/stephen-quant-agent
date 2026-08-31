@@ -1,5 +1,20 @@
 # Stephen Quant Agent
 
+## V8.6 multi-source warehouse and database-native discovery
+
+V8.6 inventories every declared QD dataset directory, preserves the complete vendor column schema,
+and ingests 17 non-bar datasets into content-addressed Parquet partitions indexed by DuckDB. Daily
+and minute bars remain under their dedicated canonical warehouse adapters. Automatic discovery can
+now read fund flow, auction, margin, industry, chip and limit-event observations directly from the
+same verified snapshot; machine-local paths and raw data remain ignored.
+
+The real 2022–2024 search produced research survivors but no deployable alpha. The strongest
+execution candidate failed the frozen DSR threshold, so V8.6 reports `REJECT_ALPHA_COURT` rather
+than promoting an attractive in-sample result.
+
+See the [English result](docs/V8_6_RESULT_EN.md), [中文报告](docs/V8_6_RESULT_ZH.md), and
+[design specification](docs/V8_6_SPEC.md).
+
 ## V8.5 database-native research and minute bars
 
 V8.5 makes the verified DuckDB/Parquet warehouse the default daily-bar input for automatic factor

@@ -79,6 +79,14 @@ from .minute_warehouse import (
     verify_minute_snapshot,
 )
 from .models import QmtDailyBar, QmtDataAudit, QmtDataError, QmtDataset
+from .multisource_warehouse import (
+    DATASET_SPECS,
+    MULTISOURCE_SCHEMA_VERSION,
+    ingest_multisource_assets,
+    latest_multisource_snapshot,
+    load_warehouse_alternative,
+    verify_multisource_snapshot,
+)
 from .observations import (
     build_qmt_factor_observations,
     combine_qmt_factor_observations,
@@ -213,6 +221,7 @@ __all__ = [
     "BENCHMARK_METHOD_VERSION",
     "COLUMN_ALIASES",
     "CONSUMED_MAINTENANCE",
+    "DATASET_SPECS",
     "DATA_PLANE_POLICY_VERSION",
     "DEFAULT_CLOCKS",
     "DIVIDEND_PARSER_VERSION",
@@ -227,6 +236,7 @@ __all__ = [
     "MEMBERSHIP_ADAPTER_VERSION",
     "MINUTE_INTERVALS",
     "MINUTE_SCHEMA_VERSION",
+    "MULTISOURCE_SCHEMA_VERSION",
     "PARSER_VERSION",
     "PLACEBO_AUDIT_VERSION",
     "PRICE_LIMIT_RULE_VERSION",
@@ -322,8 +332,10 @@ __all__ = [
     "export_qmt_dat_daily_csv",
     "find_xtquant_site_packages",
     "ingest_minute_archives",
+    "ingest_multisource_assets",
     "initialize_minute_warehouse",
     "inventory_local_data",
+    "latest_multisource_snapshot",
     "latest_warehouse_snapshot",
     "load_point_in_time_memberships",
     "load_qd_alternative_directory",
@@ -332,6 +344,7 @@ __all__ = [
     "load_qd_warehouse_daily",
     "load_qmt_daily_csv",
     "load_qmt_dividend_records",
+    "load_warehouse_alternative",
     "load_xtdata",
     "maintain_local_data",
     "normalize_cross_sectional_observations",
@@ -356,6 +369,7 @@ __all__ = [
     "verify_github_isolation_proof",
     "verify_github_maintenance_approval",
     "verify_minute_snapshot",
+    "verify_multisource_snapshot",
     "verify_qmt_dat_manifest",
     "write_benchmark_comparison",
     "write_dynamic_universe",
