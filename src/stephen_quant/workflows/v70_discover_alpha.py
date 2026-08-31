@@ -15,6 +15,7 @@ from stephen_quant.discovery.proposal_generator import (
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.path_config import LocalPathConfig, load_local_path_config
 from stephen_quant.qmt.data_warehouse import _duckdb
+from stephen_quant.qmt.multisource_warehouse import latest_multisource_snapshot
 from stephen_quant.qmt.warehouse_adapter import latest_warehouse_snapshot
 
 from .automated_discovery import (
@@ -214,6 +215,51 @@ def _warehouse_daily_coverage(root: Path) -> tuple[SourceCoverage, set[str]]:
     )
 
 
+def _warehouse_multisource_coverage(
+    root: Path, source: str
+) -> tuple[SourceCoverage, set[str]]:
+    connection = _duckdb().connect(
+        str(root / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        exists = connection.execute(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_name='multisource_partitions'"
+        ).fetchone()[0]
+        if not exists:
+            return SourceCoverage(source, "MISSING", 0, 0, None, None, None), set()
+        paths = [
+            str(root / row[0])
+            for row in connection.execute(
+                "SELECT parquet_relative_path FROM multisource_partitions "
+                "WHERE dataset=? AND active ORDER BY parquet_relative_path",
+                [source],
+            ).fetchall()
+        ]
+        if not paths:
+            return SourceCoverage(source, "MISSING", 0, 0, None, None, None), set()
+        rows = connection.execute(
+            "SELECT DISTINCT CAST(_trade_date AS VARCHAR) FROM "
+            "read_parquet(?, union_by_name=true) WHERE _trade_date IS NOT NULL ORDER BY 1",
+            [paths],
+        ).fetchall()
+    finally:
+        connection.close()
+    snapshot = latest_multisource_snapshot(root)
+    sessions = {str(row[0]) for row in rows}
+    ordered = sorted(sessions)
+    return (
+        SourceCoverage(
+            source,
+            "AVAILABLE",
+            len(paths),
+            len(ordered),
+            ordered[0] if ordered else None,
+            ordered[-1] if ordered else None,
+            snapshot,
+        ),
+        sessions,
+    )
 def _direction_complete_plan(
     formula_pairs: int,
     *,
@@ -329,9 +375,12 @@ def run_v70_discover_alpha(
     output.mkdir(parents=True, exist_ok=True)
     coverages: list[SourceCoverage] = []
     sessions: dict[str, set[str]] = {}
+    warehouse_root = local.paths.get("qd_warehouse_root")
     for source, key in _SOURCE_KEYS:
-        if source == "qd_daily" and local.paths.get("qd_warehouse_root") is not None:
-            item, dated = _warehouse_daily_coverage(local.paths["qd_warehouse_root"])
+        if source == "qd_daily" and warehouse_root is not None:
+            item, dated = _warehouse_daily_coverage(warehouse_root)
+        elif warehouse_root is not None:
+            item, dated = _warehouse_multisource_coverage(warehouse_root, source)
         else:
             item, dated = _coverage(source, local.paths.get(key))
         coverages.append(item)
@@ -408,13 +457,19 @@ def run_v70_discover_alpha(
                 if key
                 in {
                     "qd_fund_flow_dir",
+                    "qd_auction_dir",
                     "qd_margin_dir",
+                    "qd_industry_dir",
                     "qd_chip_dir",
+                    "qd_limit_event_dir",
                 }
                 and {
                     "qd_fund_flow_dir": "qd_fund_flow",
+                    "qd_auction_dir": "qd_auction",
                     "qd_margin_dir": "qd_margin",
+                    "qd_industry_dir": "qd_industry",
                     "qd_chip_dir": "qd_chip",
+                    "qd_limit_event_dir": "qd_limit_event",
                 }[key]
                 in {source for template in plan.templates for source in template.data_sources}
             },

@@ -70,6 +70,10 @@ from stephen_quant.qmt import (
     normalize_cross_sectional_observations,
     select_qd_daily_files,
 )
+from stephen_quant.qmt.multisource_warehouse import (
+    latest_multisource_snapshot,
+    load_warehouse_alternative,
+)
 from stephen_quant.qmt.warehouse_adapter import (
     latest_warehouse_snapshot,
     load_qd_warehouse_daily,
@@ -525,6 +529,7 @@ def _alternative_datasets(
     *,
     ingested_at: str,
     instruments: tuple[str, ...],
+    warehouse_root: str | Path | None = None,
 ) -> dict[str, QdAlternativeDataset]:
     mapping = {
         "qd_fund_flow_dir": ("qd_fund_flow", "fund_flow"),
@@ -535,19 +540,32 @@ def _alternative_datasets(
         "qd_limit_event_dir": ("qd_limit_event", "limit_event"),
     }
     datasets: dict[str, QdAlternativeDataset] = {}
+    multisource_snapshot = (
+        latest_multisource_snapshot(warehouse_root) if warehouse_root is not None and paths else None
+    )
     for key, (source_name, kind) in mapping.items():
         if key not in paths:
             continue
-        dataset = load_qd_alternative_directory(
-            paths[key],
-            QdAlternativeConfig(
+        if warehouse_root is not None:
+            dataset = load_warehouse_alternative(
+                warehouse_root,
                 source_kind=kind,  # type: ignore[arg-type]
                 start_date=config.research_start,
                 end_date=config.research_end,
-                ingested_at=ingested_at,
                 instruments=instruments if kind != "industry" else (),
-            ),
-        )
+                verified_snapshot_id=multisource_snapshot,
+            )
+        else:
+            dataset = load_qd_alternative_directory(
+                paths[key],
+                QdAlternativeConfig(
+                    source_kind=kind,  # type: ignore[arg-type]
+                    start_date=config.research_start,
+                    end_date=config.research_end,
+                    ingested_at=ingested_at,
+                    instruments=instruments if kind != "industry" else (),
+                ),
+            )
         datasets[source_name] = dataset
     return datasets
 
@@ -611,6 +629,7 @@ def run_automated_discovery(
         config,
         ingested_at=ingested_at,
         instruments=tuple(sorted(set(instruments))),
+        warehouse_root=warehouse_root,
     )
     snapshot_components = {"qd_daily": daily_snapshot_sha256}
     snapshot_components.update(
