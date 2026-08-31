@@ -64,7 +64,7 @@ def test_multisource_ingest_verify_replay_and_factor_adapter(tmp_path: Path) -> 
     )
     assert dataset.audit.rows == 1
     assert dataset.observations[0].value("small_buy_volume") == 100.0
-    assert dataset.observations[0].available_at.startswith("2022-01-04T18:00:00")
+    assert dataset.observations[0].available_at == "2022-01-04T18:00:00+08:00"
     assert datetime.fromisoformat(dataset.observations[0].available_at).utcoffset() is not None
 
     replay = ingest_multisource_assets(

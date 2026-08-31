@@ -721,8 +721,16 @@ def load_warehouse_alternative(
             trade_date=str(row[0]),
             instrument=str(row[1]),
             name=str(row[2]),
-            effective_at=_canonical_iso_timestamp(row[3]),
-            available_at=_canonical_iso_timestamp(row[4]),
+            effective_at=datetime.combine(
+                date.fromisoformat(str(row[0])),
+                time.fromisoformat(spec.effective_clock),
+                _SHANGHAI,
+            ).isoformat(),
+            available_at=datetime.combine(
+                date.fromisoformat(str(row[0])),
+                time.fromisoformat(spec.available_clock),
+                _SHANGHAI,
+            ).isoformat(),
             ingested_at=_canonical_iso_timestamp(row[5]),
             values=tuple((canonical, None if row[index + 6] is None else float(row[index + 6])) for index, canonical in enumerate(fields)),
         )
