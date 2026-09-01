@@ -59,6 +59,14 @@ def initialize_minute_warehouse(root: str | Path) -> None:
             "CREATE TABLE IF NOT EXISTS minute_quarantines (batch_id VARCHAR, source_identity VARCHAR, "
             "reason VARCHAR, row_sha256 VARCHAR, created_at TIMESTAMPTZ)"
         )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS minute_archive_catalog (archive_relative_path VARCHAR, "
+            "archive_sha256 VARCHAR, archive_size_bytes BIGINT, archive_format VARCHAR, "
+            "coverage_kind VARCHAR, coverage_start DATE, coverage_end DATE, interval_hint INTEGER, "
+            "csv_member_count BIGINT, selected_member_count BIGINT, uncompressed_bytes BIGINT, "
+            "materialized_member_count BIGINT, materialization_status VARCHAR, inventoried_at TIMESTAMPTZ, "
+            "PRIMARY KEY(archive_relative_path, archive_sha256))"
+        )
     finally:
         connection.close()
 
@@ -91,6 +99,166 @@ def _selected_archives(source_root: Path, start: date | None, end: date | None) 
         and _archive_in_range(path, start, end)
         and path.name != "全部复权因子.zip"
     )
+
+
+def _archive_coverage(path: Path) -> tuple[str, date | None, date | None]:
+    match = _DATE_STEM.match(path.stem)
+    if match:
+        day = date.fromisoformat(
+            f"{match.group(1)[:4]}-{match.group(1)[4:6]}-{match.group(1)[6:]}"
+        )
+        return "daily", day, day
+    years = [int(part) for part in path.parts if _YEAR.match(part)]
+    if years:
+        year = years[-1]
+        return "annual", date(year, 1, 1), date(year, 12, 31)
+    if "2000-2025" in path.parts:
+        return "historical_bundle", date(2000, 1, 1), date(2025, 12, 31)
+    return "unbounded", None, None
+
+
+def catalog_minute_archives(
+    source_root: str | Path,
+    warehouse_root: str | Path,
+    *,
+    intervals: tuple[int, ...] = MINUTE_INTERVALS,
+    seven_zip_executable: str | Path | None = None,
+) -> dict[str, object]:
+    """Inventory every available minute archive without assuming calendar completeness."""
+    requested = tuple(sorted(set(intervals)))
+    if not requested or any(item not in MINUTE_INTERVALS for item in requested):
+        raise QmtDataError(f"minute intervals must be selected from {MINUTE_INTERVALS}")
+    source = Path(source_root).expanduser().resolve()
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    seven_zip = (
+        Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
+    )
+    initialize_minute_warehouse(warehouse)
+    archives = _selected_archives(source, None, None)
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    now = datetime.now(timezone.utc)
+    rows: list[tuple[object, ...]] = []
+    try:
+        materialized = {
+            (str(row[0]), str(row[1])): int(row[2])
+            for row in connection.execute(
+                "SELECT archive_relative_path, archive_sha256, count(*) "
+                "FROM minute_source_members GROUP BY 1,2"
+            ).fetchall()
+        }
+        for archive in archives:
+            relative = archive.relative_to(source).as_posix()
+            archive_sha = _sha256(archive)
+            listed = _archive_members(archive, seven_zip)
+            csv_members = [item for item in listed if item[0].lower().endswith(".csv")]
+            selected = [
+                item
+                for item in csv_members
+                if _interval(item[0], archive) in requested and _instrument(item[0]) is not None
+            ]
+            coverage_kind, coverage_start, coverage_end = _archive_coverage(archive)
+            interval_hint = _interval(archive.stem, archive)
+            done = materialized.get((relative, archive_sha), 0)
+            status = "MATERIALIZED" if selected and done >= len(selected) else (
+                "PARTIAL" if done else "AVAILABLE"
+            )
+            rows.append(
+                (
+                    relative,
+                    archive_sha,
+                    archive.stat().st_size,
+                    archive.suffix.lower().lstrip("."),
+                    coverage_kind,
+                    coverage_start,
+                    coverage_end,
+                    interval_hint,
+                    len(csv_members),
+                    len(selected),
+                    sum(int(item[1]) for item in selected),
+                    done,
+                    status,
+                    now,
+                )
+            )
+        connection.execute("BEGIN TRANSACTION")
+        connection.execute("DELETE FROM minute_archive_catalog")
+        connection.executemany(
+            "INSERT OR REPLACE INTO minute_archive_catalog VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        connection.execute("COMMIT")
+        summary_rows = connection.execute(
+            "SELECT materialization_status, count(*), sum(selected_member_count), "
+            "sum(uncompressed_bytes) FROM minute_archive_catalog GROUP BY 1 ORDER BY 1"
+        ).fetchall()
+    finally:
+        connection.close()
+    return {
+        "archive_count": len(rows),
+        "summaries": [
+            {
+                "status": str(row[0]),
+                "archive_count": int(row[1]),
+                "selected_member_count": int(row[2] or 0),
+                "uncompressed_bytes": int(row[3] or 0),
+            }
+            for row in summary_rows
+        ],
+        "coverage_semantics": "observed archives only; no exchange-calendar completeness claim",
+    }
+
+
+def sync_available_daily_minutes(
+    source_root: str | Path,
+    warehouse_root: str | Path,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    intervals: tuple[int, ...] = MINUTE_INTERVALS,
+    seven_zip_executable: str | Path | None = None,
+) -> dict[str, object]:
+    """Materialize each observed daily archive as an isolated, restartable batch."""
+    source = Path(source_root).expanduser().resolve()
+    archives = [
+        path
+        for path in _selected_archives(source, start_date, end_date)
+        if _archive_coverage(path)[0] == "daily"
+    ]
+    observed_days = sorted(
+        {day for path in archives if (day := _archive_coverage(path)[1]) is not None}
+    )
+    if not observed_days:
+        raise QmtDataError("no daily minute archives match the requested range")
+    batches: list[dict[str, object]] = []
+    for day in observed_days:
+        batches.append(
+            ingest_minute_archives(
+                source,
+                warehouse_root,
+                start_date=day,
+                end_date=day,
+                intervals=intervals,
+                seven_zip_executable=seven_zip_executable,
+            )
+        )
+    completed = [item for item in batches if item["status"] == "COMPLETED"]
+    latest_snapshot = next(
+        (item.get("snapshot_id") for item in reversed(batches) if item.get("snapshot_id")), None
+    )
+    return {
+        "status": "COMPLETED",
+        "coverage_semantics": "observed daily archives only; gaps are not synthesized",
+        "observed_trade_days": len(observed_days),
+        "coverage_start": observed_days[0].isoformat(),
+        "coverage_end": observed_days[-1].isoformat(),
+        "completed_batches": len(completed),
+        "replay_noop_batches": len(batches) - len(completed),
+        "new_members": sum(int(item.get("new_members", 0)) for item in completed),
+        "new_revisions": sum(int(item.get("new_revisions", 0)) for item in completed),
+        "quarantined_rows": sum(int(item.get("quarantined_rows", 0)) for item in completed),
+        "snapshot_id": latest_snapshot,
+    }
 
 
 def _interval(path: str, archive: Path) -> int | None:
@@ -432,6 +600,17 @@ def ingest_minute_archives(
                         member_sha256=member_sha,
                         ingested_at=started,
                     )
+                    outside_requested_range = any(
+                        (start_date and date.fromisoformat(str(row["trade_date"])) < start_date)
+                        or (end_date and date.fromisoformat(str(row["trade_date"])) > end_date)
+                        for row in rows
+                    )
+                    if outside_requested_range:
+                        raise QmtDataError(
+                            "a selected minute member crosses the requested date boundary; "
+                            "use an archive-complete range instead of silently truncating it: "
+                            f"{identity}"
+                        )
                     for row in rows:
                         key = (interval, date.fromisoformat(str(row["trade_date"])))
                         path = staged.setdefault(
