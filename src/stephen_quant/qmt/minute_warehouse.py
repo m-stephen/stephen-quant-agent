@@ -1114,7 +1114,7 @@ def materialize_minute_archive(
         Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
     )
     initialize_minute_warehouse(warehouse)
-    archive = (source / Path(archive_relative_path.replace("/", "\\"))).resolve()
+    archive = (source / Path(*PurePosixPath(archive_relative_path).parts)).resolve()
     if source not in archive.parents or not archive.is_file():
         raise QmtDataError(f"minute archive is outside the source root or missing: {archive_relative_path}")
     relative = archive.relative_to(source).as_posix()
@@ -1367,7 +1367,7 @@ def materialize_all_available_minutes(
     results: list[dict[str, object]] = []
     for relative, kind, _ in pending:
         if kind == "daily":
-            archive = (source / Path(relative.replace("/", "\\"))).resolve()
+            archive = (source / Path(*PurePosixPath(relative).parts)).resolve()
             day = _archive_coverage(archive)[1]
             if day is None:
                 raise QmtDataError(f"daily archive has no date: {relative}")
