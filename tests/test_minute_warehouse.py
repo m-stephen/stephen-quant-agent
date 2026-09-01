@@ -5,13 +5,16 @@ from datetime import date
 from pathlib import Path
 
 import duckdb
+import pytest
 
 from stephen_quant.qmt.minute_warehouse import (
     catalog_minute_archives,
+    ensure_minute_range,
     ingest_minute_archives,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
+from stephen_quant.qmt.models import QmtDataError
 
 HEADER = "日期,时间,开盘,最高,最低,收盘,成交量,成交额\n"
 
@@ -110,3 +113,103 @@ def test_available_daily_sync_and_catalog_report_observed_coverage(tmp_path: Pat
     assert replay["completed_batches"] == 0
     assert replay["replay_noop_batches"] == 2
     assert replay["snapshot_id"] == synced["snapshot_id"]
+
+    ensured = ensure_minute_range(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2026, 1, 2),
+        end_date=date(2026, 1, 6),
+        intervals=(1,),
+    )
+    assert ensured["daily_archive_dates"] == ["2026-01-02", "2026-01-06"]
+    assert ensured["coverage"][0]["rows"] == 4
+    assert all(batch["status"] == "REPLAY_NOOP" for batch in ensured["daily_batches"])
+
+
+def test_ensure_historical_minute_range_extracts_only_requested_scope(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    older = _minute_csv("2023-12-29", 1, 0).decode("utf-8-sig")
+    requested = _minute_csv("2024-01-02", 1, 1).decode("utf-8-sig")
+    next_day = _minute_csv("2024-01-03", 1, 2).decode("utf-8-sig")
+    combined = (
+        older
+        + "\n".join(requested.splitlines()[1:])
+        + "\n"
+        + "\n".join(next_day.splitlines()[1:])
+        + "\n"
+    ).encode("utf-8-sig")
+    archive = source / "1分钟.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", combined)
+        handle.writestr("1min/sh600000.csv", _minute_csv("2024-01-02", 1, 2))
+    warehouse = tmp_path / "warehouse"
+
+    result = ensure_minute_range(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 2),
+        intervals=(1,),
+        instruments=("000001.SZ",),
+    )
+    assert result["status"] == "READY"
+    assert result["historical_batch"]["new_members"] == 1
+    assert result["historical_batch"]["new_revisions"] == 2
+    assert result["coverage"] == [
+        {
+            "interval_minutes": 1,
+            "rows": 2,
+            "instruments": 1,
+            "trade_days": 1,
+            "min_date": "2024-01-02",
+            "max_date": "2024-01-02",
+        }
+    ]
+
+    replay = ensure_minute_range(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 2),
+        intervals=(1,),
+        instruments=("000001.SZ",),
+    )
+    assert replay["historical_batch"]["status"] == "REPLAY_NOOP"
+    assert replay["historical_batch"]["new_revisions"] == 0
+
+    overlap = ensure_minute_range(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 3),
+        intervals=(1,),
+        instruments=("000001.SZ",),
+    )
+    assert overlap["historical_batch"]["new_revisions"] == 2
+    assert overlap["coverage"][0]["rows"] == 4
+    assert overlap["coverage"][0]["trade_days"] == 2
+    scoped_catalog = catalog_minute_archives(tmp_path / "source", warehouse, intervals=(1,))
+    assert scoped_catalog["summaries"][0]["status"] == "PARTIAL"
+
+    missing = ensure_minute_range(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 2),
+        intervals=(1,),
+        instruments=("000002.SZ",),
+    )
+    assert missing["coverage"] == []
+    assert missing["source_gaps"][0]["reason"] == "source member is absent"
+
+    with pytest.raises(QmtDataError, match="source bytes"):
+        ensure_minute_range(
+            tmp_path / "source",
+            warehouse,
+            start_date=date(2024, 1, 3),
+            end_date=date(2024, 1, 3),
+            intervals=(1,),
+            instruments=("000001.SZ",),
+            max_source_bytes=1,
+        )

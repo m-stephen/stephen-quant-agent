@@ -67,6 +67,14 @@ def initialize_minute_warehouse(root: str | Path) -> None:
             "materialized_member_count BIGINT, materialization_status VARCHAR, inventoried_at TIMESTAMPTZ, "
             "PRIMARY KEY(archive_relative_path, archive_sha256))"
         )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS minute_materialization_scopes (scope_id VARCHAR PRIMARY KEY, "
+            "archive_relative_path VARCHAR, archive_sha256 VARCHAR, member_path VARCHAR, "
+            "member_sha256 VARCHAR, interval_minutes INTEGER, instrument VARCHAR, "
+            "scope_start DATE, scope_end DATE, row_count BIGINT, batch_id VARCHAR, created_at TIMESTAMPTZ, "
+            "UNIQUE(archive_relative_path, archive_sha256, member_path, member_sha256, "
+            "scope_start, scope_end))"
+        )
     finally:
         connection.close()
 
@@ -139,11 +147,18 @@ def catalog_minute_archives(
     now = datetime.now(timezone.utc)
     rows: list[tuple[object, ...]] = []
     try:
-        materialized = {
+        fully_materialized = {
             (str(row[0]), str(row[1])): int(row[2])
             for row in connection.execute(
                 "SELECT archive_relative_path, archive_sha256, count(*) "
                 "FROM minute_source_members GROUP BY 1,2"
+            ).fetchall()
+        }
+        scoped_members = {
+            (str(row[0]), str(row[1])): int(row[2])
+            for row in connection.execute(
+                "SELECT archive_relative_path, archive_sha256, count(DISTINCT member_path) "
+                "FROM minute_materialization_scopes GROUP BY 1,2"
             ).fetchall()
         }
         for archive in archives:
@@ -158,9 +173,11 @@ def catalog_minute_archives(
             ]
             coverage_kind, coverage_start, coverage_end = _archive_coverage(archive)
             interval_hint = _interval(archive.stem, archive)
-            done = materialized.get((relative, archive_sha), 0)
-            status = "MATERIALIZED" if selected and done >= len(selected) else (
-                "PARTIAL" if done else "AVAILABLE"
+            fully_done = fully_materialized.get((relative, archive_sha), 0)
+            scoped_done = scoped_members.get((relative, archive_sha), 0)
+            observed_done = max(fully_done, scoped_done)
+            status = "MATERIALIZED" if selected and fully_done >= len(selected) else (
+                "PARTIAL" if observed_done else "AVAILABLE"
             )
             rows.append(
                 (
@@ -175,7 +192,7 @@ def catalog_minute_archives(
                     len(csv_members),
                     len(selected),
                     sum(int(item[1]) for item in selected),
-                    done,
+                    observed_done,
                     status,
                     now,
                 )
@@ -480,6 +497,7 @@ def _read_archive_members(
     members: list[tuple[str, int, str | None]],
     *,
     seven_zip_executable: Path | None,
+    targeted: bool = False,
 ):
     if archive.suffix.lower() == ".zip":
         with zipfile.ZipFile(archive) as handle:
@@ -491,15 +509,22 @@ def _read_archive_members(
     with tempfile.TemporaryDirectory(prefix="stephen-quant-minute-") as temporary:
         root = Path(temporary).resolve()
         try:
+            command = [
+                str(seven_zip_executable),
+                "x",
+                "-y",
+                "-sccUTF-8",
+                f"-o{root}",
+                str(archive),
+            ]
+            if targeted:
+                selection = root / "selected-members.txt"
+                selection.write_text(
+                    "\n".join(member for member, _, _ in members), encoding="utf-8"
+                )
+                command.extend(["-scsUTF-8", f"@{selection}"])
             subprocess.run(
-                [
-                    str(seven_zip_executable),
-                    "x",
-                    "-y",
-                    "-sccUTF-8",
-                    f"-o{root}",
-                    str(archive),
-                ],
+                command,
                 check=True,
                 capture_output=True,
             )
@@ -510,6 +535,403 @@ def _read_archive_members(
             if root not in path.parents or not path.is_file():
                 raise QmtDataError(f"minute member missing after extraction: {member}")
             yield member, path.read_bytes()
+
+
+def _normalized_instruments(instruments: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for value in instruments:
+        item = value.strip().upper()
+        if re.fullmatch(r"\d{6}\.(?:SH|SZ|BJ)", item) is None:
+            raise QmtDataError(f"invalid minute instrument: {value}")
+        normalized.append(item)
+    return tuple(sorted(set(normalized)))
+
+
+def _historical_archives(
+    source: Path, start: date, end: date, intervals: tuple[int, ...]
+) -> tuple[Path, ...]:
+    if start.year > 2025 or end.year < 2000:
+        return ()
+    return tuple(
+        archive
+        for archive in _selected_archives(source, start, end)
+        if "2000-2025" in archive.parts and _interval(archive.stem, archive) in intervals
+    )
+
+
+def ensure_minute_range(
+    source_root: str | Path,
+    warehouse_root: str | Path,
+    *,
+    start_date: date,
+    end_date: date,
+    intervals: tuple[int, ...] = MINUTE_INTERVALS,
+    instruments: tuple[str, ...] = (),
+    max_source_bytes: int = 2_000_000_000,
+    seven_zip_executable: str | Path | None = None,
+) -> dict[str, object]:
+    """Locate, materialize and expose a bounded minute range through qd_minute_current."""
+    if start_date > end_date:
+        raise QmtDataError("start_date must not be after end_date")
+    requested = tuple(sorted(set(intervals)))
+    if not requested or any(item not in MINUTE_INTERVALS for item in requested):
+        raise QmtDataError(f"minute intervals must be selected from {MINUTE_INTERVALS}")
+    selected_instruments = _normalized_instruments(instruments)
+    if start_date.year <= 2025 and not selected_instruments:
+        raise QmtDataError(
+            "historical on-demand minute loading requires an explicit instrument allowlist"
+        )
+    if max_source_bytes <= 0:
+        raise QmtDataError("max_source_bytes must be positive")
+    source = Path(source_root).expanduser().resolve()
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    seven_zip = (
+        Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
+    )
+    initialize_minute_warehouse(warehouse)
+    daily_results: list[dict[str, object]] = []
+    available_daily_dates: list[str] = []
+    daily_archives = [
+        archive
+        for archive in _selected_archives(source, start_date, end_date)
+        if _archive_coverage(archive)[0] == "daily"
+    ]
+    source_gaps: list[dict[str, object]] = []
+    if start_date == end_date and start_date.year >= 2026 and not daily_archives:
+        source_gaps.append(
+            {
+                "date": start_date.isoformat(),
+                "reason": "no dated source archive is present",
+            }
+        )
+    for archive in daily_archives:
+        archive_day = _archive_coverage(archive)[1]
+        if archive_day is None:
+            continue
+        available_daily_dates.append(archive_day.isoformat())
+        daily_results.append(
+            ingest_minute_archives(
+                source,
+                warehouse,
+                start_date=archive_day,
+                end_date=archive_day,
+                intervals=requested,
+                seven_zip_executable=seven_zip,
+            )
+        )
+    historical_start = max(start_date, date(2000, 1, 1))
+    historical_end = min(end_date, date(2025, 12, 31))
+    archives = _historical_archives(source, start_date, end_date, requested)
+    plans: list[tuple[Path, str, list[tuple[str, int, str | None]]]] = []
+    if start_date.year <= 2025:
+        located_intervals = {_interval(archive.stem, archive) for archive in archives}
+        for interval in sorted(set(requested) - located_intervals):
+            source_gaps.append(
+                {
+                    "interval_minutes": interval,
+                    "reason": "no historical source archive is present",
+                }
+            )
+    estimated_bytes = 0
+    for archive in archives:
+        archive_sha = _sha256(archive)
+        listed = _archive_members(archive, seven_zip)
+        members = [
+            item
+            for item in listed
+            if item[0].lower().endswith(".csv")
+            and _interval(item[0], archive) in requested
+            and _instrument(item[0]) in selected_instruments
+        ]
+        present = {_instrument(item[0]) for item in members}
+        for instrument in sorted(set(selected_instruments) - present):
+            source_gaps.append(
+                {
+                    "interval_minutes": _interval(archive.stem, archive),
+                    "instrument": instrument,
+                    "reason": "source member is absent",
+                }
+            )
+        estimated_bytes += sum(int(item[1]) for item in members)
+        plans.append((archive, archive_sha, members))
+    if estimated_bytes > max_source_bytes:
+        raise QmtDataError(
+            f"on-demand minute request needs {estimated_bytes} source bytes, exceeding "
+            f"max_source_bytes={max_source_bytes}"
+        )
+    historical_result: dict[str, object] = {
+        "status": "NOT_REQUESTED",
+        "new_members": 0,
+        "new_revisions": 0,
+        "partition_count": 0,
+        "snapshot_id": None,
+    }
+    if plans:
+        connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+        batch_id = uuid.uuid4().hex
+        started = datetime.now(timezone.utc)
+        connection.execute(
+            "INSERT INTO minute_batches VALUES (?, ?, NULL, 'RUNNING', NULL, 0, 0, 0, 0, NULL)",
+            [batch_id, started],
+        )
+        staging_root = warehouse / "staging" / f"minute-range-{batch_id}"
+        staging_root.mkdir(parents=True, exist_ok=False)
+        staged: dict[tuple[int, date], Path] = {}
+        row_counts: defaultdict[tuple[int, date], int] = defaultdict(int)
+        scopes: list[tuple[object, ...]] = []
+        created: list[Path] = []
+        transaction_open = False
+        try:
+            known_scopes: defaultdict[tuple[str, str, str], list[tuple[date, date]]] = (
+                defaultdict(list)
+            )
+            for row in connection.execute(
+                    "SELECT archive_relative_path, archive_sha256, member_path, "
+                    "scope_start, scope_end "
+                    "FROM minute_materialization_scopes"
+                ).fetchall():
+                known_scopes[(str(row[0]), str(row[1]), str(row[2]))].append(
+                    (row[3], row[4])
+                )
+            for archive, archive_sha, members in plans:
+                relative = archive.relative_to(source).as_posix()
+                pending = [
+                    item
+                    for item in members
+                    if not any(
+                        scope_start <= historical_start and scope_end >= historical_end
+                        for scope_start, scope_end in known_scopes.get(
+                            (relative, archive_sha, item[0].replace("\\", "/")), []
+                        )
+                    )
+                ]
+                if not pending:
+                    continue
+                handles: dict[tuple[int, date], object] = {}
+                try:
+                    for member_path, raw in _read_archive_members(
+                        archive,
+                        pending,
+                        seven_zip_executable=seven_zip,
+                        targeted=True,
+                    ):
+                        normalized_member = member_path.replace("\\", "/")
+                        interval = _interval(normalized_member, archive)
+                        instrument = _instrument(normalized_member)
+                        if interval is None or instrument is None:
+                            continue
+                        member_sha = hashlib.sha256(raw).hexdigest()
+                        identity = f"{relative}@{archive_sha}!{normalized_member}"
+                        rows, rejected = _parse_member(
+                            raw,
+                            identity=identity,
+                            member_path=normalized_member,
+                            instrument=instrument,
+                            interval=interval,
+                            archive_sha256=archive_sha,
+                            member_sha256=member_sha,
+                            ingested_at=started,
+                        )
+                        if rejected:
+                            connection.executemany(
+                                "INSERT INTO minute_quarantines VALUES (?, ?, ?, ?, ?)",
+                                [
+                                    (batch_id, identity, reason, row_hash, started)
+                                    for reason, row_hash in rejected
+                                ],
+                            )
+                        prior_scopes = known_scopes.get(
+                            (relative, archive_sha, normalized_member), []
+                        )
+                        kept = [
+                            row
+                            for row in rows
+                            if historical_start
+                            <= date.fromisoformat(str(row["trade_date"]))
+                            <= historical_end
+                            and not any(
+                                scope_start
+                                <= date.fromisoformat(str(row["trade_date"]))
+                                <= scope_end
+                                for scope_start, scope_end in prior_scopes
+                            )
+                        ]
+                        for row in kept:
+                            key = (interval, date.fromisoformat(str(row["trade_date"])))
+                            path = staged.setdefault(
+                                key, staging_root / f"{interval}m-{key[1].isoformat()}.jsonl"
+                            )
+                            handle = handles.get(key)
+                            if handle is None:
+                                handle = path.open("a", encoding="utf-8")
+                                handles[key] = handle
+                            handle.write(json.dumps(row, separators=(",", ":")) + "\n")
+                            row_counts[key] += 1
+                        scope_id = hashlib.sha256(
+                            f"{identity}|{member_sha}|{historical_start}|{historical_end}".encode()
+                        ).hexdigest()
+                        scopes.append(
+                            (
+                                scope_id,
+                                relative,
+                                archive_sha,
+                                normalized_member,
+                                member_sha,
+                                interval,
+                                instrument,
+                                historical_start,
+                                historical_end,
+                                len(kept),
+                                batch_id,
+                                started,
+                            )
+                        )
+                finally:
+                    for handle in handles.values():
+                        handle.close()
+            partition_rows: list[tuple[object, ...]] = []
+            for (interval, trade_day), staging in sorted(staged.items()):
+                folder = (
+                    warehouse
+                    / "parquet"
+                    / "qd_minute"
+                    / f"interval={interval}"
+                    / f"year={trade_day.year}"
+                    / f"month={trade_day.month:02d}"
+                    / f"day={trade_day.day:02d}"
+                )
+                folder.mkdir(parents=True, exist_ok=True)
+                temporary = folder / f"pending-{batch_id}.parquet"
+                _write_minute_parquet(connection, staging, temporary)
+                digest = _sha256(temporary)
+                target = folder / f"{digest}.parquet"
+                if target.exists():
+                    temporary.unlink()
+                else:
+                    temporary.replace(target)
+                    created.append(target)
+                stats = connection.execute(
+                    "SELECT count(*), CAST(min(bar_at) AS VARCHAR), CAST(max(bar_at) AS VARCHAR) "
+                    "FROM read_parquet(?)",
+                    [str(target)],
+                ).fetchone()
+                partition_rows.append(
+                    (
+                        interval,
+                        trade_day,
+                        target.relative_to(warehouse).as_posix(),
+                        digest,
+                        target.stat().st_size,
+                        int(stats[0]),
+                        stats[1],
+                        stats[2],
+                        batch_id,
+                    )
+                )
+            connection.execute("BEGIN TRANSACTION")
+            transaction_open = True
+            if scopes:
+                connection.executemany(
+                    "INSERT INTO minute_materialization_scopes VALUES "
+                    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    scopes,
+                )
+            if partition_rows:
+                connection.executemany(
+                    "INSERT OR IGNORE INTO minute_partitions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    partition_rows,
+                )
+                _refresh_views(connection, warehouse)
+            snapshot_id = _minute_snapshot(connection, warehouse)
+            revisions = sum(row_counts.values())
+            connection.execute(
+                "UPDATE minute_batches SET completed_at=?, status=?, snapshot_id=?, "
+                "new_archives=?, new_members=?, new_revisions=?, quarantined_rows=0 WHERE batch_id=?",
+                [
+                    datetime.now(timezone.utc),
+                    "COMPLETED" if scopes else "REPLAY_NOOP",
+                    snapshot_id,
+                    len({scope[1] for scope in scopes}),
+                    len(scopes),
+                    revisions,
+                    batch_id,
+                ],
+            )
+            connection.execute("COMMIT")
+            transaction_open = False
+            historical_result = {
+                "status": "COMPLETED" if scopes else "REPLAY_NOOP",
+                "new_members": len(scopes),
+                "new_revisions": revisions,
+                "partition_count": len(partition_rows),
+                "snapshot_id": snapshot_id,
+            }
+        except Exception as exc:
+            if transaction_open:
+                connection.execute("ROLLBACK")
+            for path in created:
+                path.unlink(missing_ok=True)
+            connection.execute(
+                "UPDATE minute_batches SET completed_at=?, status='FAILED', error=? WHERE batch_id=?",
+                [datetime.now(timezone.utc), str(exc), batch_id],
+            )
+            raise
+        finally:
+            connection.close()
+            for path in staging_root.glob("*"):
+                path.unlink(missing_ok=True)
+            staging_root.rmdir()
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        clauses = ["trade_date BETWEEN ? AND ?"]
+        parameters: list[object] = [start_date, end_date]
+        clauses.append(f"interval_minutes IN ({','.join('?' for _ in requested)})")
+        parameters.extend(requested)
+        if selected_instruments:
+            clauses.append(f"instrument IN ({','.join('?' for _ in selected_instruments)})")
+            parameters.extend(selected_instruments)
+        where = " AND ".join(clauses)
+        has_partitions = int(
+            connection.execute("SELECT count(*) FROM minute_partitions").fetchone()[0]
+        )
+        coverage = (
+            connection.execute(
+                f"SELECT interval_minutes, count(*), count(DISTINCT instrument), "
+                f"count(DISTINCT trade_date), min(trade_date), max(trade_date) "
+                f"FROM qd_minute_current WHERE {where} GROUP BY 1 ORDER BY 1",
+                parameters,
+            ).fetchall()
+            if has_partitions
+            else []
+        )
+    finally:
+        connection.close()
+    return {
+        "status": "READY",
+        "request": {
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "intervals": list(requested),
+            "instruments": list(selected_instruments),
+        },
+        "source_bytes_planned": estimated_bytes,
+        "daily_archive_dates": sorted(set(available_daily_dates)),
+        "daily_batches": daily_results,
+        "historical_batch": historical_result,
+        "source_gaps": source_gaps,
+        "coverage": [
+            {
+                "interval_minutes": int(row[0]),
+                "rows": int(row[1]),
+                "instruments": int(row[2]),
+                "trade_days": int(row[3]),
+                "min_date": str(row[4]),
+                "max_date": str(row[5]),
+            }
+            for row in coverage
+        ],
+        "query_view": "qd_minute_current",
+    }
 
 
 def ingest_minute_archives(
