@@ -54,6 +54,7 @@ from .qmt.minute_warehouse import (
     catalog_minute_archives,
     ensure_minute_range,
     ingest_minute_archives,
+    materialize_all_available_minutes,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
@@ -265,6 +266,14 @@ def build_parser() -> argparse.ArgumentParser:
     minute_sync.add_argument("--start-date")
     minute_sync.add_argument("--end-date")
     minute_sync.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_full = sub.add_parser("data-minute-materialize-all")
+    minute_full.add_argument("--paths-config")
+    minute_full.add_argument("--asset-root")
+    minute_full.add_argument("--warehouse-root")
+    minute_full.add_argument("--intervals", default="1,5,15,30,60")
+    minute_full.add_argument("--chunk-source-bytes", type=int, default=512_000_000)
+    minute_full.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
 
     minute_catalog = sub.add_parser("data-minute-catalog")
     minute_catalog.add_argument("--paths-config")
@@ -837,6 +846,7 @@ def main() -> None:
         "data-warehouse-factor-test",
         "data-minute-ingest",
         "data-minute-sync-available",
+        "data-minute-materialize-all",
         "data-minute-catalog",
         "data-minute-ensure-range",
         "data-minute-verify",
@@ -877,6 +887,7 @@ def main() -> None:
             elif args.command in {
                 "data-minute-ingest",
                 "data-minute-sync-available",
+                "data-minute-materialize-all",
                 "data-minute-catalog",
                 "data-minute-ensure-range",
             }:
@@ -892,6 +903,15 @@ def main() -> None:
                         asset_root,
                         warehouse_root,
                         intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                elif args.command == "data-minute-materialize-all":
+                    result = materialize_all_available_minutes(
+                        asset_root,
+                        warehouse_root,
+                        intervals=intervals,
+                        chunk_source_bytes=args.chunk_source_bytes,
+                        minimum_free_bytes=args.minimum_free_bytes,
                         seven_zip_executable=seven_zip_executable,
                     )
                 elif args.command == "data-minute-ensure-range":

@@ -1,5 +1,15 @@
 # Stephen Quant Agent
 
+## V8.9 restartable full minute materialization
+
+V8.9 adds a storage-guarded `data-minute-materialize-all` workflow. Daily archives keep their
+date partitions, while large historical archives are streamed into bounded range partitions so
+that the importer never needs a warehouse-sized JSON staging area. Each archive and chunk is
+restartable, content-addressed and included in the minute snapshot. The command stops before the
+configured free-space reserve is breached and never modifies the read-only QD source tree.
+
+See the [design specification](docs/V8_9_SPEC.md).
+
 ## V8.6 multi-source warehouse and database-native discovery
 
 V8.6 inventories every declared QD dataset directory, preserves the complete vendor column schema,
