@@ -50,7 +50,12 @@ from .qmt.data_warehouse import (
     verify_snapshot,
     weekly_update,
 )
-from .qmt.minute_warehouse import ingest_minute_archives, verify_minute_snapshot
+from .qmt.minute_warehouse import (
+    catalog_minute_archives,
+    ingest_minute_archives,
+    sync_available_daily_minutes,
+    verify_minute_snapshot,
+)
 from .qmt.multisource_warehouse import (
     ingest_multisource_assets,
     verify_multisource_snapshot,
@@ -251,6 +256,20 @@ def build_parser() -> argparse.ArgumentParser:
     minute_ingest.add_argument("--start-date")
     minute_ingest.add_argument("--end-date")
     minute_ingest.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_sync = sub.add_parser("data-minute-sync-available")
+    minute_sync.add_argument("--paths-config")
+    minute_sync.add_argument("--asset-root")
+    minute_sync.add_argument("--warehouse-root")
+    minute_sync.add_argument("--start-date")
+    minute_sync.add_argument("--end-date")
+    minute_sync.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_catalog = sub.add_parser("data-minute-catalog")
+    minute_catalog.add_argument("--paths-config")
+    minute_catalog.add_argument("--asset-root")
+    minute_catalog.add_argument("--warehouse-root")
+    minute_catalog.add_argument("--intervals", default="1,5,15,30,60")
 
     minute_verify = sub.add_parser("data-minute-verify")
     minute_verify.add_argument("--paths-config")
@@ -806,6 +825,8 @@ def main() -> None:
         "data-update-weekly",
         "data-warehouse-factor-test",
         "data-minute-ingest",
+        "data-minute-sync-available",
+        "data-minute-catalog",
         "data-minute-verify",
         "data-multisource-ingest",
         "data-multisource-verify",
@@ -841,7 +862,11 @@ def main() -> None:
                 result = asdict(report)
             elif args.command == "data-minute-verify":
                 result = verify_minute_snapshot(warehouse_root, args.snapshot)
-            elif args.command == "data-minute-ingest":
+            elif args.command in {
+                "data-minute-ingest",
+                "data-minute-sync-available",
+                "data-minute-catalog",
+            }:
                 asset_root = local_paths.choose(
                     "qd_asset_root", args.asset_root, "--asset-root"
                 )
@@ -849,14 +874,31 @@ def main() -> None:
                     intervals = tuple(int(item.strip()) for item in args.intervals.split(","))
                 except ValueError as exc:
                     raise QmtDataError("--intervals must be comma-separated integers") from exc
-                result = ingest_minute_archives(
-                    asset_root,
-                    warehouse_root,
-                    start_date=date.fromisoformat(args.start_date) if args.start_date else None,
-                    end_date=date.fromisoformat(args.end_date) if args.end_date else None,
-                    intervals=intervals,
-                    seven_zip_executable=seven_zip_executable,
-                )
+                if args.command == "data-minute-catalog":
+                    result = catalog_minute_archives(
+                        asset_root,
+                        warehouse_root,
+                        intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                elif args.command == "data-minute-sync-available":
+                    result = sync_available_daily_minutes(
+                        asset_root,
+                        warehouse_root,
+                        start_date=date.fromisoformat(args.start_date) if args.start_date else None,
+                        end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                else:
+                    result = ingest_minute_archives(
+                        asset_root,
+                        warehouse_root,
+                        start_date=date.fromisoformat(args.start_date) if args.start_date else None,
+                        end_date=date.fromisoformat(args.end_date) if args.end_date else None,
+                        intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
             elif args.command == "data-multisource-verify":
                 result = verify_multisource_snapshot(warehouse_root, args.snapshot)
             elif args.command == "data-multisource-ingest":

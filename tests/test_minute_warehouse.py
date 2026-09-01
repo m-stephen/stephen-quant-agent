@@ -7,7 +7,9 @@ from pathlib import Path
 import duckdb
 
 from stephen_quant.qmt.minute_warehouse import (
+    catalog_minute_archives,
     ingest_minute_archives,
+    sync_available_daily_minutes,
     verify_minute_snapshot,
 )
 
@@ -73,3 +75,38 @@ def test_minute_archive_ingest_verify_and_replay(tmp_path: Path) -> None:
     )
     assert replay["status"] == "REPLAY_NOOP"
     assert replay["snapshot_id"] == first["snapshot_id"]
+
+
+def test_available_daily_sync_and_catalog_report_observed_coverage(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2026" / "最新更新"
+    source.mkdir(parents=True)
+    for day in ("20260102", "20260106"):
+        with zipfile.ZipFile(source / f"{day}.zip", "w") as handle:
+            handle.writestr(
+                "1min/sz000001.csv",
+                _minute_csv(f"{day[:4]}-{day[4:6]}-{day[6:]}", 1, 0),
+            )
+    warehouse = tmp_path / "warehouse"
+
+    synced = sync_available_daily_minutes(tmp_path / "source", warehouse, intervals=(1,))
+    assert synced["observed_trade_days"] == 2
+    assert synced["coverage_start"] == "2026-01-02"
+    assert synced["coverage_end"] == "2026-01-06"
+    assert synced["new_revisions"] == 4
+    assert "gaps are not synthesized" in str(synced["coverage_semantics"])
+
+    catalog = catalog_minute_archives(tmp_path / "source", warehouse, intervals=(1,))
+    assert catalog["archive_count"] == 2
+    assert catalog["summaries"] == [
+        {
+            "status": "MATERIALIZED",
+            "archive_count": 2,
+            "selected_member_count": 2,
+            "uncompressed_bytes": 330,
+        }
+    ]
+
+    replay = sync_available_daily_minutes(tmp_path / "source", warehouse, intervals=(1,))
+    assert replay["completed_batches"] == 0
+    assert replay["replay_noop_batches"] == 2
+    assert replay["snapshot_id"] == synced["snapshot_id"]
