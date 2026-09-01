@@ -52,6 +52,7 @@ from .qmt.data_warehouse import (
 )
 from .qmt.minute_warehouse import (
     catalog_minute_archives,
+    ensure_minute_range,
     ingest_minute_archives,
     sync_available_daily_minutes,
     verify_minute_snapshot,
@@ -270,6 +271,16 @@ def build_parser() -> argparse.ArgumentParser:
     minute_catalog.add_argument("--asset-root")
     minute_catalog.add_argument("--warehouse-root")
     minute_catalog.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_range = sub.add_parser("data-minute-ensure-range")
+    minute_range.add_argument("--paths-config")
+    minute_range.add_argument("--asset-root")
+    minute_range.add_argument("--warehouse-root")
+    minute_range.add_argument("--start-date", required=True)
+    minute_range.add_argument("--end-date", required=True)
+    minute_range.add_argument("--intervals", default="1,5,15,30,60")
+    minute_range.add_argument("--instruments")
+    minute_range.add_argument("--max-source-bytes", type=int, default=2_000_000_000)
 
     minute_verify = sub.add_parser("data-minute-verify")
     minute_verify.add_argument("--paths-config")
@@ -827,6 +838,7 @@ def main() -> None:
         "data-minute-ingest",
         "data-minute-sync-available",
         "data-minute-catalog",
+        "data-minute-ensure-range",
         "data-minute-verify",
         "data-multisource-ingest",
         "data-multisource-verify",
@@ -866,6 +878,7 @@ def main() -> None:
                 "data-minute-ingest",
                 "data-minute-sync-available",
                 "data-minute-catalog",
+                "data-minute-ensure-range",
             }:
                 asset_root = local_paths.choose(
                     "qd_asset_root", args.asset_root, "--asset-root"
@@ -879,6 +892,21 @@ def main() -> None:
                         asset_root,
                         warehouse_root,
                         intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                elif args.command == "data-minute-ensure-range":
+                    result = ensure_minute_range(
+                        asset_root,
+                        warehouse_root,
+                        start_date=date.fromisoformat(args.start_date),
+                        end_date=date.fromisoformat(args.end_date),
+                        intervals=intervals,
+                        instruments=tuple(
+                            item.strip()
+                            for item in (args.instruments or "").split(",")
+                            if item.strip()
+                        ),
+                        max_source_bytes=args.max_source_bytes,
                         seven_zip_executable=seven_zip_executable,
                     )
                 elif args.command == "data-minute-sync-available":
