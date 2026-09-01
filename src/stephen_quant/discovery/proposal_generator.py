@@ -194,6 +194,121 @@ def generate_symbolic_proposals(
     return tuple(unique[key] for key in sorted(unique)[:budget])
 
 
+def generate_structural_proposals(
+    *,
+    budget: int = 512,
+    lookbacks: tuple[int, ...] = (3, 5, 10, 20, 60),
+    horizons: tuple[PredictionHorizon, ...] = ("1d", "5d", "20d"),
+    include_inverse: bool = True,
+) -> tuple[GeneratedProposal, ...]:
+    """Generate a label-free, mechanism-diverse V9 proposal packet.
+
+    Unlike the legacy field enumerator, this grammar predeclares economic interactions.  It never
+    reads labels and varies only bounded lookback, horizon and direction policy dimensions.
+    Invalid source/form/unit combinations are rejected by the existing typed compiler.
+    """
+
+    if budget < 1:
+        raise ValueError("proposal budget must be positive")
+    if not lookbacks or any(value < 2 or value > 252 for value in lookbacks):
+        raise ValueError("structural lookbacks must be between 2 and 252")
+    if not horizons or len(set(horizons)) != len(horizons):
+        raise ValueError("structural horizons must be non-empty and unique")
+    specs: list[ProposalSpec] = []
+
+    def add(
+        formula: str,
+        hypothesis: str,
+        research_form: ResearchForm,
+        provider_id: str,
+    ) -> None:
+        for horizon in horizons:
+            for direction in ((1, -1) if include_inverse else (1,)):
+                specs.append(
+                    ProposalSpec(
+                        formula,
+                        hypothesis,
+                        research_form,
+                        horizon,
+                        direction,
+                        "symbolic",
+                        provider_id,
+                    )
+                )
+
+    for lookback in lookbacks:
+        short = max(2, lookback // 4)
+        if short >= lookback:
+            short = lookback - 1
+        add(
+            f"relative_strength(close, benchmark_close, {lookback})",
+            "Stock return relative to the contemporaneously observable market path may persist or reverse.",
+            "continuous_ranking",
+            "symbolic:relative-strength",
+        )
+        add(
+            f"max_drawdown(close, {lookback})",
+            "Recent path damage may proxy forced selling, recovery optionality or persistent risk.",
+            "continuous_ranking",
+            "symbolic:path-damage",
+        )
+        add(
+            f"amihud(close, amount, {lookback})",
+            "Return impact per traded amount may expose a priced liquidity state.",
+            "continuous_ranking",
+            "symbolic:liquidity-impact",
+        )
+        add(
+            f"sma_ratio(turnover, {short}, {lookback}) - period_return(close, {lookback})",
+            "Turnover acceleration without matching price response may precede repricing.",
+            "continuous_ranking",
+            "symbolic:turnover-price-divergence",
+        )
+        add(
+            f"mean(net_inflow_amount, {lookback}) / (mean(amount, {lookback}) + 1) "
+            f"- period_return(close, {lookback})",
+            "Normalized buying pressure may arrive before price fully incorporates demand.",
+            "continuous_ranking",
+            "symbolic:flow-price-divergence",
+        )
+        add(
+            f"(mean(large_buy_amount, {lookback}) - mean(large_sell_amount, {lookback})) "
+            f"/ (mean(amount, {lookback}) + 1)",
+            "Large-order composition may reveal persistent informed demand or crowded flow.",
+            "continuous_ranking",
+            "symbolic:flow-composition",
+        )
+        add(
+            f"(mean(margin_financing_buy, {lookback}) - mean(margin_financing_repay, {lookback})) "
+            f"/ (mean(margin_financing_balance, {lookback}) + 1) "
+            f"- period_return(close, {lookback})",
+            "Leveraged demand growth that is not yet reflected in price may precede adjustment.",
+            "continuous_ranking",
+            "symbolic:margin-price-divergence",
+        )
+        add(
+            f"(mean(close, {lookback}) - mean(chip_weighted_cost, {lookback})) "
+            f"/ (mean(close, {lookback}) + 1)",
+            "Distance from observed holder cost may proxy supply overhang or trend confirmation.",
+            "continuous_ranking",
+            "symbolic:chip-price-location",
+        )
+        add(
+            f"mean(auction_return, {short}) - period_return(close, {short})",
+            "Opening-auction repricing relative to the recent close path may identify overnight information.",
+            "event_study",
+            "symbolic:auction-price-interaction",
+        )
+    unique: dict[str, GeneratedProposal] = {}
+    for spec in specs:
+        try:
+            item = compile_proposal(spec)
+        except (ValueError, TypeError):
+            continue
+        unique.setdefault(item.proposal_id, item)
+    return tuple(unique[key] for key in sorted(unique)[:budget])
+
+
 def load_llm_proposals(path: str | Path, *, provider_id: str) -> tuple[GeneratedProposal, ...]:
     if not provider_id.startswith("llm:"):
         raise ValueError("provider_id must begin with llm:")
@@ -217,6 +332,21 @@ def load_llm_proposals(path: str | Path, *, provider_id: str) -> tuple[Generated
         item = compile_proposal(spec)
         unique.setdefault(item.proposal_id, item)
     return tuple(unique[key] for key in sorted(unique))
+
+
+def load_cached_llm_proposals(
+    path: str | Path,
+    *,
+    provider_id: str,
+    expected_sha256: str,
+) -> tuple[GeneratedProposal, ...]:
+    """Replay a frozen LLM proposal packet without a network or label-dependent call."""
+
+    source = Path(path)
+    actual = hashlib.sha256(source.read_bytes()).hexdigest()
+    if actual != expected_sha256:
+        raise ValueError("cached LLM proposal packet hash mismatch")
+    return load_llm_proposals(source, provider_id=provider_id)
 
 
 def merge_proposals(*groups: tuple[GeneratedProposal, ...], budget: int) -> tuple[GeneratedProposal, ...]:

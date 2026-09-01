@@ -84,6 +84,9 @@ from .workflows import (
     V71_VERSION,
     V72_VERSION,
     V74_VERSION,
+    V90_DEFAULT_CONFIG,
+    V90_EMPIRICAL_VERSION,
+    V90_VERSION,
     CompositeCpcvConfig,
     ConversionConfig,
     DynamicBacktestConfig,
@@ -118,6 +121,7 @@ from .workflows import (
     load_v27_m0_config,
     load_v27_m1_config,
     load_v27_m2_config,
+    load_v90_config,
     run_automated_discovery,
     run_automated_discovery_suite,
     run_composite_cpcv_research,
@@ -170,6 +174,8 @@ from .workflows import (
     run_v73_candidate_court,
     run_v74_epoch_two_search,
     run_v74_novel_mechanism_search,
+    run_v90_empirical_replay,
+    run_v90_planning,
     verify_label_free_replay,
     verify_v21_replay,
     verify_v22_portfolio_breadth_replay,
@@ -668,6 +674,17 @@ def build_parser() -> argparse.ArgumentParser:
     v74_epoch_two = sub.add_parser("discover-cross-source-alpha")
     v74_epoch_two.add_argument("--paths-config", required=True)
     v74_epoch_two.add_argument("--output", default="reports/v7.4-cross-source-epoch2")
+
+    v90_plan = sub.add_parser("v9-alpha-plan")
+    v90_plan.add_argument("--config", default=V90_DEFAULT_CONFIG)
+    v90_plan.add_argument("--output", default="reports/v9.0-alpha-discovery")
+
+    v90_replay = sub.add_parser("v9-alpha-replay")
+    v90_replay.add_argument("--config", default=V90_DEFAULT_CONFIG)
+    v90_replay.add_argument("--warehouse-root", required=True)
+    v90_replay.add_argument("--output", default="reports/v9.0-alpha-discovery")
+    v90_replay.add_argument("--daily-snapshot")
+    v90_replay.add_argument("--multisource-snapshot")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2704,6 +2721,30 @@ def main() -> None:
             code_version=_git_head(),
         )
         print(run.report.to_json())
+        return
+
+    if args.command == "v9-alpha-plan":
+        v90_config, _, _ = load_v90_config(args.config)
+        report = run_v90_planning(args.output, config=v90_config)
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V90_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v9-alpha-replay":
+        v90_config, config_daily, config_multi = load_v90_config(args.config)
+        report = run_v90_empirical_replay(
+            args.warehouse_root,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            daily_snapshot_id=args.daily_snapshot or config_daily,
+            multisource_snapshot_id=args.multisource_snapshot or config_multi,
+            config=v90_config,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V90_EMPIRICAL_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
     if args.command in {"qd-auto-discover", "qd-auto-discover-suite"}:

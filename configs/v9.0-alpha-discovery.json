@@ -1,0 +1,35 @@
+{
+  "method_version": "v9.0-calibrated-portfolio-native-alpha-discovery-1.0.0",
+  "warehouse_snapshots": {
+    "qd_daily": "9ba3320edf76036e5431c0360eed5bf54ca641936a3fa2f1ab12064019cfebd5",
+    "qd_multisource": "cc4d6ccb871887aa9d1561827e430e52fcd6c0e2fbc63ba617369580e5f07bcd"
+  },
+  "time_roles": {
+    "discovery": ["2015-01-01", "2017-12-31"],
+    "validation": ["2018-01-01", "2018-12-31"],
+    "frozen_test": ["2019-01-01", "2019-12-31"],
+    "confirmation": ["2020-01-01", "2021-12-31"],
+    "stress": ["2022-01-01", "2024-12-31"],
+    "sealed_from": "2025-01-01"
+  },
+  "search": {
+    "empirical_budget": 50,
+    "prior_inferential_trials": 533,
+    "llm_mode": "OPTIONAL_FROZEN_OFFLINE_CACHE_ONLY"
+  },
+  "portfolio": {
+    "initial_nav_cny": 3000000.0,
+    "top_k": 40,
+    "rank_buffer": 10,
+    "round_trip_cost_bps": 41.0,
+    "participation_rate": 0.05,
+    "periods_per_year": 12
+  },
+  "alpha_court": {
+    "minimum_dsr_probability": 0.95,
+    "maximum_pbo": 0.05,
+    "maximum_placebo_p_value": 0.05,
+    "double_cost_required": true,
+    "capacity_required": true
+  }
+}
