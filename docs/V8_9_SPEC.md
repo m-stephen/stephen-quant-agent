@@ -45,14 +45,15 @@ stephen-quant data-minute-materialize-all \
   --intervals 1,5,15,30,60 \
   --chunk-source-bytes 512000000 \
   --minimum-free-bytes 100000000000 \
-  --parse-workers 6
+  --parse-workers 8
 ```
 
 `--parse-workers` defaults to `1` for backwards compatibility. On the current 12-core workstation,
 a 12-member historical-minute sample containing 3,782,308 rows took 127.35 seconds with one parser
 and 38.37 seconds with six parsers (`3.32x` faster), with identical canonical rows and revision IDs.
-Six workers are therefore the recommended local full-materialization setting; DuckDB registration
-and Parquet commit remain single-writer operations.
+Use six workers while the workstation is shared, or eight workers while it is dedicated to full
+materialization. DuckDB registration and Parquet commit remain single-writer operations in both
+modes.
 
 The command first refreshes the archive catalog and estimates Parquet capacity. Broad or unbounded
 bundles are processed before historical bundles, annual archives and dated daily archives. This
