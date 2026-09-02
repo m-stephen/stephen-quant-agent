@@ -21,6 +21,7 @@ from .data_warehouse import _atomic_json, _duckdb, _sha256, initialize_warehouse
 from .models import QmtDataError
 
 MINUTE_SCHEMA_VERSION = 2
+MINUTE_PARQUET_SCHEMA_VERSION = 2
 MINUTE_FOLDER = "分钟K线合集"
 MINUTE_INTERVALS = (1, 5, 15, 30, 60)
 _INTERVAL = re.compile(r"(?<!\d)(1|5|15|30|60)\s*(?:min|分钟)", re.IGNORECASE)
@@ -537,11 +538,40 @@ def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
         "CAST(interval_minutes AS INTEGER) interval_minutes, instrument, "
         'CAST("open" AS DOUBLE) "open", CAST(high AS DOUBLE) high, CAST(low AS DOUBLE) low, '
         'CAST("close" AS DOUBLE) "close", CAST(volume AS DOUBLE) volume, CAST(amount AS DOUBLE) amount, '
-        "to_timestamp(effective_at_epoch) effective_at, "
-        "to_timestamp(available_at_epoch) available_at, "
         "to_timestamp(ingested_at_epoch) ingested_at, archive_sha256, member_path, member_sha256, "
-        f"revision_id FROM read_json_auto('{source_sql}')) TO '{target_sql}' "
+        f"CAST({MINUTE_PARQUET_SCHEMA_VERSION} AS UTINYINT) storage_schema_version "
+        f"FROM read_json_auto('{source_sql}')) TO '{target_sql}' "
         "(FORMAT PARQUET, COMPRESSION ZSTD)"
+    )
+
+
+def _minute_relation_sql(connection, literals: str) -> str:
+    """Return the stable logical contract for legacy, V2, or mixed Parquet files."""
+    raw = f"read_parquet([{literals}], union_by_name=true)"
+    columns = {
+        str(row[0])
+        for row in connection.execute(f"DESCRIBE SELECT * FROM {raw}").fetchall()
+    }
+
+    def compatible(name: str, derived: str) -> str:
+        return f"coalesce({name}, {derived})" if name in columns else derived
+
+    effective_at = compatible("effective_at", "bar_at")
+    available_at = compatible("available_at", "bar_at + INTERVAL 1 SECOND")
+    revision_v2 = (
+        "sha256(concat_ws('|', 'minute-parquet-v2', CAST(bar_at AS VARCHAR), "
+        "CAST(interval_minutes AS VARCHAR), instrument, CAST(\"open\" AS VARCHAR), "
+        "CAST(high AS VARCHAR), CAST(low AS VARCHAR), CAST(\"close\" AS VARCHAR), "
+        "CAST(volume AS VARCHAR), CAST(amount AS VARCHAR), archive_sha256, member_path, "
+        "member_sha256))"
+    )
+    revision_id = compatible("revision_id", revision_v2)
+    return (
+        "SELECT trade_date, bar_at, interval_minutes, instrument, \"open\", high, low, "
+        "\"close\", volume, amount, "
+        f"{effective_at} AS effective_at, {available_at} AS available_at, ingested_at, "
+        "archive_sha256, member_path, member_sha256, "
+        f"{revision_id} AS revision_id FROM {raw}"
     )
 
 
@@ -599,9 +629,9 @@ def _refresh_views(connection, warehouse: Path) -> None:
     if not paths:
         return
     literals = ",".join(f"'{path}'" for path in paths)
+    relation = _minute_relation_sql(connection, literals)
     connection.execute(
-        f"CREATE OR REPLACE VIEW qd_minute_revisions AS "
-        f"SELECT * FROM read_parquet([{literals}], union_by_name=true)"
+        f"CREATE OR REPLACE VIEW qd_minute_revisions AS {relation}"
     )
     connection.execute(
         "CREATE OR REPLACE VIEW qd_minute_current AS SELECT * EXCLUDE(rn) FROM (SELECT *, "
@@ -2004,24 +2034,26 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
     if paths:
         connection = _duckdb().connect()
         try:
-            rows = int(connection.execute("SELECT count(*) FROM read_parquet(?)", [paths]).fetchone()[0])
+            literals = ",".join(
+                f"'{path.replace(chr(39), chr(39) * 2)}'" for path in paths
+            )
+            relation = _minute_relation_sql(connection, literals)
+            rows = int(connection.execute(f"SELECT count(*) FROM ({relation})").fetchone()[0])
             current = (
                 "SELECT * EXCLUDE(rn) FROM (SELECT *, row_number() OVER (PARTITION BY "
                 "interval_minutes, bar_at, instrument ORDER BY ingested_at DESC, revision_id DESC) rn "
-                "FROM read_parquet(?)) WHERE rn=1"
+                f"FROM ({relation})) WHERE rn=1"
             )
             duplicates = int(
                 connection.execute(
                     f"SELECT count(*) FROM (SELECT interval_minutes, bar_at, instrument, count(*) n "
-                    f"FROM ({current}) GROUP BY 1,2,3 HAVING n>1)",
-                    [paths],
+                    f"FROM ({current}) GROUP BY 1,2,3 HAVING n>1)"
                 ).fetchone()[0]
             )
             timing = int(
                 connection.execute(
-                    "SELECT count(*) FROM read_parquet(?) WHERE effective_at > available_at "
-                    "OR available_at > ingested_at",
-                    [paths],
+                    f"SELECT count(*) FROM ({relation}) WHERE effective_at > available_at "
+                    "OR available_at > ingested_at"
                 ).fetchone()[0]
             )
         finally:

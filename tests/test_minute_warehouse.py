@@ -67,6 +67,25 @@ def test_minute_archive_ingest_verify_and_replay(tmp_path: Path) -> None:
         assert connection.execute(
             "SELECT epoch(min(bar_at)) FROM qd_minute_current WHERE interval_minutes=1"
         ).fetchone()[0] == expected_epoch
+        relative = connection.execute(
+            "SELECT parquet_relative_path FROM minute_partitions ORDER BY 1 LIMIT 1"
+        ).fetchone()[0]
+        physical = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM parquet_schema(?)", [str(warehouse / relative)]
+            ).fetchall()
+        }
+        assert "storage_schema_version" in physical
+        assert {"effective_at", "available_at", "revision_id"}.isdisjoint(physical)
+        logical = {
+            str(row[0])
+            for row in connection.execute("DESCRIBE qd_minute_current").fetchall()
+        }
+        assert {"effective_at", "available_at", "revision_id"} <= logical
+        assert connection.execute(
+            "SELECT count(*) FROM qd_minute_current WHERE length(revision_id)=64"
+        ).fetchone()[0] == 8
     finally:
         connection.close()
 
