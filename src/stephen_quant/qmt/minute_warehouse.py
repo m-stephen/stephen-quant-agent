@@ -545,8 +545,22 @@ def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
     )
 
 
-def _minute_relation_sql(connection, literals: str) -> str:
+def _revision_v2_expression() -> str:
+    return (
+        "sha256(concat_ws('|', 'minute-parquet-v2', CAST(bar_at AS VARCHAR), "
+        "CAST(interval_minutes AS VARCHAR), instrument, CAST(\"open\" AS VARCHAR), "
+        "CAST(high AS VARCHAR), CAST(low AS VARCHAR), CAST(\"close\" AS VARCHAR), "
+        "CAST(volume AS VARCHAR), CAST(amount AS VARCHAR), archive_sha256, member_path, "
+        "member_sha256))"
+    )
+
+
+def _minute_relation_sql(
+    connection, literals: str, *, revision_mode: str = "logical"
+) -> str:
     """Return the stable logical contract for legacy, V2, or mixed Parquet files."""
+    if revision_mode not in {"logical", "stored", "none"}:
+        raise ValueError(f"unsupported minute revision mode: {revision_mode}")
     raw = f"read_parquet([{literals}], union_by_name=true)"
     columns = {
         str(row[0])
@@ -558,20 +572,17 @@ def _minute_relation_sql(connection, literals: str) -> str:
 
     effective_at = compatible("effective_at", "bar_at")
     available_at = compatible("available_at", "bar_at + INTERVAL 1 SECOND")
-    revision_v2 = (
-        "sha256(concat_ws('|', 'minute-parquet-v2', CAST(bar_at AS VARCHAR), "
-        "CAST(interval_minutes AS VARCHAR), instrument, CAST(\"open\" AS VARCHAR), "
-        "CAST(high AS VARCHAR), CAST(low AS VARCHAR), CAST(\"close\" AS VARCHAR), "
-        "CAST(volume AS VARCHAR), CAST(amount AS VARCHAR), archive_sha256, member_path, "
-        "member_sha256))"
-    )
-    revision_id = compatible("revision_id", revision_v2)
+    revision_sql = ""
+    if revision_mode == "logical":
+        revision_sql = f", {compatible('revision_id', _revision_v2_expression())} AS revision_id"
+    elif revision_mode == "stored":
+        stored = "revision_id" if "revision_id" in columns else "NULL::VARCHAR"
+        revision_sql = f", {stored} AS stored_revision_id"
     return (
         "SELECT trade_date, bar_at, interval_minutes, instrument, \"open\", high, low, "
         "\"close\", volume, amount, "
         f"{effective_at} AS effective_at, {available_at} AS available_at, ingested_at, "
-        "archive_sha256, member_path, member_sha256, "
-        f"{revision_id} AS revision_id FROM {raw}"
+        f"archive_sha256, member_path, member_sha256{revision_sql} FROM {raw}"
     )
 
 
@@ -633,10 +644,16 @@ def _refresh_views(connection, warehouse: Path) -> None:
     connection.execute(
         f"CREATE OR REPLACE VIEW qd_minute_revisions AS {relation}"
     )
+    base = _minute_relation_sql(connection, literals, revision_mode="stored")
+    revision_v2 = _revision_v2_expression()
     connection.execute(
-        "CREATE OR REPLACE VIEW qd_minute_current AS SELECT * EXCLUDE(rn) FROM (SELECT *, "
+        "CREATE OR REPLACE VIEW qd_minute_current AS SELECT trade_date, bar_at, "
+        "interval_minutes, instrument, \"open\", high, low, \"close\", volume, amount, "
+        "effective_at, available_at, ingested_at, archive_sha256, member_path, member_sha256, "
+        f"coalesce(stored_revision_id, {revision_v2}) AS revision_id FROM (SELECT *, "
         "row_number() OVER (PARTITION BY interval_minutes, bar_at, instrument ORDER BY "
-        "ingested_at DESC, revision_id DESC) rn FROM qd_minute_revisions) WHERE rn=1"
+        "ingested_at DESC, archive_sha256 DESC, member_sha256 DESC, member_path DESC) rn "
+        f"FROM ({base})) WHERE rn=1"
     )
 
 
@@ -2037,11 +2054,12 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
             literals = ",".join(
                 f"'{path.replace(chr(39), chr(39) * 2)}'" for path in paths
             )
-            relation = _minute_relation_sql(connection, literals)
+            relation = _minute_relation_sql(connection, literals, revision_mode="none")
             rows = int(connection.execute(f"SELECT count(*) FROM ({relation})").fetchone()[0])
             current = (
                 "SELECT * EXCLUDE(rn) FROM (SELECT *, row_number() OVER (PARTITION BY "
-                "interval_minutes, bar_at, instrument ORDER BY ingested_at DESC, revision_id DESC) rn "
+                "interval_minutes, bar_at, instrument ORDER BY ingested_at DESC, "
+                "archive_sha256 DESC, member_sha256 DESC, member_path DESC) rn "
                 f"FROM ({relation})) WHERE rn=1"
             )
             duplicates = int(
