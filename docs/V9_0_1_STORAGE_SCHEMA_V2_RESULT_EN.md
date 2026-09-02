@@ -1,6 +1,6 @@
 # V9.0.1 Minute Storage Schema V2 Benchmark
 
-Status: **The core minute-schema gate passes; Issue #160 remains in progress.**
+Status: **Schema, Inventory, and resampling decision gates pass; Issue #160 awaits the full migration.**
 
 ## Design
 
@@ -26,9 +26,30 @@ Both cases exceed the 40% minimum size-reduction gate, and both query regression
 
 The first full-suite run was correctly blocked by AlphaPai maintenance variables inherited from a local maintenance process. The suite passed after those variables were removed from the test process. No credential was written to code, reports, or Git.
 
+## Inventory cold archive
+
+Three historical Inventory JSON files were converted to deterministic gzip after byte-for-byte SHA-256 decompression verification. The latest Inventory remains a hot JSON file:
+
+- Plain JSON total: 4,514,007,467 bytes
+- Compressed total: 84,427,596 bytes
+- Reduction: 98.13%, releasing about 4.13 GiB
+- Current Inventory directory: about 1.52 GiB
+
+Future Inventory builds can still read cold manifests. A plain JSON file is removed only after its corresponding compressed file passes decompressed-hash verification.
+
+## Multi-interval resampling audit
+
+The full-market 1/5/15/30/60-minute data for 2026-08-28 was compared bucket by bucket. Time keys, OHLC, and volume match for every interval, but turnover amount cannot be reconstructed exactly from already-rounded one-minute amounts:
+
+| Interval | Vendor rows | Fully equal | Amount mismatches | Maximum absolute difference |
+|---|---:|---:|---:|---:|
+| 5 minutes | 266,256 | 97.98% | 5,379 | 0.20 |
+| 15 minutes | 88,752 | 96.06% | 3,495 | 0.40 |
+| 30 minutes | 44,376 | 94.69% | 2,358 | 0.60 |
+| 60 minutes | 22,188 | 93.58% | 1,425 | 0.70 |
+
+Vendor 5/15/30/60-minute data must therefore be retained. One-minute resampling may be used for research features, but it must not be represented as the original vendor interval data.
+
 ## Remaining work
 
-- Lossless cold compression for historical Inventory snapshots.
-- Equivalence audit between vendor 1/5/15/30/60-minute bars and deterministic resampling.
 - Resume full materialization on Schema V2, migrate legacy partitions precisely, and run final snapshot, replay, CI, and release gates.
-

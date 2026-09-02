@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import sqlite3
@@ -46,6 +47,83 @@ def _sha256(path: Path) -> tuple[str, str]:
             digest.update(chunk)
             crc = zlib.crc32(chunk, crc)
     return digest.hexdigest(), f"{crc & 0xFFFFFFFF:08x}"
+
+
+def _read_inventory_manifest(path: Path) -> dict[str, object]:
+    try:
+        if path.name.endswith(".json.gz"):
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return json.load(handle)
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, json.JSONDecodeError) as exc:
+        raise QmtDataError(f"cannot read inventory manifest: {path.name}") from exc
+
+
+def cold_archive_inventories(
+    output_dir: str | Path,
+    *,
+    retain_hot: int = 1,
+    remove_verified_json: bool = False,
+) -> dict[str, object]:
+    """Losslessly gzip historical inventory JSON after byte-for-byte verification."""
+    if retain_hot < 1:
+        raise QmtDataError("retain_hot must be at least one")
+    target = Path(output_dir).expanduser().resolve()
+    manifests = sorted(
+        target.glob("asset-inventory-*.json"),
+        key=lambda item: (item.stat().st_mtime_ns, item.name),
+        reverse=True,
+    )
+    archived: list[dict[str, object]] = []
+    for source in manifests[retain_hot:]:
+        compressed = source.with_suffix(source.suffix + ".gz")
+        temporary = compressed.with_suffix(compressed.suffix + ".pending")
+        source_sha = _sha256(source)[0]
+        digest = hashlib.sha256()
+        try:
+            with (
+                source.open("rb") as input_handle,
+                temporary.open("xb") as raw_output,
+                gzip.GzipFile(
+                    filename="", mode="wb", fileobj=raw_output, compresslevel=9, mtime=0
+                ) as output_handle,
+            ):
+                for chunk in iter(lambda: input_handle.read(1024 * 1024), b""):
+                    output_handle.write(chunk)
+            with gzip.open(temporary, "rb") as verification:
+                for chunk in iter(lambda: verification.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if digest.hexdigest() != source_sha:
+                raise QmtDataError(f"inventory cold-storage verification failed: {source.name}")
+            if compressed.exists():
+                if _sha256(compressed)[0] != _sha256(temporary)[0]:
+                    raise QmtDataError(f"inventory cold-storage target conflict: {compressed.name}")
+                temporary.unlink()
+            else:
+                temporary.replace(compressed)
+            archived.append(
+                {
+                    "source_name": source.name,
+                    "source_sha256": source_sha,
+                    "source_size_bytes": source.stat().st_size,
+                    "compressed_name": compressed.name,
+                    "compressed_sha256": _sha256(compressed)[0],
+                    "compressed_size_bytes": compressed.stat().st_size,
+                    "verified": True,
+                }
+            )
+            if remove_verified_json:
+                source.unlink()
+        finally:
+            temporary.unlink(missing_ok=True)
+    return {
+        "status": "COMPLETED",
+        "retain_hot": retain_hot,
+        "remove_verified_json": remove_verified_json,
+        "archived": archived,
+        "source_bytes": sum(int(item["source_size_bytes"]) for item in archived),
+        "compressed_bytes": sum(int(item["compressed_size_bytes"]) for item in archived),
+    }
 
 
 class HashCache:
@@ -214,11 +292,14 @@ def inventory_assets(
     previous_members: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     previous_errors: dict[tuple[str, str], dict[str, str]] = {}
     extracted_history_keys: set[tuple[str, str, str]] = set()
-    previous_manifests = list(target.glob("asset-inventory-*.json"))
+    hot_manifests = list(target.glob("asset-inventory-*.json"))
+    previous_manifests = hot_manifests + list(target.glob("asset-inventory-*.json.gz"))
     if previous_manifests:
         try:
-            latest_manifest = max(previous_manifests, key=lambda item: item.stat().st_mtime_ns)
-            previous = json.loads(latest_manifest.read_text(encoding="utf-8"))
+            latest_manifest = max(
+                hot_manifests or previous_manifests, key=lambda item: item.stat().st_mtime_ns
+            )
+            previous = _read_inventory_manifest(latest_manifest)
             previous_hashes = {
                 str(entry["relative_path"]): str(entry["sha256"])
                 for entry in previous.get("entries", [])
@@ -231,12 +312,12 @@ def inventory_assets(
                     rel = str(item.get("relative_path", ""))
                     if rel in previous_hashes:
                         previous_errors[(rel, previous_hashes[rel])] = item
-        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+        except (OSError, KeyError, TypeError, json.JSONDecodeError, QmtDataError):
             previous_members.clear()
             previous_errors.clear()
     for prior_path in previous_manifests:
         try:
-            prior = json.loads(prior_path.read_text(encoding="utf-8"))
+            prior = _read_inventory_manifest(prior_path)
             archive_hashes = {
                 str(entry["relative_path"]): str(entry["sha256"])
                 for entry in prior.get("entries", [])
@@ -258,7 +339,7 @@ def inventory_assets(
                 archive_sha = archive_hashes.get(archive_rel)
                 if archive_sha and member_path:
                     extracted_history_keys.add((archive_rel, archive_sha, member_path))
-        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+        except (OSError, KeyError, TypeError, QmtDataError):
             continue
     if inspect_archives:
         for path, archive_sha, _, _ in raw:

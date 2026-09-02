@@ -43,7 +43,7 @@ from .qmt import (
     write_market_wide_universe,
     write_qd_universe,
 )
-from .qmt.asset_inventory import inventory_assets
+from .qmt.asset_inventory import cold_archive_inventories, inventory_assets
 from .qmt.data_warehouse import (
     ingest_daily,
     initialize_warehouse,
@@ -211,6 +211,12 @@ def build_parser() -> argparse.ArgumentParser:
     asset_inventory.add_argument("--output")
     asset_inventory.add_argument("--rehash-all", action="store_true")
     asset_inventory.add_argument("--skip-archive-members", action="store_true")
+
+    inventory_cold = sub.add_parser("data-inventory-cold-archive")
+    inventory_cold.add_argument("--paths-config")
+    inventory_cold.add_argument("--warehouse-root")
+    inventory_cold.add_argument("--retain-hot", type=int, default=1)
+    inventory_cold.add_argument("--remove-verified-json", action="store_true")
 
     warehouse_init = sub.add_parser("data-warehouse-init")
     warehouse_init.add_argument("--paths-config")
@@ -840,6 +846,7 @@ def main() -> None:
 
     if args.command in {
         "data-asset-inventory",
+        "data-inventory-cold-archive",
         "data-warehouse-init",
         "data-ingest",
         "data-warehouse-verify",
@@ -861,7 +868,13 @@ def main() -> None:
             warehouse_root = local_paths.choose(
                 "qd_warehouse_root", getattr(args, "warehouse_root", None), "--warehouse-root"
             )
-            if args.command == "data-warehouse-init":
+            if args.command == "data-inventory-cold-archive":
+                result = cold_archive_inventories(
+                    Path(warehouse_root) / "inventory",
+                    retain_hot=args.retain_hot,
+                    remove_verified_json=args.remove_verified_json,
+                )
+            elif args.command == "data-warehouse-init":
                 result = initialize_warehouse(warehouse_root)
             elif args.command == "data-warehouse-verify":
                 result = verify_snapshot(warehouse_root, args.snapshot)
