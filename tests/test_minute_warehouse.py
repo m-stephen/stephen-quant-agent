@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -8,10 +9,12 @@ import duckdb
 import pytest
 
 from stephen_quant.qmt.minute_warehouse import (
+    _minute_snapshot,
     catalog_minute_archives,
     ensure_minute_range,
     ingest_minute_archives,
     materialize_all_available_minutes,
+    migrate_minute_storage_v2,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
@@ -279,6 +282,73 @@ def test_full_materialization_uses_restartable_range_partitions(tmp_path: Path) 
     )
     assert replay["status"] == "COMPLETED"
     assert replay["pending_archives_at_start"] == 0
+
+
+def test_storage_v2_migration_preserves_legacy_snapshot_lineage(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2024" / "最新更新"
+    source.mkdir(parents=True)
+    with zipfile.ZipFile(source / "20240102.zip", "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2024-01-02", 1, 0))
+    warehouse = tmp_path / "warehouse"
+    ingest_minute_archives(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 2),
+        intervals=(1,),
+    )
+
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    current_relative = connection.execute(
+        "SELECT parquet_relative_path FROM minute_partitions"
+    ).fetchone()[0]
+    current = warehouse / current_relative
+    legacy = current.with_name("legacy-minute.parquet")
+    connection.execute(
+        "COPY (SELECT * FROM qd_minute_revisions) TO ? (FORMAT PARQUET, COMPRESSION ZSTD)",
+        [str(legacy)],
+    )
+    digest = hashlib.sha256(legacy.read_bytes()).hexdigest()
+    connection.execute(
+        "UPDATE minute_partitions SET parquet_relative_path=?, sha256=?, size_bytes=? "
+        "WHERE parquet_relative_path=?",
+        [legacy.relative_to(warehouse).as_posix(), digest, legacy.stat().st_size, current_relative],
+    )
+    legacy_snapshot = _minute_snapshot(connection, warehouse)
+    connection.close()
+    current.unlink()
+
+    before = verify_minute_snapshot(warehouse, legacy_snapshot)
+    assert before["passed"] is True
+    assert before["migrated_partitions"] == 0
+
+    result = migrate_minute_storage_v2(
+        warehouse, minimum_free_bytes=0, max_partitions=1
+    )
+    assert result["migrated_partitions"] == 1
+    assert result["old_bytes"] > result["new_bytes"]
+    assert not legacy.exists()
+
+    migrated = verify_minute_snapshot(warehouse, legacy_snapshot)
+    assert migrated["passed"] is True
+    assert migrated["migrated_partitions"] == 1
+    connection = duckdb.connect(
+        str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        new_relative = connection.execute(
+            "SELECT new_parquet_relative_path FROM minute_storage_migrations"
+        ).fetchone()[0]
+        physical = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM parquet_schema(?)", [str(warehouse / new_relative)]
+            ).fetchall()
+        }
+        assert "storage_schema_version" in physical
+        assert {"effective_at", "available_at", "revision_id"}.isdisjoint(physical)
+    finally:
+        connection.close()
 
 
 def test_parallel_full_materialization_matches_serial_rows(tmp_path: Path) -> None:

@@ -95,6 +95,13 @@ def initialize_minute_warehouse(root: str | Path) -> None:
             "UNIQUE(archive_relative_path, archive_sha256, member_path, member_sha256, "
             "scope_start, scope_end))"
         )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS minute_storage_migrations ("
+            "old_parquet_relative_path VARCHAR, old_sha256 VARCHAR, old_size_bytes BIGINT, "
+            "new_parquet_relative_path VARCHAR, new_sha256 VARCHAR, new_size_bytes BIGINT, "
+            "row_count BIGINT, business_fingerprint VARCHAR, migrated_at TIMESTAMPTZ, "
+            "PRIMARY KEY(old_parquet_relative_path, old_sha256))"
+        )
     finally:
         connection.close()
 
@@ -545,6 +552,18 @@ def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
     )
 
 
+def _compact_minute_parquet(connection, source: Path, target: Path) -> None:
+    source_sql = str(source).replace("'", "''")
+    target_sql = str(target).replace("'", "''")
+    connection.execute(
+        "COPY (SELECT trade_date, bar_at, interval_minutes, instrument, \"open\", high, low, "
+        "\"close\", volume, amount, ingested_at, archive_sha256, member_path, member_sha256, "
+        f"CAST({MINUTE_PARQUET_SCHEMA_VERSION} AS UTINYINT) storage_schema_version "
+        f"FROM read_parquet('{source_sql}')) TO '{target_sql}' "
+        "(FORMAT PARQUET, COMPRESSION ZSTD)"
+    )
+
+
 def _revision_v2_expression() -> str:
     return (
         "sha256(concat_ws('|', 'minute-parquet-v2', CAST(bar_at AS VARCHAR), "
@@ -584,6 +603,175 @@ def _minute_relation_sql(
         f"{effective_at} AS effective_at, {available_at} AS available_at, ingested_at, "
         f"archive_sha256, member_path, member_sha256{revision_sql} FROM {raw}"
     )
+
+
+def _minute_business_fingerprint(connection, path: Path) -> tuple[int, str, str, str]:
+    literal = f"'{str(path).replace(chr(39), chr(39) * 2)}'"
+    relation = _minute_relation_sql(connection, literal, revision_mode="none")
+    row = connection.execute(
+        "SELECT count(*), CAST(bit_xor(hash(trade_date, bar_at, interval_minutes, instrument, "
+        '"open", high, low, "close", volume, amount, effective_at, available_at, ingested_at, '
+        "archive_sha256, member_path, member_sha256)) AS VARCHAR), "
+        f"CAST(min(bar_at) AS VARCHAR), CAST(max(bar_at) AS VARCHAR) FROM ({relation})"
+    ).fetchone()
+    return int(row[0]), str(row[1]), str(row[2]), str(row[3])
+
+
+def migrate_minute_storage_v2(
+    warehouse_root: str | Path,
+    *,
+    minimum_free_bytes: int = 100_000_000_000,
+    max_partitions: int | None = None,
+    recover_interrupted_batches: bool = False,
+) -> dict[str, object]:
+    """Rewrite registered legacy Parquet atomically and preserve snapshot lineage."""
+    if minimum_free_bytes < 0:
+        raise QmtDataError("minimum_free_bytes must be non-negative")
+    if max_partitions is not None and max_partitions < 1:
+        raise QmtDataError("max_partitions must be positive")
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    initialize_minute_warehouse(warehouse)
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    running = connection.execute(
+        "SELECT count(*) FROM minute_batches WHERE status='RUNNING'"
+    ).fetchone()[0]
+    if running:
+        if not recover_interrupted_batches:
+            connection.close()
+            raise QmtDataError("minute storage migration refuses to run beside an active batch")
+        connection.execute(
+            "UPDATE minute_batches SET completed_at=?, status='INTERRUPTED', "
+            "error='explicitly recovered before storage-v2 migration' WHERE status='RUNNING'",
+            [datetime.now(timezone.utc)],
+        )
+    registered = [
+        ("daily", str(row[0]), str(row[1]), int(row[2]), int(row[3]))
+        for row in connection.execute(
+            "SELECT parquet_relative_path, sha256, size_bytes, row_count "
+            "FROM minute_partitions ORDER BY parquet_relative_path"
+        ).fetchall()
+    ] + [
+        ("range", str(row[0]), str(row[1]), int(row[2]), int(row[3]))
+        for row in connection.execute(
+            "SELECT parquet_relative_path, sha256, size_bytes, row_count "
+            "FROM minute_range_partitions ORDER BY parquet_relative_path"
+        ).fetchall()
+    ]
+    migrated: list[dict[str, object]] = []
+    skipped = 0
+    try:
+        for kind, relative, old_sha, old_size, expected_rows in registered:
+            source = (warehouse / relative).resolve()
+            if warehouse not in source.parents or not source.is_file():
+                raise QmtDataError(f"registered minute partition is missing: {relative}")
+            columns = {
+                str(row[0])
+                for row in connection.execute(
+                    "SELECT name FROM parquet_schema(?)", [str(source)]
+                ).fetchall()
+            }
+            if (
+                "storage_schema_version" in columns
+                and {"effective_at", "available_at", "revision_id"}.isdisjoint(columns)
+            ):
+                skipped += 1
+                continue
+            if max_partitions is not None and len(migrated) >= max_partitions:
+                break
+            if shutil.disk_usage(warehouse).free - old_size < minimum_free_bytes:
+                raise QmtDataError("minute storage migration would violate free-space reserve")
+            old_fingerprint = _minute_business_fingerprint(connection, source)
+            if old_fingerprint[0] != expected_rows:
+                raise QmtDataError(f"minute migration row-count mismatch: {relative}")
+            temporary = source.with_name(f"pending-v2-{uuid.uuid4().hex}.parquet")
+            target: Path | None = None
+            created = False
+            committed = False
+            transaction_open = False
+            try:
+                _compact_minute_parquet(connection, source, temporary)
+                new_fingerprint = _minute_business_fingerprint(connection, temporary)
+                if new_fingerprint != old_fingerprint:
+                    raise QmtDataError(f"minute migration fingerprint mismatch: {relative}")
+                new_sha = _sha256(temporary)
+                target = source.with_name(f"{new_sha}.parquet")
+                if target.exists():
+                    if _sha256(target) != new_sha:
+                        raise QmtDataError(f"minute migration target hash mismatch: {target.name}")
+                    temporary.unlink()
+                else:
+                    temporary.replace(target)
+                    created = True
+                new_relative = target.relative_to(warehouse).as_posix()
+                now = datetime.now(timezone.utc)
+                connection.execute("BEGIN TRANSACTION")
+                transaction_open = True
+                connection.execute(
+                    "INSERT INTO minute_storage_migrations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        relative,
+                        old_sha,
+                        old_size,
+                        new_relative,
+                        new_sha,
+                        target.stat().st_size,
+                        expected_rows,
+                        old_fingerprint[1],
+                        now,
+                    ],
+                )
+                table = "minute_partitions" if kind == "daily" else "minute_range_partitions"
+                updated = connection.execute(
+                    f"UPDATE {table} SET parquet_relative_path=?, sha256=?, size_bytes=? "
+                    "WHERE parquet_relative_path=? AND sha256=? RETURNING parquet_relative_path",
+                    [new_relative, new_sha, target.stat().st_size, relative, old_sha],
+                ).fetchall()
+                if len(updated) != 1:
+                    raise QmtDataError(f"minute migration catalog update failed: {relative}")
+                connection.execute("COMMIT")
+                transaction_open = False
+                committed = True
+                old_removed = True
+                try:
+                    source.unlink()
+                except OSError:
+                    old_removed = False
+                migrated.append(
+                    {
+                        "kind": kind,
+                        "old_relative_path": relative,
+                        "old_sha256": old_sha,
+                        "old_size_bytes": old_size,
+                        "new_relative_path": new_relative,
+                        "new_sha256": new_sha,
+                        "new_size_bytes": target.stat().st_size,
+                        "row_count": expected_rows,
+                        "business_fingerprint": old_fingerprint[1],
+                        "old_removed": old_removed,
+                    }
+                )
+            except Exception:
+                if transaction_open:
+                    connection.execute("ROLLBACK")
+                temporary.unlink(missing_ok=True)
+                if not committed and created and target is not None:
+                    target.unlink(missing_ok=True)
+                raise
+        if migrated:
+            _refresh_views(connection, warehouse)
+        snapshot_id = _minute_snapshot(connection, warehouse) if registered else None
+    finally:
+        connection.close()
+    return {
+        "status": "COMPLETED",
+        "registered_partitions": len(registered),
+        "migrated_partitions": len(migrated),
+        "already_v2_partitions": skipped,
+        "old_bytes": sum(int(item["old_size_bytes"]) for item in migrated),
+        "new_bytes": sum(int(item["new_size_bytes"]) for item in migrated),
+        "migrations": migrated,
+        "snapshot_id": snapshot_id,
+    }
 
 
 def _insert_quarantines(
@@ -2029,24 +2217,55 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
     if computed != snapshot_id:
         failures.append("minute snapshot hash mismatch")
     paths: list[str] = []
+    migrated_paths = 0
+    catalog = _duckdb().connect(
+        str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+
+    def resolve_partition(relative: str, expected_sha: str, expected_size: int) -> Path | None:
+        nonlocal migrated_paths
+        partition = (warehouse / relative).resolve()
+        if (
+            warehouse in partition.parents
+            and partition.is_file()
+            and partition.stat().st_size == expected_size
+            and _sha256(partition) == expected_sha
+        ):
+            return partition
+        migrated = catalog.execute(
+            "SELECT new_parquet_relative_path, new_sha256, new_size_bytes "
+            "FROM minute_storage_migrations WHERE old_parquet_relative_path=? "
+            "AND old_sha256=? AND old_size_bytes=?",
+            [relative, expected_sha, expected_size],
+        ).fetchone()
+        if migrated is None:
+            return None
+        replacement = (warehouse / str(migrated[0])).resolve()
+        if (
+            warehouse not in replacement.parents
+            or not replacement.is_file()
+            or replacement.stat().st_size != int(migrated[2])
+            or _sha256(replacement) != str(migrated[1])
+        ):
+            return None
+        migrated_paths += 1
+        return replacement
+
     for row in payload["partitions"]:
         relative, expected_sha, expected_size = str(row[2]), str(row[3]), int(row[4])
-        partition = (warehouse / relative).resolve()
-        if warehouse not in partition.parents or not partition.is_file():
-            failures.append(f"missing minute partition: {relative}")
-            continue
-        if partition.stat().st_size != expected_size or _sha256(partition) != expected_sha:
+        partition = resolve_partition(relative, expected_sha, expected_size)
+        if partition is None:
             failures.append(f"minute partition integrity mismatch: {relative}")
+            continue
         paths.append(str(partition))
     for row in payload.get("range_partitions", []):
         relative, expected_sha, expected_size = str(row[4]), str(row[5]), int(row[6])
-        partition = (warehouse / relative).resolve()
-        if warehouse not in partition.parents or not partition.is_file():
-            failures.append(f"missing minute range partition: {relative}")
-            continue
-        if partition.stat().st_size != expected_size or _sha256(partition) != expected_sha:
+        partition = resolve_partition(relative, expected_sha, expected_size)
+        if partition is None:
             failures.append(f"minute range partition integrity mismatch: {relative}")
+            continue
         paths.append(str(partition))
+    catalog.close()
     rows = duplicates = timing = 0
     if paths:
         connection = _duckdb().connect()
@@ -2088,4 +2307,5 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
         "revision_rows": rows,
         "duplicate_current_keys": duplicates,
         "timing_violations": timing,
+        "migrated_partitions": migrated_paths,
     }

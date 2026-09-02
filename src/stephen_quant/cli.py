@@ -55,6 +55,7 @@ from .qmt.minute_warehouse import (
     ensure_minute_range,
     ingest_minute_archives,
     materialize_all_available_minutes,
+    migrate_minute_storage_v2,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
@@ -281,6 +282,13 @@ def build_parser() -> argparse.ArgumentParser:
     minute_full.add_argument("--chunk-source-bytes", type=int, default=512_000_000)
     minute_full.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
     minute_full.add_argument("--parse-workers", type=int, default=1)
+
+    minute_migrate = sub.add_parser("data-minute-migrate-storage-v2")
+    minute_migrate.add_argument("--paths-config")
+    minute_migrate.add_argument("--warehouse-root")
+    minute_migrate.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
+    minute_migrate.add_argument("--max-partitions", type=int)
+    minute_migrate.add_argument("--recover-interrupted-batches", action="store_true")
 
     minute_catalog = sub.add_parser("data-minute-catalog")
     minute_catalog.add_argument("--paths-config")
@@ -855,6 +863,7 @@ def main() -> None:
         "data-minute-ingest",
         "data-minute-sync-available",
         "data-minute-materialize-all",
+        "data-minute-migrate-storage-v2",
         "data-minute-catalog",
         "data-minute-ensure-range",
         "data-minute-verify",
@@ -898,6 +907,13 @@ def main() -> None:
                 result = asdict(report)
             elif args.command == "data-minute-verify":
                 result = verify_minute_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-minute-migrate-storage-v2":
+                result = migrate_minute_storage_v2(
+                    warehouse_root,
+                    minimum_free_bytes=args.minimum_free_bytes,
+                    max_partitions=args.max_partitions,
+                    recover_interrupted_batches=args.recover_interrupted_batches,
+                )
             elif args.command in {
                 "data-minute-ingest",
                 "data-minute-sync-available",
