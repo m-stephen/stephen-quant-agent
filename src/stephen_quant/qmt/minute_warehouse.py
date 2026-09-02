@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import multiprocessing
 import re
 import shutil
 import subprocess
@@ -11,6 +12,7 @@ import tempfile
 import uuid
 import zipfile
 from collections import defaultdict
+from concurrent.futures import Future, ProcessPoolExecutor
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path, PurePosixPath
 
@@ -459,6 +461,41 @@ def _parse_member(
         elif rejected is not None:
             quarantines.append(rejected)
     return rows, quarantines
+
+
+def _parse_member_to_jsonl(
+    raw: bytes,
+    *,
+    output_path: str,
+    identity: str,
+    member_path: str,
+    instrument: str,
+    interval: int,
+    archive_sha256: str,
+    ingested_at: datetime,
+) -> tuple[int, list[tuple[str, str]], str]:
+    """Parse one member in an isolated worker and persist deterministic JSONL evidence."""
+    member_sha = hashlib.sha256(raw).hexdigest()
+    row_count = 0
+    quarantines: list[tuple[str, str]] = []
+    target = Path(output_path)
+    with target.open("w", encoding="utf-8") as handle:
+        for parsed, rejected in _iter_member_records(
+            raw,
+            identity=identity,
+            member_path=member_path,
+            instrument=instrument,
+            interval=interval,
+            archive_sha256=archive_sha256,
+            member_sha256=member_sha,
+            ingested_at=ingested_at,
+        ):
+            if parsed is not None:
+                handle.write(json.dumps(parsed, separators=(",", ":")) + "\n")
+                row_count += 1
+            elif rejected is not None:
+                quarantines.append(rejected)
+    return row_count, quarantines, member_sha
 
 
 def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
@@ -1100,11 +1137,14 @@ def materialize_minute_archive(
     intervals: tuple[int, ...] = MINUTE_INTERVALS,
     chunk_source_bytes: int = 512_000_000,
     minimum_free_bytes: int = 100_000_000_000,
+    parse_workers: int = 1,
     seven_zip_executable: str | Path | None = None,
 ) -> dict[str, object]:
     """Fully materialize one cataloged archive in restartable range partitions."""
     if chunk_source_bytes <= 0 or minimum_free_bytes < 0:
         raise QmtDataError("minute materialization storage limits must be non-negative")
+    if not 1 <= parse_workers <= 16:
+        raise QmtDataError("parse_workers must be between 1 and 16")
     requested = tuple(sorted(set(intervals)))
     if not requested or any(item not in MINUTE_INTERVALS for item in requested):
         raise QmtDataError(f"minute intervals must be selected from {MINUTE_INTERVALS}")
@@ -1171,6 +1211,14 @@ def materialize_minute_archive(
     staging_root = warehouse / "staging" / f"minute-full-{batch_id}"
     staging_root.mkdir(parents=True, exist_ok=False)
     new_members = new_revisions = partition_count = quarantined_rows = 0
+    executor = (
+        ProcessPoolExecutor(
+            max_workers=parse_workers,
+            mp_context=multiprocessing.get_context("spawn"),
+        )
+        if parse_workers > 1
+        else None
+    )
     try:
         by_interval: defaultdict[int, list[tuple[str, int, str | None]]] = defaultdict(list)
         for item in selected:
@@ -1180,10 +1228,86 @@ def materialize_minute_archive(
         for interval, interval_members in sorted(by_interval.items()):
             chunk_number = 0
             staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
-            handle = staging.open("w", encoding="utf-8")
+            handle = staging.open("wb")
             chunk_bytes = chunk_rows = 0
             registrations: list[tuple[object, ...]] = []
             rejected_rows: list[tuple[str, str, str]] = []
+            pending: list[
+                tuple[
+                    Future[tuple[int, list[tuple[str, str]], str]],
+                    Path,
+                    str,
+                    str,
+                    int,
+                ]
+            ] = []
+            submission_number = 0
+
+            def drain_one(
+                pending_items: list[
+                    tuple[
+                        Future[tuple[int, list[tuple[str, str]], str]],
+                        Path,
+                        str,
+                        str,
+                        int,
+                    ]
+                ],
+                output_handle,
+                registration_rows: list[tuple[object, ...]],
+                quarantine_rows: list[tuple[str, str, str]],
+                member_interval: int,
+            ) -> None:
+                nonlocal chunk_rows, new_members, quarantined_rows
+                future, worker_output, normalized_member, identity, raw_size = pending_items.pop(0)
+                try:
+                    rows, rejected, member_sha = future.result()
+                    with worker_output.open("rb") as source_handle:
+                        shutil.copyfileobj(source_handle, output_handle, length=1024 * 1024)
+                finally:
+                    worker_output.unlink(missing_ok=True)
+                registration_rows.append(
+                    (
+                        relative,
+                        archive_sha,
+                        archive.stat().st_size,
+                        normalized_member,
+                        member_sha,
+                        raw_size,
+                        member_interval,
+                        batch_id,
+                    )
+                )
+                quarantine_rows.extend(
+                    (identity, reason, row_hash) for reason, row_hash in rejected
+                )
+                chunk_rows += rows
+                quarantined_rows += len(rejected)
+                new_members += 1
+
+            def drain_all(
+                pending_items: list[
+                    tuple[
+                        Future[tuple[int, list[tuple[str, str]], str]],
+                        Path,
+                        str,
+                        str,
+                        int,
+                    ]
+                ],
+                output_handle,
+                registration_rows: list[tuple[object, ...]],
+                quarantine_rows: list[tuple[str, str, str]],
+                member_interval: int,
+            ) -> None:
+                while pending_items:
+                    drain_one(
+                        pending_items,
+                        output_handle,
+                        registration_rows,
+                        quarantine_rows,
+                        member_interval,
+                    )
 
             def flush(interval: int = interval) -> None:
                 nonlocal handle, staging, chunk_number, chunk_bytes, chunk_rows
@@ -1224,7 +1348,7 @@ def materialize_minute_archive(
                 staging.unlink(missing_ok=True)
                 chunk_number += 1
                 staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
-                handle = staging.open("w", encoding="utf-8")
+                handle = staging.open("wb")
                 chunk_bytes = chunk_rows = 0
                 registrations = []
                 rejected_rows = []
@@ -1238,6 +1362,7 @@ def materialize_minute_archive(
                     temporary_parent=staging_root,
                 ):
                     if chunk_bytes and chunk_bytes + len(raw) > chunk_source_bytes:
+                        drain_all(pending, handle, registrations, rejected_rows, interval)
                         flush()
                     if shutil.disk_usage(warehouse).free < minimum_free_bytes:
                         raise QmtDataError(
@@ -1247,38 +1372,68 @@ def materialize_minute_archive(
                     instrument = _instrument(normalized_member)
                     if instrument is None:
                         continue
-                    member_sha = hashlib.sha256(raw).hexdigest()
                     identity = f"{relative}@{archive_sha}!{normalized_member}"
-                    for parsed, rejected in _iter_member_records(
-                        raw,
-                        identity=identity,
-                        member_path=normalized_member,
-                        instrument=instrument,
-                        interval=interval,
-                        archive_sha256=archive_sha,
-                        member_sha256=member_sha,
-                        ingested_at=started,
-                    ):
-                        if parsed is not None:
-                            handle.write(json.dumps(parsed, separators=(",", ":")) + "\n")
-                            chunk_rows += 1
-                        elif rejected is not None:
-                            rejected_rows.append((identity, rejected[0], rejected[1]))
-                            quarantined_rows += 1
-                    registrations.append(
-                        (
-                            relative,
-                            archive_sha,
-                            archive.stat().st_size,
-                            normalized_member,
-                            member_sha,
-                            len(raw),
-                            interval,
-                            batch_id,
+                    if executor is None:
+                        member_sha = hashlib.sha256(raw).hexdigest()
+                        for parsed, rejected in _iter_member_records(
+                            raw,
+                            identity=identity,
+                            member_path=normalized_member,
+                            instrument=instrument,
+                            interval=interval,
+                            archive_sha256=archive_sha,
+                            member_sha256=member_sha,
+                            ingested_at=started,
+                        ):
+                            if parsed is not None:
+                                handle.write(
+                                    (json.dumps(parsed, separators=(",", ":")) + "\n").encode()
+                                )
+                                chunk_rows += 1
+                            elif rejected is not None:
+                                rejected_rows.append((identity, rejected[0], rejected[1]))
+                                quarantined_rows += 1
+                        registrations.append(
+                            (
+                                relative,
+                                archive_sha,
+                                archive.stat().st_size,
+                                normalized_member,
+                                member_sha,
+                                len(raw),
+                                interval,
+                                batch_id,
+                            )
                         )
-                    )
+                        new_members += 1
+                    else:
+                        worker_output = staging_root / (
+                            f"worker-{interval}m-{submission_number:08d}.jsonl"
+                        )
+                        submission_number += 1
+                        pending.append(
+                            (
+                                executor.submit(
+                                    _parse_member_to_jsonl,
+                                    raw,
+                                    output_path=str(worker_output),
+                                    identity=identity,
+                                    member_path=normalized_member,
+                                    instrument=instrument,
+                                    interval=interval,
+                                    archive_sha256=archive_sha,
+                                    ingested_at=started,
+                                ),
+                                worker_output,
+                                normalized_member,
+                                identity,
+                                len(raw),
+                            )
+                        )
+                        if len(pending) >= parse_workers * 2:
+                            drain_one(pending, handle, registrations, rejected_rows, interval)
                     chunk_bytes += len(raw)
-                    new_members += 1
+                drain_all(pending, handle, registrations, rejected_rows, interval)
                 flush()
             finally:
                 if not handle.closed:
@@ -1322,6 +1477,8 @@ def materialize_minute_archive(
         )
         raise
     finally:
+        if executor is not None:
+            executor.shutdown(wait=True, cancel_futures=True)
         connection.close()
         for path in staging_root.glob("*"):
             path.unlink(missing_ok=True)
@@ -1335,6 +1492,7 @@ def materialize_all_available_minutes(
     intervals: tuple[int, ...] = MINUTE_INTERVALS,
     chunk_source_bytes: int = 512_000_000,
     minimum_free_bytes: int = 100_000_000_000,
+    parse_workers: int = 1,
     seven_zip_executable: str | Path | None = None,
 ) -> dict[str, object]:
     """Materialize every recognized archive with restartable archive-level progress."""
@@ -1390,6 +1548,7 @@ def materialize_all_available_minutes(
                     intervals=intervals,
                     chunk_source_bytes=chunk_source_bytes,
                     minimum_free_bytes=minimum_free_bytes,
+                    parse_workers=parse_workers,
                     seven_zip_executable=seven_zip_executable,
                 )
             )

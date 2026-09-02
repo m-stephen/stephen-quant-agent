@@ -262,6 +262,54 @@ def test_full_materialization_uses_restartable_range_partitions(tmp_path: Path) 
     assert replay["pending_archives_at_start"] == 0
 
 
+def test_parallel_full_materialization_matches_serial_rows(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    archive = source / "1分钟.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 0))
+        handle.writestr("1min/sh600000.csv", _minute_csv("2020-01-03", 1, 1))
+        handle.writestr("1min/sz000002.csv", _minute_csv("2020-01-06", 1, 2))
+
+    serial = tmp_path / "serial"
+    parallel = tmp_path / "parallel"
+    serial_result = materialize_all_available_minutes(
+        tmp_path / "source",
+        serial,
+        intervals=(1,),
+        chunk_source_bytes=10**9,
+        minimum_free_bytes=0,
+        parse_workers=1,
+    )
+    parallel_result = materialize_all_available_minutes(
+        tmp_path / "source",
+        parallel,
+        intervals=(1,),
+        chunk_source_bytes=10**9,
+        minimum_free_bytes=0,
+        parse_workers=2,
+    )
+    assert serial_result["status"] == parallel_result["status"] == "COMPLETED"
+
+    query = (
+        "SELECT trade_date, CAST(bar_at AS VARCHAR), interval_minutes, instrument, "
+        '"open", high, low, "close", volume, amount, revision_id '
+        "FROM qd_minute_current ORDER BY 1,2,3,4"
+    )
+    serial_db = duckdb.connect(str(serial / "catalog" / "warehouse.duckdb"), read_only=True)
+    parallel_db = duckdb.connect(
+        str(parallel / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        assert serial_db.execute(query).fetchall() == parallel_db.execute(query).fetchall()
+        assert serial_db.execute("SELECT count(*) FROM minute_quarantines").fetchone() == (
+            parallel_db.execute("SELECT count(*) FROM minute_quarantines").fetchone()
+        )
+    finally:
+        serial_db.close()
+        parallel_db.close()
+
+
 def test_full_materialization_fails_before_writing_when_space_reserve_is_unsafe(
     tmp_path: Path,
 ) -> None:

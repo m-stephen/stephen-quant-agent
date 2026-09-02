@@ -274,6 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
     minute_full.add_argument("--intervals", default="1,5,15,30,60")
     minute_full.add_argument("--chunk-source-bytes", type=int, default=512_000_000)
     minute_full.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
+    minute_full.add_argument("--parse-workers", type=int, default=1)
 
     minute_catalog = sub.add_parser("data-minute-catalog")
     minute_catalog.add_argument("--paths-config")
@@ -912,6 +913,7 @@ def main() -> None:
                         intervals=intervals,
                         chunk_source_bytes=args.chunk_source_bytes,
                         minimum_free_bytes=args.minimum_free_bytes,
+                        parse_workers=args.parse_workers,
                         seven_zip_executable=seven_zip_executable,
                     )
                 elif args.command == "data-minute-ensure-range":
