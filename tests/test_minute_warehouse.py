@@ -320,6 +320,37 @@ def test_parallel_full_materialization_matches_serial_rows(tmp_path: Path) -> No
         parallel_db.close()
 
 
+def test_full_materialization_bulk_loads_quarantine_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    archive = source / "1分钟.zip"
+    invalid = (
+        _minute_csv("2020-01-02", 1, 0)
+        + b"2020-01-02,09:25,10,10.02,9.98,10,100,100000\n"
+    )
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", invalid)
+
+    warehouse = tmp_path / "warehouse"
+    result = materialize_all_available_minutes(
+        tmp_path / "source",
+        warehouse,
+        intervals=(1,),
+        minimum_free_bytes=0,
+        parse_workers=2,
+    )
+    assert result["status"] == "COMPLETED"
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        assert connection.execute("SELECT count(*) FROM qd_minute_current").fetchone()[0] == 2
+        quarantines = connection.execute(
+            "SELECT reason, length(row_sha256) FROM minute_quarantines"
+        ).fetchall()
+        assert quarantines == [("row 4: bar timestamp outside A-share session", 64)]
+    finally:
+        connection.close()
+
+
 def test_full_materialization_fails_before_writing_when_space_reserve_is_unsafe(
     tmp_path: Path,
 ) -> None:

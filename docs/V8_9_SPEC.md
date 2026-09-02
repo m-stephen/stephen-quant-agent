@@ -32,6 +32,9 @@ interruption.
   these exact statistics in source order and registers them with the committed partition, avoiding
   a redundant full Parquet scan after every write. Tests compare registered statistics with an
   independent query of the materialized view in both serial and parallel modes.
+- Rejected-row evidence is staged as deterministic JSONL and inserted into DuckDB with one bulk
+  statement per chunk. This retains every quarantine reason and row hash while avoiding slow
+  row-at-a-time `executemany` calls on long historical members.
 - The source directory remains read-only. Local paths remain in the Git-ignored path config.
 
 ## Command / 命令

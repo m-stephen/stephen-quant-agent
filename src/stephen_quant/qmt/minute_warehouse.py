@@ -545,6 +545,43 @@ def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
     )
 
 
+def _insert_quarantines(
+    connection,
+    *,
+    quarantines: list[tuple[str, str, str]],
+    batch_id: str,
+    started: datetime,
+    staging: Path,
+) -> None:
+    """Bulk-load quarantine evidence without row-at-a-time DuckDB calls."""
+    if not quarantines:
+        return
+    quarantine_staging = staging.with_name(f"{staging.name}.quarantines.jsonl")
+    try:
+        with quarantine_staging.open("w", encoding="utf-8") as handle:
+            for identity, reason, row_hash in quarantines:
+                handle.write(
+                    json.dumps(
+                        {
+                            "batch_id": batch_id,
+                            "source_identity": identity,
+                            "reason": reason,
+                            "row_sha256": row_hash,
+                            "created_at_epoch": started.timestamp(),
+                        },
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
+        source_sql = str(quarantine_staging).replace("'", "''")
+        connection.execute(
+            "INSERT INTO minute_quarantines SELECT batch_id, source_identity, reason, "
+            f"row_sha256, to_timestamp(created_at_epoch) FROM read_json_auto('{source_sql}')"
+        )
+    finally:
+        quarantine_staging.unlink(missing_ok=True)
+
+
 def _refresh_views(connection, warehouse: Path) -> None:
     daily_paths = [
         str(warehouse / row[0]).replace("'", "''")
@@ -1123,14 +1160,13 @@ def _commit_range_chunk(
             "INSERT OR IGNORE INTO minute_source_members VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             members,
         )
-        if quarantines:
-            connection.executemany(
-                "INSERT INTO minute_quarantines VALUES (?, ?, ?, ?, ?)",
-                [
-                    (batch_id, identity, reason, row_hash, started)
-                    for identity, reason, row_hash in quarantines
-                ],
-            )
+        _insert_quarantines(
+            connection,
+            quarantines=quarantines,
+            batch_id=batch_id,
+            started=started,
+            staging=staging,
+        )
         connection.execute(
             "INSERT OR IGNORE INTO minute_range_partitions VALUES "
             "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1428,14 +1464,13 @@ def materialize_minute_archive(
                         "INSERT OR IGNORE INTO minute_source_members VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         registrations,
                     )
-                    if rejected_rows:
-                        connection.executemany(
-                            "INSERT INTO minute_quarantines VALUES (?, ?, ?, ?, ?)",
-                            [
-                                (batch_id, identity, reason, row_hash, started)
-                                for identity, reason, row_hash in rejected_rows
-                            ],
-                        )
+                    _insert_quarantines(
+                        connection,
+                        quarantines=rejected_rows,
+                        batch_id=batch_id,
+                        started=started,
+                        staging=staging,
+                    )
                     connection.execute("COMMIT")
                 staging.unlink(missing_ok=True)
                 chunk_number += 1
