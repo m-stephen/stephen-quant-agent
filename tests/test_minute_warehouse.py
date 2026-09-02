@@ -305,6 +305,16 @@ def test_parallel_full_materialization_matches_serial_rows(tmp_path: Path) -> No
         assert serial_db.execute("SELECT count(*) FROM minute_quarantines").fetchone() == (
             parallel_db.execute("SELECT count(*) FROM minute_quarantines").fetchone()
         )
+        for connection in (serial_db, parallel_db):
+            registered = connection.execute(
+                "SELECT sum(row_count), min(min_date), max(max_date), "
+                "min(min_bar_at), max(max_bar_at) FROM minute_range_partitions"
+            ).fetchone()
+            observed = connection.execute(
+                "SELECT count(*), min(trade_date), max(trade_date), "
+                "min(bar_at), max(bar_at) FROM qd_minute_current"
+            ).fetchone()
+            assert registered == observed
     finally:
         serial_db.close()
         parallel_db.close()

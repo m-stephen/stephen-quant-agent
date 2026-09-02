@@ -28,6 +28,10 @@ interruption.
 - CPU-heavy CSV parsing may use 1-16 spawned worker processes. Worker results are drained in
   deterministic source-member order and only the parent process writes DuckDB, so parallel parsing
   does not weaken replay ordering or create concurrent database writers.
+- Each parser also returns its accepted-row count and date/timestamp extrema. The parent merges
+  these exact statistics in source order and registers them with the committed partition, avoiding
+  a redundant full Parquet scan after every write. Tests compare registered statistics with an
+  independent query of the materialized view in both serial and parallel modes.
 - The source directory remains read-only. Local paths remain in the Git-ignored path config.
 
 ## Command / 命令

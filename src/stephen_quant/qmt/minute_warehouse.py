@@ -28,6 +28,15 @@ _INSTRUMENT = re.compile(r"^(bj|sh|sz)(\d{6})$", re.IGNORECASE)
 _DATE_STEM = re.compile(r"^(20\d{6})$")
 _YEAR = re.compile(r"^(20\d{2})$")
 _SHANGHAI = timezone(timedelta(hours=8))
+_MemberParseResult = tuple[
+    int,
+    list[tuple[str, str]],
+    str,
+    str | None,
+    str | None,
+    float | None,
+    float | None,
+]
 
 
 def initialize_minute_warehouse(root: str | Path) -> None:
@@ -473,10 +482,14 @@ def _parse_member_to_jsonl(
     interval: int,
     archive_sha256: str,
     ingested_at: datetime,
-) -> tuple[int, list[tuple[str, str]], str]:
+) -> _MemberParseResult:
     """Parse one member in an isolated worker and persist deterministic JSONL evidence."""
     member_sha = hashlib.sha256(raw).hexdigest()
     row_count = 0
+    min_date: str | None = None
+    max_date: str | None = None
+    min_bar_epoch: float | None = None
+    max_bar_epoch: float | None = None
     quarantines: list[tuple[str, str]] = []
     target = Path(output_path)
     with target.open("w", encoding="utf-8") as handle:
@@ -493,9 +506,27 @@ def _parse_member_to_jsonl(
             if parsed is not None:
                 handle.write(json.dumps(parsed, separators=(",", ":")) + "\n")
                 row_count += 1
+                trade_date = str(parsed["trade_date"])
+                bar_epoch = float(parsed["bar_at_epoch"])
+                min_date = trade_date if min_date is None else min(min_date, trade_date)
+                max_date = trade_date if max_date is None else max(max_date, trade_date)
+                min_bar_epoch = (
+                    bar_epoch if min_bar_epoch is None else min(min_bar_epoch, bar_epoch)
+                )
+                max_bar_epoch = (
+                    bar_epoch if max_bar_epoch is None else max(max_bar_epoch, bar_epoch)
+                )
             elif rejected is not None:
                 quarantines.append(rejected)
-    return row_count, quarantines, member_sha
+    return (
+        row_count,
+        quarantines,
+        member_sha,
+        min_date,
+        max_date,
+        min_bar_epoch,
+        max_bar_epoch,
+    )
 
 
 def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
@@ -1050,6 +1081,11 @@ def _commit_range_chunk(
     interval: int,
     members: list[tuple[object, ...]],
     quarantines: list[tuple[str, str, str]],
+    row_count: int,
+    min_date: str,
+    max_date: str,
+    min_bar_epoch: float,
+    max_bar_epoch: float,
     batch_id: str,
     started: datetime,
 ) -> tuple[int, str]:
@@ -1081,11 +1117,6 @@ def _commit_range_chunk(
     else:
         temporary.replace(target)
         created = True
-    stats = connection.execute(
-        "SELECT count(*), min(trade_date), max(trade_date), "
-        "CAST(min(bar_at) AS VARCHAR), CAST(max(bar_at) AS VARCHAR) FROM read_parquet(?)",
-        [str(target)],
-    ).fetchone()
     try:
         connection.execute("BEGIN TRANSACTION")
         connection.executemany(
@@ -1111,11 +1142,11 @@ def _commit_range_chunk(
                 target.relative_to(warehouse).as_posix(),
                 digest,
                 target.stat().st_size,
-                int(stats[0]),
-                stats[1],
-                stats[2],
-                stats[3],
-                stats[4],
+                row_count,
+                date.fromisoformat(min_date),
+                date.fromisoformat(max_date),
+                datetime.fromtimestamp(min_bar_epoch, timezone.utc),
+                datetime.fromtimestamp(max_bar_epoch, timezone.utc),
                 batch_id,
             ],
         )
@@ -1126,7 +1157,7 @@ def _commit_range_chunk(
         if created:
             target.unlink(missing_ok=True)
         raise
-    return int(stats[0]), partition_id
+    return row_count, partition_id
 
 
 def materialize_minute_archive(
@@ -1230,11 +1261,15 @@ def materialize_minute_archive(
             staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
             handle = staging.open("wb")
             chunk_bytes = chunk_rows = 0
+            chunk_min_date: str | None = None
+            chunk_max_date: str | None = None
+            chunk_min_bar_epoch: float | None = None
+            chunk_max_bar_epoch: float | None = None
             registrations: list[tuple[object, ...]] = []
             rejected_rows: list[tuple[str, str, str]] = []
             pending: list[
                 tuple[
-                    Future[tuple[int, list[tuple[str, str]], str]],
+                    Future[_MemberParseResult],
                     Path,
                     str,
                     str,
@@ -1243,10 +1278,42 @@ def materialize_minute_archive(
             ] = []
             submission_number = 0
 
+            def merge_stats(
+                rows: int,
+                min_date: str | None,
+                max_date: str | None,
+                min_bar_epoch: float | None,
+                max_bar_epoch: float | None,
+            ) -> None:
+                nonlocal chunk_min_date, chunk_max_date
+                nonlocal chunk_min_bar_epoch, chunk_max_bar_epoch
+                if not rows:
+                    return
+                if None in (min_date, max_date, min_bar_epoch, max_bar_epoch):
+                    raise QmtDataError("non-empty minute parse result is missing range statistics")
+                assert min_date is not None and max_date is not None
+                assert min_bar_epoch is not None and max_bar_epoch is not None
+                chunk_min_date = (
+                    min_date if chunk_min_date is None else min(chunk_min_date, min_date)
+                )
+                chunk_max_date = (
+                    max_date if chunk_max_date is None else max(chunk_max_date, max_date)
+                )
+                chunk_min_bar_epoch = (
+                    min_bar_epoch
+                    if chunk_min_bar_epoch is None
+                    else min(chunk_min_bar_epoch, min_bar_epoch)
+                )
+                chunk_max_bar_epoch = (
+                    max_bar_epoch
+                    if chunk_max_bar_epoch is None
+                    else max(chunk_max_bar_epoch, max_bar_epoch)
+                )
+
             def drain_one(
                 pending_items: list[
                     tuple[
-                        Future[tuple[int, list[tuple[str, str]], str]],
+                        Future[_MemberParseResult],
                         Path,
                         str,
                         str,
@@ -1261,11 +1328,20 @@ def materialize_minute_archive(
                 nonlocal chunk_rows, new_members, quarantined_rows
                 future, worker_output, normalized_member, identity, raw_size = pending_items.pop(0)
                 try:
-                    rows, rejected, member_sha = future.result()
+                    (
+                        rows,
+                        rejected,
+                        member_sha,
+                        min_date,
+                        max_date,
+                        min_bar_epoch,
+                        max_bar_epoch,
+                    ) = future.result()
                     with worker_output.open("rb") as source_handle:
                         shutil.copyfileobj(source_handle, output_handle, length=1024 * 1024)
                 finally:
                     worker_output.unlink(missing_ok=True)
+                merge_stats(rows, min_date, max_date, min_bar_epoch, max_bar_epoch)
                 registration_rows.append(
                     (
                         relative,
@@ -1288,7 +1364,7 @@ def materialize_minute_archive(
             def drain_all(
                 pending_items: list[
                     tuple[
-                        Future[tuple[int, list[tuple[str, str]], str]],
+                        Future[_MemberParseResult],
                         Path,
                         str,
                         str,
@@ -1312,10 +1388,21 @@ def materialize_minute_archive(
             def flush(interval: int = interval) -> None:
                 nonlocal handle, staging, chunk_number, chunk_bytes, chunk_rows
                 nonlocal registrations, rejected_rows, new_revisions, partition_count
+                nonlocal chunk_min_date, chunk_max_date
+                nonlocal chunk_min_bar_epoch, chunk_max_bar_epoch
                 if not registrations:
                     return
                 handle.close()
                 if chunk_rows:
+                    if None in (
+                        chunk_min_date,
+                        chunk_max_date,
+                        chunk_min_bar_epoch,
+                        chunk_max_bar_epoch,
+                    ):
+                        raise QmtDataError("minute chunk is missing range statistics")
+                    assert chunk_min_date is not None and chunk_max_date is not None
+                    assert chunk_min_bar_epoch is not None and chunk_max_bar_epoch is not None
                     rows, _ = _commit_range_chunk(
                         connection,
                         warehouse,
@@ -1325,6 +1412,11 @@ def materialize_minute_archive(
                         interval=interval,
                         members=registrations,
                         quarantines=rejected_rows,
+                        row_count=chunk_rows,
+                        min_date=chunk_min_date,
+                        max_date=chunk_max_date,
+                        min_bar_epoch=chunk_min_bar_epoch,
+                        max_bar_epoch=chunk_max_bar_epoch,
                         batch_id=batch_id,
                         started=started,
                     )
@@ -1350,6 +1442,8 @@ def materialize_minute_archive(
                 staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
                 handle = staging.open("wb")
                 chunk_bytes = chunk_rows = 0
+                chunk_min_date = chunk_max_date = None
+                chunk_min_bar_epoch = chunk_max_bar_epoch = None
                 registrations = []
                 rejected_rows = []
 
@@ -1390,6 +1484,13 @@ def materialize_minute_archive(
                                     (json.dumps(parsed, separators=(",", ":")) + "\n").encode()
                                 )
                                 chunk_rows += 1
+                                merge_stats(
+                                    1,
+                                    str(parsed["trade_date"]),
+                                    str(parsed["trade_date"]),
+                                    float(parsed["bar_at_epoch"]),
+                                    float(parsed["bar_at_epoch"]),
+                                )
                             elif rejected is not None:
                                 rejected_rows.append((identity, rejected[0], rejected[1]))
                                 quarantined_rows += 1
