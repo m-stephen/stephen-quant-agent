@@ -1,6 +1,6 @@
 # V9.1 Complete minute materialization result
 
-Status: **Local data, replay, and integrity gates pass; final code CI is pending.**
+Status: **Local data, replay, integrity, tests, Ruff, and GitHub Actions gates pass.**
 
 ## Complete result
 
