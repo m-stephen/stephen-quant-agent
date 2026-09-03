@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import zipfile
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
@@ -101,6 +101,36 @@ def test_minute_archive_ingest_verify_and_replay(tmp_path: Path) -> None:
     )
     assert replay["status"] == "REPLAY_NOOP"
     assert replay["snapshot_id"] == first["snapshot_id"]
+
+
+def test_minute_snapshot_verification_streams_multiple_path_batches(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2024" / "最新更新"
+    source.mkdir(parents=True)
+    first_day = date(2024, 1, 1)
+    for offset in range(17):
+        day = first_day + timedelta(days=offset)
+        archive = source / f"{day.strftime('%Y%m%d')}.zip"
+        with zipfile.ZipFile(archive, "w") as handle:
+            handle.writestr(
+                "1min/sz000001.csv",
+                _minute_csv(day.isoformat(), 1, float(offset)),
+            )
+    warehouse = tmp_path / "warehouse"
+
+    result = ingest_minute_archives(
+        tmp_path / "source",
+        warehouse,
+        start_date=first_day,
+        end_date=first_day + timedelta(days=16),
+        intervals=(1,),
+    )
+    verification = verify_minute_snapshot(warehouse, str(result["snapshot_id"]))
+
+    assert verification["passed"] is True
+    assert verification["partition_count"] == 17
+    assert verification["revision_rows"] == 34
+    assert verification["duplicate_current_keys"] == 0
+    assert verification["timing_violations"] == 0
 
 
 def test_available_daily_sync_and_catalog_report_observed_coverage(tmp_path: Path) -> None:

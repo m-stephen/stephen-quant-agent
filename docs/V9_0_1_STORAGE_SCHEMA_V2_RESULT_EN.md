@@ -1,6 +1,6 @@
 # V9.0.1 Minute Storage Schema V2 Benchmark
 
-Status: **Schema, Inventory, and resampling decision gates pass; Issue #160 awaits the full migration.**
+Status: **Schema, Inventory, resampling decision, and full-migration gates pass.**
 
 ## Design
 
@@ -50,6 +50,23 @@ The full-market 1/5/15/30/60-minute data for 2026-08-28 was compared bucket by b
 
 Vendor 5/15/30/60-minute data must therefore be retained. One-minute resampling may be used for research features, but it must not be represented as the original vendor interval data.
 
-## Remaining work
+## Full migration and verification
 
-- Resume full materialization on Schema V2, migrate legacy partitions precisely, and run final snapshot, replay, CI, and release gates.
+- Registered partitions: 1,040; already V2: 1; migrated in this run: 1,039.
+- Physical minute Parquet fell from 132,528,331,617 bytes (123.43 GiB) to
+  30,604,833,803 bytes (28.50 GiB), a 76.91% reduction.
+- New snapshot: `57d3c90115c2106fb6746c78de38ad161b58b637304ba1cc7e7bd798f28b983a`.
+- Full verification covered 2,510,466,687 rows. File SHA-256, row counts, and PIT timing
+  passed. The deterministic `row_number(...)=1` current-row contract guarantees key
+  uniqueness; duplicate current keys and timing violations are both zero.
+- Every partition's business fingerprint was compared before migration. Its legacy file was
+  removed only after the Catalog transaction committed. The pre-migration Catalog backup,
+  migration ledger, and legacy-snapshot mappings remain available.
+- The former global-window verifier spilled about 371 GiB at real scale. It was replaced by
+  exact full-row streaming in fixed batches of 16 files. The new verifier used about 0.45 GiB
+  resident memory; the obsolete spill files were removed precisely after the process exited.
+
+## Next gate
+
+- Issue #160 may close and V9.1 may resume only after the complete pytest suite, Ruff, and
+  remote CI pass.

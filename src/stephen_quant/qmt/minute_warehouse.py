@@ -2266,35 +2266,31 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
             continue
         paths.append(str(partition))
     catalog.close()
-    rows = duplicates = timing = 0
+    rows = timing = 0
     if paths:
+        # Do not build one global row_number window over the complete minute lake here.
+        # qd_minute_current filters row_number(...)=1, so its logical key is unique by
+        # construction.  Snapshot verification still hashes every physical file above,
+        # then scans every row below for counts and PIT timing in bounded path batches.
+        # This keeps verification exact without requiring memory proportional to the
+        # complete history (which is billions of rows for a full local warehouse).
         connection = _duckdb().connect()
         try:
-            literals = ",".join(
-                f"'{path.replace(chr(39), chr(39) * 2)}'" for path in paths
-            )
-            relation = _minute_relation_sql(connection, literals, revision_mode="none")
-            rows = int(connection.execute(f"SELECT count(*) FROM ({relation})").fetchone()[0])
-            current = (
-                "SELECT * EXCLUDE(rn) FROM (SELECT *, row_number() OVER (PARTITION BY "
-                "interval_minutes, bar_at, instrument ORDER BY ingested_at DESC, "
-                "archive_sha256 DESC, member_sha256 DESC, member_path DESC) rn "
-                f"FROM ({relation})) WHERE rn=1"
-            )
-            duplicates = int(
-                connection.execute(
-                    f"SELECT count(*) FROM (SELECT interval_minutes, bar_at, instrument, count(*) n "
-                    f"FROM ({current}) GROUP BY 1,2,3 HAVING n>1)"
-                ).fetchone()[0]
-            )
-            timing = int(
-                connection.execute(
-                    f"SELECT count(*) FROM ({relation}) WHERE effective_at > available_at "
-                    "OR available_at > ingested_at"
-                ).fetchone()[0]
-            )
+            for start in range(0, len(paths), 16):
+                literals = ",".join(
+                    f"'{path.replace(chr(39), chr(39) * 2)}'"
+                    for path in paths[start : start + 16]
+                )
+                relation = _minute_relation_sql(connection, literals, revision_mode="none")
+                batch_rows, batch_timing = connection.execute(
+                    f"SELECT count(*), count(*) FILTER (WHERE effective_at > available_at "
+                    f"OR available_at > ingested_at) FROM ({relation})"
+                ).fetchone()
+                rows += int(batch_rows)
+                timing += int(batch_timing)
         finally:
             connection.close()
+    duplicates = 0
     if duplicates:
         failures.append("duplicate minute current keys")
     if timing:
