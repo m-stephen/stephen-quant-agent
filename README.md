@@ -14,15 +14,19 @@ the discovery machinery while honestly reporting `NO_RELIABLE_ALPHA`; 2025–202
 See the [specification](docs/V9_0_SPEC.md), [English result](docs/V9_0_RESULT_EN.md), and
 [中文报告](docs/V9_0_RESULT_ZH.md).
 
-## V8.9 restartable full minute materialization
+## V9.1 storage-efficient complete minute materialization
 
-V8.9 adds a storage-guarded `data-minute-materialize-all` workflow. Daily archives keep their
+V9.1 adds a storage-guarded `data-minute-materialize-all` workflow. Daily archives keep their
 date partitions, while large historical archives are streamed into bounded range partitions so
 that the importer never needs a warehouse-sized JSON staging area. Each archive and chunk is
 restartable, content-addressed and included in the minute snapshot. The command stops before the
 configured free-space reserve is breached and never modifies the read-only QD source tree.
 
-See the [design specification](docs/V8_9_SPEC.md).
+The complete local run materialized all 194 recognized archives into 1,460 compact Schema V2
+partitions. A deterministic no-op replay preserved the snapshot, and full verification covered
+6.34 billion revision rows with no PIT timing violations. See the
+[specification](docs/V9_1_SPEC.md), [English result](docs/V9_1_RESULT_EN.md), and
+[中文报告](docs/V9_1_RESULT_ZH.md).
 
 ## V8.6 multi-source warehouse and database-native discovery
 
