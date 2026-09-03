@@ -43,7 +43,7 @@ from .qmt import (
     write_market_wide_universe,
     write_qd_universe,
 )
-from .qmt.asset_inventory import inventory_assets
+from .qmt.asset_inventory import cold_archive_inventories, inventory_assets
 from .qmt.data_warehouse import (
     ingest_daily,
     initialize_warehouse,
@@ -54,6 +54,8 @@ from .qmt.minute_warehouse import (
     catalog_minute_archives,
     ensure_minute_range,
     ingest_minute_archives,
+    materialize_all_available_minutes,
+    migrate_minute_storage_v2,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
@@ -217,6 +219,12 @@ def build_parser() -> argparse.ArgumentParser:
     asset_inventory.add_argument("--rehash-all", action="store_true")
     asset_inventory.add_argument("--skip-archive-members", action="store_true")
 
+    inventory_cold = sub.add_parser("data-inventory-cold-archive")
+    inventory_cold.add_argument("--paths-config")
+    inventory_cold.add_argument("--warehouse-root")
+    inventory_cold.add_argument("--retain-hot", type=int, default=1)
+    inventory_cold.add_argument("--remove-verified-json", action="store_true")
+
     warehouse_init = sub.add_parser("data-warehouse-init")
     warehouse_init.add_argument("--paths-config")
     warehouse_init.add_argument("--warehouse-root")
@@ -271,6 +279,22 @@ def build_parser() -> argparse.ArgumentParser:
     minute_sync.add_argument("--start-date")
     minute_sync.add_argument("--end-date")
     minute_sync.add_argument("--intervals", default="1,5,15,30,60")
+
+    minute_full = sub.add_parser("data-minute-materialize-all")
+    minute_full.add_argument("--paths-config")
+    minute_full.add_argument("--asset-root")
+    minute_full.add_argument("--warehouse-root")
+    minute_full.add_argument("--intervals", default="1,5,15,30,60")
+    minute_full.add_argument("--chunk-source-bytes", type=int, default=512_000_000)
+    minute_full.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
+    minute_full.add_argument("--parse-workers", type=int, default=1)
+
+    minute_migrate = sub.add_parser("data-minute-migrate-storage-v2")
+    minute_migrate.add_argument("--paths-config")
+    minute_migrate.add_argument("--warehouse-root")
+    minute_migrate.add_argument("--minimum-free-bytes", type=int, default=100_000_000_000)
+    minute_migrate.add_argument("--max-partitions", type=int)
+    minute_migrate.add_argument("--recover-interrupted-batches", action="store_true")
 
     minute_catalog = sub.add_parser("data-minute-catalog")
     minute_catalog.add_argument("--paths-config")
@@ -847,6 +871,7 @@ def main() -> None:
 
     if args.command in {
         "data-asset-inventory",
+        "data-inventory-cold-archive",
         "data-warehouse-init",
         "data-ingest",
         "data-warehouse-verify",
@@ -854,6 +879,8 @@ def main() -> None:
         "data-warehouse-factor-test",
         "data-minute-ingest",
         "data-minute-sync-available",
+        "data-minute-materialize-all",
+        "data-minute-migrate-storage-v2",
         "data-minute-catalog",
         "data-minute-ensure-range",
         "data-minute-verify",
@@ -867,7 +894,13 @@ def main() -> None:
             warehouse_root = local_paths.choose(
                 "qd_warehouse_root", getattr(args, "warehouse_root", None), "--warehouse-root"
             )
-            if args.command == "data-warehouse-init":
+            if args.command == "data-inventory-cold-archive":
+                result = cold_archive_inventories(
+                    Path(warehouse_root) / "inventory",
+                    retain_hot=args.retain_hot,
+                    remove_verified_json=args.remove_verified_json,
+                )
+            elif args.command == "data-warehouse-init":
                 result = initialize_warehouse(warehouse_root)
             elif args.command == "data-warehouse-verify":
                 result = verify_snapshot(warehouse_root, args.snapshot)
@@ -891,9 +924,17 @@ def main() -> None:
                 result = asdict(report)
             elif args.command == "data-minute-verify":
                 result = verify_minute_snapshot(warehouse_root, args.snapshot)
+            elif args.command == "data-minute-migrate-storage-v2":
+                result = migrate_minute_storage_v2(
+                    warehouse_root,
+                    minimum_free_bytes=args.minimum_free_bytes,
+                    max_partitions=args.max_partitions,
+                    recover_interrupted_batches=args.recover_interrupted_batches,
+                )
             elif args.command in {
                 "data-minute-ingest",
                 "data-minute-sync-available",
+                "data-minute-materialize-all",
                 "data-minute-catalog",
                 "data-minute-ensure-range",
             }:
@@ -909,6 +950,16 @@ def main() -> None:
                         asset_root,
                         warehouse_root,
                         intervals=intervals,
+                        seven_zip_executable=seven_zip_executable,
+                    )
+                elif args.command == "data-minute-materialize-all":
+                    result = materialize_all_available_minutes(
+                        asset_root,
+                        warehouse_root,
+                        intervals=intervals,
+                        chunk_source_bytes=args.chunk_source_bytes,
+                        minimum_free_bytes=args.minimum_free_bytes,
+                        parse_workers=args.parse_workers,
                         seven_zip_executable=seven_zip_executable,
                     )
                 elif args.command == "data-minute-ensure-range":

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import zipfile
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
 import pytest
 
 from stephen_quant.qmt.minute_warehouse import (
+    _minute_snapshot,
     catalog_minute_archives,
     ensure_minute_range,
     ingest_minute_archives,
+    materialize_all_available_minutes,
+    migrate_minute_storage_v2,
     sync_available_daily_minutes,
     verify_minute_snapshot,
 )
@@ -66,6 +70,25 @@ def test_minute_archive_ingest_verify_and_replay(tmp_path: Path) -> None:
         assert connection.execute(
             "SELECT epoch(min(bar_at)) FROM qd_minute_current WHERE interval_minutes=1"
         ).fetchone()[0] == expected_epoch
+        relative = connection.execute(
+            "SELECT parquet_relative_path FROM minute_partitions ORDER BY 1 LIMIT 1"
+        ).fetchone()[0]
+        physical = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM parquet_schema(?)", [str(warehouse / relative)]
+            ).fetchall()
+        }
+        assert "storage_schema_version" in physical
+        assert {"effective_at", "available_at", "revision_id"}.isdisjoint(physical)
+        logical = {
+            str(row[0])
+            for row in connection.execute("DESCRIBE qd_minute_current").fetchall()
+        }
+        assert {"effective_at", "available_at", "revision_id"} <= logical
+        assert connection.execute(
+            "SELECT count(*) FROM qd_minute_current WHERE length(revision_id)=64"
+        ).fetchone()[0] == 8
     finally:
         connection.close()
 
@@ -78,6 +101,36 @@ def test_minute_archive_ingest_verify_and_replay(tmp_path: Path) -> None:
     )
     assert replay["status"] == "REPLAY_NOOP"
     assert replay["snapshot_id"] == first["snapshot_id"]
+
+
+def test_minute_snapshot_verification_streams_multiple_path_batches(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2024" / "最新更新"
+    source.mkdir(parents=True)
+    first_day = date(2024, 1, 1)
+    for offset in range(17):
+        day = first_day + timedelta(days=offset)
+        archive = source / f"{day.strftime('%Y%m%d')}.zip"
+        with zipfile.ZipFile(archive, "w") as handle:
+            handle.writestr(
+                "1min/sz000001.csv",
+                _minute_csv(day.isoformat(), 1, float(offset)),
+            )
+    warehouse = tmp_path / "warehouse"
+
+    result = ingest_minute_archives(
+        tmp_path / "source",
+        warehouse,
+        start_date=first_day,
+        end_date=first_day + timedelta(days=16),
+        intervals=(1,),
+    )
+    verification = verify_minute_snapshot(warehouse, str(result["snapshot_id"]))
+
+    assert verification["passed"] is True
+    assert verification["partition_count"] == 17
+    assert verification["revision_rows"] == 34
+    assert verification["duplicate_current_keys"] == 0
+    assert verification["timing_violations"] == 0
 
 
 def test_available_daily_sync_and_catalog_report_observed_coverage(tmp_path: Path) -> None:
@@ -213,3 +266,259 @@ def test_ensure_historical_minute_range_extracts_only_requested_scope(tmp_path: 
             instruments=("000001.SZ",),
             max_source_bytes=1,
         )
+
+
+def test_full_materialization_uses_restartable_range_partitions(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    archive = source / "1分钟.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 0))
+        handle.writestr("1min/sh600000.csv", _minute_csv("2020-01-03", 1, 1))
+    warehouse = tmp_path / "warehouse"
+
+    result = materialize_all_available_minutes(
+        tmp_path / "source",
+        warehouse,
+        intervals=(1,),
+        chunk_source_bytes=1,
+        minimum_free_bytes=0,
+    )
+    assert result["status"] == "COMPLETED"
+    assert result["pending_archives_at_start"] == 1
+    assert result["catalog"]["summaries"][0]["status"] == "MATERIALIZED"
+
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        assert connection.execute("SELECT count(*) FROM minute_range_partitions").fetchone()[0] == 2
+        assert connection.execute("SELECT count(*) FROM qd_minute_current").fetchone()[0] == 4
+        assert connection.execute(
+            "SELECT count(*) FROM qd_minute_current WHERE effective_at > available_at "
+            "OR available_at > ingested_at"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
+
+    verification = verify_minute_snapshot(warehouse, str(result["snapshot_id"]))
+    assert verification["passed"] is True
+    assert verification["revision_rows"] == 4
+
+    replay = materialize_all_available_minutes(
+        tmp_path / "source",
+        warehouse,
+        intervals=(1,),
+        chunk_source_bytes=1,
+        minimum_free_bytes=0,
+    )
+    assert replay["status"] == "COMPLETED"
+    assert replay["pending_archives_at_start"] == 0
+
+
+def test_storage_v2_migration_preserves_legacy_snapshot_lineage(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2024" / "最新更新"
+    source.mkdir(parents=True)
+    with zipfile.ZipFile(source / "20240102.zip", "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2024-01-02", 1, 0))
+    warehouse = tmp_path / "warehouse"
+    ingest_minute_archives(
+        tmp_path / "source",
+        warehouse,
+        start_date=date(2024, 1, 2),
+        end_date=date(2024, 1, 2),
+        intervals=(1,),
+    )
+
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    current_relative = connection.execute(
+        "SELECT parquet_relative_path FROM minute_partitions"
+    ).fetchone()[0]
+    current = warehouse / current_relative
+    legacy = current.with_name("legacy-minute.parquet")
+    connection.execute(
+        "COPY (SELECT * FROM qd_minute_revisions) TO ? (FORMAT PARQUET, COMPRESSION ZSTD)",
+        [str(legacy)],
+    )
+    digest = hashlib.sha256(legacy.read_bytes()).hexdigest()
+    connection.execute(
+        "UPDATE minute_partitions SET parquet_relative_path=?, sha256=?, size_bytes=? "
+        "WHERE parquet_relative_path=?",
+        [legacy.relative_to(warehouse).as_posix(), digest, legacy.stat().st_size, current_relative],
+    )
+    legacy_snapshot = _minute_snapshot(connection, warehouse)
+    connection.close()
+    current.unlink()
+
+    before = verify_minute_snapshot(warehouse, legacy_snapshot)
+    assert before["passed"] is True
+    assert before["migrated_partitions"] == 0
+
+    result = migrate_minute_storage_v2(
+        warehouse, minimum_free_bytes=0, max_partitions=1
+    )
+    assert result["migrated_partitions"] == 1
+    assert result["old_bytes"] > result["new_bytes"]
+    assert not legacy.exists()
+
+    migrated = verify_minute_snapshot(warehouse, legacy_snapshot)
+    assert migrated["passed"] is True
+    assert migrated["migrated_partitions"] == 1
+    connection = duckdb.connect(
+        str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        new_relative = connection.execute(
+            "SELECT new_parquet_relative_path FROM minute_storage_migrations"
+        ).fetchone()[0]
+        physical = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM parquet_schema(?)", [str(warehouse / new_relative)]
+            ).fetchall()
+        }
+        assert "storage_schema_version" in physical
+        assert {"effective_at", "available_at", "revision_id"}.isdisjoint(physical)
+    finally:
+        connection.close()
+
+
+def test_parallel_full_materialization_matches_serial_rows(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    archive = source / "1分钟.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 0))
+        handle.writestr("1min/sh600000.csv", _minute_csv("2020-01-03", 1, 1))
+        handle.writestr("1min/sz000002.csv", _minute_csv("2020-01-06", 1, 2))
+
+    serial = tmp_path / "serial"
+    parallel = tmp_path / "parallel"
+    serial_result = materialize_all_available_minutes(
+        tmp_path / "source",
+        serial,
+        intervals=(1,),
+        chunk_source_bytes=10**9,
+        minimum_free_bytes=0,
+        parse_workers=1,
+    )
+    parallel_result = materialize_all_available_minutes(
+        tmp_path / "source",
+        parallel,
+        intervals=(1,),
+        chunk_source_bytes=10**9,
+        minimum_free_bytes=0,
+        parse_workers=2,
+    )
+    assert serial_result["status"] == parallel_result["status"] == "COMPLETED"
+
+    query = (
+        "SELECT trade_date, CAST(bar_at AS VARCHAR), interval_minutes, instrument, "
+        '"open", high, low, "close", volume, amount, revision_id '
+        "FROM qd_minute_current ORDER BY 1,2,3,4"
+    )
+    serial_db = duckdb.connect(str(serial / "catalog" / "warehouse.duckdb"), read_only=True)
+    parallel_db = duckdb.connect(
+        str(parallel / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+    try:
+        assert serial_db.execute(query).fetchall() == parallel_db.execute(query).fetchall()
+        assert serial_db.execute("SELECT count(*) FROM minute_quarantines").fetchone() == (
+            parallel_db.execute("SELECT count(*) FROM minute_quarantines").fetchone()
+        )
+        for connection in (serial_db, parallel_db):
+            registered = connection.execute(
+                "SELECT sum(row_count), min(min_date), max(max_date), "
+                "min(min_bar_at), max(max_bar_at) FROM minute_range_partitions"
+            ).fetchone()
+            observed = connection.execute(
+                "SELECT count(*), min(trade_date), max(trade_date), "
+                "min(bar_at), max(bar_at) FROM qd_minute_current"
+            ).fetchone()
+            assert registered == observed
+    finally:
+        serial_db.close()
+        parallel_db.close()
+
+
+def test_full_materialization_bulk_loads_quarantine_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    archive = source / "1分钟.zip"
+    invalid = (
+        _minute_csv("2020-01-02", 1, 0)
+        + b"2020-01-02,09:25,10,10.02,9.98,10,100,100000\n"
+    )
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("1min/sz000001.csv", invalid)
+
+    warehouse = tmp_path / "warehouse"
+    result = materialize_all_available_minutes(
+        tmp_path / "source",
+        warehouse,
+        intervals=(1,),
+        minimum_free_bytes=0,
+        parse_workers=2,
+    )
+    assert result["status"] == "COMPLETED"
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        assert connection.execute("SELECT count(*) FROM qd_minute_current").fetchone()[0] == 2
+        quarantines = connection.execute(
+            "SELECT reason, length(row_sha256) FROM minute_quarantines"
+        ).fetchall()
+        assert quarantines == [("row 4: bar timestamp outside A-share session", 64)]
+    finally:
+        connection.close()
+
+
+def test_full_materialization_fails_before_writing_when_space_reserve_is_unsafe(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source" / "分钟K线合集" / "2000-2025"
+    source.mkdir(parents=True)
+    with zipfile.ZipFile(source / "1分钟.zip", "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 0))
+    warehouse = tmp_path / "warehouse"
+
+    with pytest.raises(QmtDataError, match="free-space reserve"):
+        materialize_all_available_minutes(
+            tmp_path / "source",
+            warehouse,
+            intervals=(1,),
+            minimum_free_bytes=10**18,
+        )
+
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        assert connection.execute("SELECT count(*) FROM minute_source_members").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM minute_range_partitions").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_full_materialization_prefers_specific_annual_revision(tmp_path: Path) -> None:
+    root = tmp_path / "source" / "分钟K线合集"
+    broad = root / "2000-2025"
+    annual = root / "分年包" / "2020"
+    broad.mkdir(parents=True)
+    annual.mkdir(parents=True)
+    with zipfile.ZipFile(broad / "1分钟.zip", "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 0))
+    with zipfile.ZipFile(annual / "1分钟.zip", "w") as handle:
+        handle.writestr("1min/sz000001.csv", _minute_csv("2020-01-02", 1, 5))
+    warehouse = tmp_path / "warehouse"
+
+    result = materialize_all_available_minutes(
+        tmp_path / "source",
+        warehouse,
+        intervals=(1,),
+        minimum_free_bytes=0,
+    )
+    assert result["status"] == "COMPLETED"
+
+    connection = duckdb.connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    try:
+        assert connection.execute("SELECT count(*) FROM qd_minute_revisions").fetchone()[0] == 4
+        assert connection.execute("SELECT count(*) FROM qd_minute_current").fetchone()[0] == 2
+        assert connection.execute("SELECT min(close) FROM qd_minute_current").fetchone()[0] == 15.0
+    finally:
+        connection.close()

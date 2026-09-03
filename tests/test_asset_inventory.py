@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from pathlib import Path
 
 import pytest
 
-from stephen_quant.qmt.asset_inventory import _parse_seven_zip_slt, inventory_assets
+from stephen_quant.qmt.asset_inventory import (
+    _parse_seven_zip_slt,
+    _read_inventory_manifest,
+    cold_archive_inventories,
+    inventory_assets,
+)
 from stephen_quant.qmt.models import QmtDataError
 
 
@@ -63,3 +69,37 @@ CRC = A1B2C3D4
     assert _parse_seven_zip_slt(output) == [
         ("bars/20260828.csv", 123, "a1b2c3d4")
     ]
+
+
+def test_inventory_cold_archive_is_lossless_and_keeps_latest_hot(tmp_path: Path) -> None:
+    originals: dict[str, dict[str, object]] = {}
+    for index in range(3):
+        snapshot = f"{index:064x}"
+        payload = {
+            "snapshot_sha256": snapshot,
+            "entries": [{"relative_path": f"file-{index}.csv", "sha256": snapshot}],
+            "archive_members": [{"member_path": "repeated.csv"}] * 100,
+        }
+        path = tmp_path / f"asset-inventory-{snapshot}.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        os.utime(path, (100 + index, 100 + index))
+        originals[path.name] = payload
+
+    result = cold_archive_inventories(
+        tmp_path, retain_hot=1, remove_verified_json=True
+    )
+
+    assert result["status"] == "COMPLETED"
+    assert len(result["archived"]) == 2
+    assert len(list(tmp_path.glob("asset-inventory-*.json"))) == 1
+    assert len(list(tmp_path.glob("asset-inventory-*.json.gz"))) == 2
+    for archived in result["archived"]:
+        assert archived["verified"] is True
+        assert archived["compressed_size_bytes"] < archived["source_size_bytes"]
+        compressed = tmp_path / str(archived["compressed_name"])
+        assert _read_inventory_manifest(compressed) == originals[archived["source_name"]]
+
+    replay = cold_archive_inventories(
+        tmp_path, retain_hot=1, remove_verified_json=True
+    )
+    assert replay["archived"] == []

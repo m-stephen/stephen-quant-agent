@@ -4,12 +4,15 @@ import csv
 import hashlib
 import io
 import json
+import multiprocessing
 import re
+import shutil
 import subprocess
 import tempfile
 import uuid
 import zipfile
 from collections import defaultdict
+from concurrent.futures import Future, ProcessPoolExecutor
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path, PurePosixPath
 
@@ -17,7 +20,8 @@ from .asset_inventory import _archive_members
 from .data_warehouse import _atomic_json, _duckdb, _sha256, initialize_warehouse
 from .models import QmtDataError
 
-MINUTE_SCHEMA_VERSION = 1
+MINUTE_SCHEMA_VERSION = 2
+MINUTE_PARQUET_SCHEMA_VERSION = 2
 MINUTE_FOLDER = "分钟K线合集"
 MINUTE_INTERVALS = (1, 5, 15, 30, 60)
 _INTERVAL = re.compile(r"(?<!\d)(1|5|15|30|60)\s*(?:min|分钟)", re.IGNORECASE)
@@ -25,6 +29,15 @@ _INSTRUMENT = re.compile(r"^(bj|sh|sz)(\d{6})$", re.IGNORECASE)
 _DATE_STEM = re.compile(r"^(20\d{6})$")
 _YEAR = re.compile(r"^(20\d{2})$")
 _SHANGHAI = timezone(timedelta(hours=8))
+_MemberParseResult = tuple[
+    int,
+    list[tuple[str, str]],
+    str,
+    str | None,
+    str | None,
+    float | None,
+    float | None,
+]
 
 
 def initialize_minute_warehouse(root: str | Path) -> None:
@@ -52,6 +65,13 @@ def initialize_minute_warehouse(root: str | Path) -> None:
             "batch_id VARCHAR)"
         )
         connection.execute(
+            "CREATE TABLE IF NOT EXISTS minute_range_partitions (partition_id VARCHAR PRIMARY KEY, "
+            "archive_relative_path VARCHAR, archive_sha256 VARCHAR, interval_minutes INTEGER, "
+            "parquet_relative_path VARCHAR UNIQUE, sha256 VARCHAR, size_bytes BIGINT, "
+            "row_count BIGINT, min_date DATE, max_date DATE, min_bar_at TIMESTAMPTZ, "
+            "max_bar_at TIMESTAMPTZ, batch_id VARCHAR)"
+        )
+        connection.execute(
             "CREATE TABLE IF NOT EXISTS minute_snapshots (snapshot_id VARCHAR PRIMARY KEY, "
             "manifest_sha256 VARCHAR, created_at TIMESTAMPTZ, manifest_relative_path VARCHAR)"
         )
@@ -74,6 +94,13 @@ def initialize_minute_warehouse(root: str | Path) -> None:
             "scope_start DATE, scope_end DATE, row_count BIGINT, batch_id VARCHAR, created_at TIMESTAMPTZ, "
             "UNIQUE(archive_relative_path, archive_sha256, member_path, member_sha256, "
             "scope_start, scope_end))"
+        )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS minute_storage_migrations ("
+            "old_parquet_relative_path VARCHAR, old_sha256 VARCHAR, old_size_bytes BIGINT, "
+            "new_parquet_relative_path VARCHAR, new_sha256 VARCHAR, new_size_bytes BIGINT, "
+            "row_count BIGINT, business_fingerprint VARCHAR, migrated_at TIMESTAMPTZ, "
+            "PRIMARY KEY(old_parquet_relative_path, old_sha256))"
         )
     finally:
         connection.close()
@@ -324,7 +351,7 @@ def _parse_clock(value: str) -> time:
     raise ValueError("invalid clock")
 
 
-def _parse_member(
+def _iter_member_records(
     raw: bytes,
     *,
     identity: str,
@@ -334,7 +361,7 @@ def _parse_member(
     archive_sha256: str,
     member_sha256: str,
     ingested_at: datetime,
-) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+):
     reader = csv.DictReader(io.StringIO(_decode(raw, identity), newline=""))
     aliases = {
         "日期": "trade_date",
@@ -349,8 +376,6 @@ def _parse_member(
     mapping = {name.strip(): aliases.get(name.strip()) for name in (reader.fieldnames or ())}
     if set(mapping.values()) - {None} != set(aliases.values()):
         raise QmtDataError(f"minute CSV schema mismatch: {identity}")
-    rows: list[dict[str, object]] = []
-    quarantines: list[tuple[str, str]] = []
     seen: set[str] = set()
     for number, raw_row in enumerate(reader, start=2):
         values = {
@@ -388,7 +413,7 @@ def _parse_member(
             row_hash = hashlib.sha256(
                 json.dumps(raw_row, ensure_ascii=False, sort_keys=True).encode()
             ).hexdigest()
-            quarantines.append((f"row {number}: {reason}", row_hash))
+            yield None, (f"row {number}: {reason}", row_hash)
             continue
         bar_at = datetime.combine(trade_day, clock, tzinfo=_SHANGHAI)
         key = bar_at.isoformat()
@@ -396,7 +421,7 @@ def _parse_member(
             row_hash = hashlib.sha256(
                 json.dumps(raw_row, ensure_ascii=False, sort_keys=True).encode()
             ).hexdigest()
-            quarantines.append((f"row {number}: duplicate member key", row_hash))
+            yield None, (f"row {number}: duplicate member key", row_hash)
             continue
         seen.add(key)
         stable = {
@@ -414,18 +439,102 @@ def _parse_member(
         revision_id = hashlib.sha256(
             json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
-        rows.append(
-            {
-                **stable,
-                "bar_at_epoch": bar_at.timestamp(),
-                "effective_at_epoch": bar_at.timestamp(),
-                "available_at_epoch": (bar_at + timedelta(seconds=1)).timestamp(),
-                "ingested_at_epoch": ingested_at.timestamp(),
-                "revision_id": revision_id,
-                "ingested_at": ingested_at.isoformat(),
-            }
-        )
+        yield {
+            **stable,
+            "bar_at_epoch": bar_at.timestamp(),
+            "effective_at_epoch": bar_at.timestamp(),
+            "available_at_epoch": (bar_at + timedelta(seconds=1)).timestamp(),
+            "ingested_at_epoch": ingested_at.timestamp(),
+            "revision_id": revision_id,
+            "ingested_at": ingested_at.isoformat(),
+        }, None
+
+
+def _parse_member(
+    raw: bytes,
+    *,
+    identity: str,
+    member_path: str,
+    instrument: str,
+    interval: int,
+    archive_sha256: str,
+    member_sha256: str,
+    ingested_at: datetime,
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    rows: list[dict[str, object]] = []
+    quarantines: list[tuple[str, str]] = []
+    for row, rejected in _iter_member_records(
+        raw,
+        identity=identity,
+        member_path=member_path,
+        instrument=instrument,
+        interval=interval,
+        archive_sha256=archive_sha256,
+        member_sha256=member_sha256,
+        ingested_at=ingested_at,
+    ):
+        if row is not None:
+            rows.append(row)
+        elif rejected is not None:
+            quarantines.append(rejected)
     return rows, quarantines
+
+
+def _parse_member_to_jsonl(
+    raw: bytes,
+    *,
+    output_path: str,
+    identity: str,
+    member_path: str,
+    instrument: str,
+    interval: int,
+    archive_sha256: str,
+    ingested_at: datetime,
+) -> _MemberParseResult:
+    """Parse one member in an isolated worker and persist deterministic JSONL evidence."""
+    member_sha = hashlib.sha256(raw).hexdigest()
+    row_count = 0
+    min_date: str | None = None
+    max_date: str | None = None
+    min_bar_epoch: float | None = None
+    max_bar_epoch: float | None = None
+    quarantines: list[tuple[str, str]] = []
+    target = Path(output_path)
+    with target.open("w", encoding="utf-8") as handle:
+        for parsed, rejected in _iter_member_records(
+            raw,
+            identity=identity,
+            member_path=member_path,
+            instrument=instrument,
+            interval=interval,
+            archive_sha256=archive_sha256,
+            member_sha256=member_sha,
+            ingested_at=ingested_at,
+        ):
+            if parsed is not None:
+                handle.write(json.dumps(parsed, separators=(",", ":")) + "\n")
+                row_count += 1
+                trade_date = str(parsed["trade_date"])
+                bar_epoch = float(parsed["bar_at_epoch"])
+                min_date = trade_date if min_date is None else min(min_date, trade_date)
+                max_date = trade_date if max_date is None else max(max_date, trade_date)
+                min_bar_epoch = (
+                    bar_epoch if min_bar_epoch is None else min(min_bar_epoch, bar_epoch)
+                )
+                max_bar_epoch = (
+                    bar_epoch if max_bar_epoch is None else max(max_bar_epoch, bar_epoch)
+                )
+            elif rejected is not None:
+                quarantines.append(rejected)
+    return (
+        row_count,
+        quarantines,
+        member_sha,
+        min_date,
+        max_date,
+        min_bar_epoch,
+        max_bar_epoch,
+    )
 
 
 def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
@@ -436,31 +545,303 @@ def _write_minute_parquet(connection, staging: Path, target: Path) -> None:
         "CAST(interval_minutes AS INTEGER) interval_minutes, instrument, "
         'CAST("open" AS DOUBLE) "open", CAST(high AS DOUBLE) high, CAST(low AS DOUBLE) low, '
         'CAST("close" AS DOUBLE) "close", CAST(volume AS DOUBLE) volume, CAST(amount AS DOUBLE) amount, '
-        "to_timestamp(effective_at_epoch) effective_at, "
-        "to_timestamp(available_at_epoch) available_at, "
         "to_timestamp(ingested_at_epoch) ingested_at, archive_sha256, member_path, member_sha256, "
-        f"revision_id FROM read_json_auto('{source_sql}')) TO '{target_sql}' "
+        f"CAST({MINUTE_PARQUET_SCHEMA_VERSION} AS UTINYINT) storage_schema_version "
+        f"FROM read_json_auto('{source_sql}')) TO '{target_sql}' "
         "(FORMAT PARQUET, COMPRESSION ZSTD)"
     )
 
 
+def _compact_minute_parquet(connection, source: Path, target: Path) -> None:
+    source_sql = str(source).replace("'", "''")
+    target_sql = str(target).replace("'", "''")
+    connection.execute(
+        "COPY (SELECT trade_date, bar_at, interval_minutes, instrument, \"open\", high, low, "
+        "\"close\", volume, amount, ingested_at, archive_sha256, member_path, member_sha256, "
+        f"CAST({MINUTE_PARQUET_SCHEMA_VERSION} AS UTINYINT) storage_schema_version "
+        f"FROM read_parquet('{source_sql}')) TO '{target_sql}' "
+        "(FORMAT PARQUET, COMPRESSION ZSTD)"
+    )
+
+
+def _revision_v2_expression() -> str:
+    return (
+        "sha256(concat_ws('|', 'minute-parquet-v2', CAST(bar_at AS VARCHAR), "
+        "CAST(interval_minutes AS VARCHAR), instrument, CAST(\"open\" AS VARCHAR), "
+        "CAST(high AS VARCHAR), CAST(low AS VARCHAR), CAST(\"close\" AS VARCHAR), "
+        "CAST(volume AS VARCHAR), CAST(amount AS VARCHAR), archive_sha256, member_path, "
+        "member_sha256))"
+    )
+
+
+def _minute_relation_sql(
+    connection, literals: str, *, revision_mode: str = "logical"
+) -> str:
+    """Return the stable logical contract for legacy, V2, or mixed Parquet files."""
+    if revision_mode not in {"logical", "stored", "none"}:
+        raise ValueError(f"unsupported minute revision mode: {revision_mode}")
+    raw = f"read_parquet([{literals}], union_by_name=true)"
+    columns = {
+        str(row[0])
+        for row in connection.execute(f"DESCRIBE SELECT * FROM {raw}").fetchall()
+    }
+
+    def compatible(name: str, derived: str) -> str:
+        return f"coalesce({name}, {derived})" if name in columns else derived
+
+    effective_at = compatible("effective_at", "bar_at")
+    available_at = compatible("available_at", "bar_at + INTERVAL 1 SECOND")
+    revision_sql = ""
+    if revision_mode == "logical":
+        revision_sql = f", {compatible('revision_id', _revision_v2_expression())} AS revision_id"
+    elif revision_mode == "stored":
+        stored = "revision_id" if "revision_id" in columns else "NULL::VARCHAR"
+        revision_sql = f", {stored} AS stored_revision_id"
+    return (
+        "SELECT trade_date, bar_at, interval_minutes, instrument, \"open\", high, low, "
+        "\"close\", volume, amount, "
+        f"{effective_at} AS effective_at, {available_at} AS available_at, ingested_at, "
+        f"archive_sha256, member_path, member_sha256{revision_sql} FROM {raw}"
+    )
+
+
+def _minute_business_fingerprint(connection, path: Path) -> tuple[int, str, str, str]:
+    literal = f"'{str(path).replace(chr(39), chr(39) * 2)}'"
+    relation = _minute_relation_sql(connection, literal, revision_mode="none")
+    row = connection.execute(
+        "SELECT count(*), CAST(bit_xor(hash(trade_date, bar_at, interval_minutes, instrument, "
+        '"open", high, low, "close", volume, amount, effective_at, available_at, ingested_at, '
+        "archive_sha256, member_path, member_sha256)) AS VARCHAR), "
+        f"CAST(min(bar_at) AS VARCHAR), CAST(max(bar_at) AS VARCHAR) FROM ({relation})"
+    ).fetchone()
+    return int(row[0]), str(row[1]), str(row[2]), str(row[3])
+
+
+def migrate_minute_storage_v2(
+    warehouse_root: str | Path,
+    *,
+    minimum_free_bytes: int = 100_000_000_000,
+    max_partitions: int | None = None,
+    recover_interrupted_batches: bool = False,
+) -> dict[str, object]:
+    """Rewrite registered legacy Parquet atomically and preserve snapshot lineage."""
+    if minimum_free_bytes < 0:
+        raise QmtDataError("minimum_free_bytes must be non-negative")
+    if max_partitions is not None and max_partitions < 1:
+        raise QmtDataError("max_partitions must be positive")
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    initialize_minute_warehouse(warehouse)
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    running = connection.execute(
+        "SELECT count(*) FROM minute_batches WHERE status='RUNNING'"
+    ).fetchone()[0]
+    if running:
+        if not recover_interrupted_batches:
+            connection.close()
+            raise QmtDataError("minute storage migration refuses to run beside an active batch")
+        connection.execute(
+            "UPDATE minute_batches SET completed_at=?, status='INTERRUPTED', "
+            "error='explicitly recovered before storage-v2 migration' WHERE status='RUNNING'",
+            [datetime.now(timezone.utc)],
+        )
+    registered = [
+        ("daily", str(row[0]), str(row[1]), int(row[2]), int(row[3]))
+        for row in connection.execute(
+            "SELECT parquet_relative_path, sha256, size_bytes, row_count "
+            "FROM minute_partitions ORDER BY parquet_relative_path"
+        ).fetchall()
+    ] + [
+        ("range", str(row[0]), str(row[1]), int(row[2]), int(row[3]))
+        for row in connection.execute(
+            "SELECT parquet_relative_path, sha256, size_bytes, row_count "
+            "FROM minute_range_partitions ORDER BY parquet_relative_path"
+        ).fetchall()
+    ]
+    migrated: list[dict[str, object]] = []
+    skipped = 0
+    try:
+        for kind, relative, old_sha, old_size, expected_rows in registered:
+            source = (warehouse / relative).resolve()
+            if warehouse not in source.parents or not source.is_file():
+                raise QmtDataError(f"registered minute partition is missing: {relative}")
+            columns = {
+                str(row[0])
+                for row in connection.execute(
+                    "SELECT name FROM parquet_schema(?)", [str(source)]
+                ).fetchall()
+            }
+            if (
+                "storage_schema_version" in columns
+                and {"effective_at", "available_at", "revision_id"}.isdisjoint(columns)
+            ):
+                skipped += 1
+                continue
+            if max_partitions is not None and len(migrated) >= max_partitions:
+                break
+            if shutil.disk_usage(warehouse).free - old_size < minimum_free_bytes:
+                raise QmtDataError("minute storage migration would violate free-space reserve")
+            old_fingerprint = _minute_business_fingerprint(connection, source)
+            if old_fingerprint[0] != expected_rows:
+                raise QmtDataError(f"minute migration row-count mismatch: {relative}")
+            temporary = source.with_name(f"pending-v2-{uuid.uuid4().hex}.parquet")
+            target: Path | None = None
+            created = False
+            committed = False
+            transaction_open = False
+            try:
+                _compact_minute_parquet(connection, source, temporary)
+                new_fingerprint = _minute_business_fingerprint(connection, temporary)
+                if new_fingerprint != old_fingerprint:
+                    raise QmtDataError(f"minute migration fingerprint mismatch: {relative}")
+                new_sha = _sha256(temporary)
+                target = source.with_name(f"{new_sha}.parquet")
+                if target.exists():
+                    if _sha256(target) != new_sha:
+                        raise QmtDataError(f"minute migration target hash mismatch: {target.name}")
+                    temporary.unlink()
+                else:
+                    temporary.replace(target)
+                    created = True
+                new_relative = target.relative_to(warehouse).as_posix()
+                now = datetime.now(timezone.utc)
+                connection.execute("BEGIN TRANSACTION")
+                transaction_open = True
+                connection.execute(
+                    "INSERT INTO minute_storage_migrations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        relative,
+                        old_sha,
+                        old_size,
+                        new_relative,
+                        new_sha,
+                        target.stat().st_size,
+                        expected_rows,
+                        old_fingerprint[1],
+                        now,
+                    ],
+                )
+                table = "minute_partitions" if kind == "daily" else "minute_range_partitions"
+                updated = connection.execute(
+                    f"UPDATE {table} SET parquet_relative_path=?, sha256=?, size_bytes=? "
+                    "WHERE parquet_relative_path=? AND sha256=? RETURNING parquet_relative_path",
+                    [new_relative, new_sha, target.stat().st_size, relative, old_sha],
+                ).fetchall()
+                if len(updated) != 1:
+                    raise QmtDataError(f"minute migration catalog update failed: {relative}")
+                connection.execute("COMMIT")
+                transaction_open = False
+                committed = True
+                old_removed = True
+                try:
+                    source.unlink()
+                except OSError:
+                    old_removed = False
+                migrated.append(
+                    {
+                        "kind": kind,
+                        "old_relative_path": relative,
+                        "old_sha256": old_sha,
+                        "old_size_bytes": old_size,
+                        "new_relative_path": new_relative,
+                        "new_sha256": new_sha,
+                        "new_size_bytes": target.stat().st_size,
+                        "row_count": expected_rows,
+                        "business_fingerprint": old_fingerprint[1],
+                        "old_removed": old_removed,
+                    }
+                )
+            except Exception:
+                if transaction_open:
+                    connection.execute("ROLLBACK")
+                temporary.unlink(missing_ok=True)
+                if not committed and created and target is not None:
+                    target.unlink(missing_ok=True)
+                raise
+        if migrated:
+            _refresh_views(connection, warehouse)
+        snapshot_id = _minute_snapshot(connection, warehouse) if registered else None
+    finally:
+        connection.close()
+    return {
+        "status": "COMPLETED",
+        "registered_partitions": len(registered),
+        "migrated_partitions": len(migrated),
+        "already_v2_partitions": skipped,
+        "old_bytes": sum(int(item["old_size_bytes"]) for item in migrated),
+        "new_bytes": sum(int(item["new_size_bytes"]) for item in migrated),
+        "migrations": migrated,
+        "snapshot_id": snapshot_id,
+    }
+
+
+def _insert_quarantines(
+    connection,
+    *,
+    quarantines: list[tuple[str, str, str]],
+    batch_id: str,
+    started: datetime,
+    staging: Path,
+) -> None:
+    """Bulk-load quarantine evidence without row-at-a-time DuckDB calls."""
+    if not quarantines:
+        return
+    quarantine_staging = staging.with_name(f"{staging.name}.quarantines.jsonl")
+    try:
+        with quarantine_staging.open("w", encoding="utf-8") as handle:
+            for identity, reason, row_hash in quarantines:
+                handle.write(
+                    json.dumps(
+                        {
+                            "batch_id": batch_id,
+                            "source_identity": identity,
+                            "reason": reason,
+                            "row_sha256": row_hash,
+                            "created_at_epoch": started.timestamp(),
+                        },
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
+        source_sql = str(quarantine_staging).replace("'", "''")
+        connection.execute(
+            "INSERT INTO minute_quarantines SELECT batch_id, source_identity, reason, "
+            f"row_sha256, to_timestamp(created_at_epoch) FROM read_json_auto('{source_sql}')"
+        )
+    finally:
+        quarantine_staging.unlink(missing_ok=True)
+
+
 def _refresh_views(connection, warehouse: Path) -> None:
-    paths = [
+    daily_paths = [
         str(warehouse / row[0]).replace("'", "''")
         for row in connection.execute(
             "SELECT parquet_relative_path FROM minute_partitions ORDER BY parquet_relative_path"
         ).fetchall()
     ]
+    range_paths = [
+        str(warehouse / row[0]).replace("'", "''")
+        for row in connection.execute(
+            "SELECT parquet_relative_path FROM minute_range_partitions ORDER BY parquet_relative_path"
+        ).fetchall()
+    ]
+    paths = daily_paths + range_paths
     if not paths:
         return
     literals = ",".join(f"'{path}'" for path in paths)
+    relation = _minute_relation_sql(connection, literals)
     connection.execute(
-        f"CREATE OR REPLACE VIEW qd_minute_revisions AS SELECT * FROM read_parquet([{literals}])"
+        f"CREATE OR REPLACE VIEW qd_minute_revisions AS {relation}"
     )
+    base = _minute_relation_sql(connection, literals, revision_mode="stored")
+    revision_v2 = _revision_v2_expression()
     connection.execute(
-        "CREATE OR REPLACE VIEW qd_minute_current AS SELECT * EXCLUDE(rn) FROM (SELECT *, "
+        "CREATE OR REPLACE VIEW qd_minute_current AS SELECT trade_date, bar_at, "
+        "interval_minutes, instrument, \"open\", high, low, \"close\", volume, amount, "
+        "effective_at, available_at, ingested_at, archive_sha256, member_path, member_sha256, "
+        f"coalesce(stored_revision_id, {revision_v2}) AS revision_id FROM (SELECT *, "
         "row_number() OVER (PARTITION BY interval_minutes, bar_at, instrument ORDER BY "
-        "ingested_at DESC, revision_id DESC) rn FROM qd_minute_revisions) WHERE rn=1"
+        "ingested_at DESC, archive_sha256 DESC, member_sha256 DESC, member_path DESC) rn "
+        f"FROM ({base})) WHERE rn=1"
     )
 
 
@@ -472,7 +853,31 @@ def _minute_snapshot(connection, warehouse: Path) -> str:
             "size_bytes, row_count FROM minute_partitions ORDER BY 1,2,3"
         ).fetchall()
     ]
-    stable = {"schema_version": MINUTE_SCHEMA_VERSION, "partitions": partitions}
+    range_partitions = [
+        [
+            str(row[0]),
+            str(row[1]),
+            str(row[2]),
+            int(row[3]),
+            str(row[4]),
+            str(row[5]),
+            int(row[6]),
+            int(row[7]),
+            str(row[8]),
+            str(row[9]),
+        ]
+        for row in connection.execute(
+            "SELECT partition_id, archive_relative_path, archive_sha256, interval_minutes, "
+            "parquet_relative_path, sha256, size_bytes, row_count, "
+            "CAST(min_date AS VARCHAR), CAST(max_date AS VARCHAR) "
+            "FROM minute_range_partitions ORDER BY 1"
+        ).fetchall()
+    ]
+    stable = {
+        "schema_version": MINUTE_SCHEMA_VERSION,
+        "partitions": partitions,
+        "range_partitions": range_partitions,
+    }
     snapshot_id = hashlib.sha256(
         json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -498,6 +903,7 @@ def _read_archive_members(
     *,
     seven_zip_executable: Path | None,
     targeted: bool = False,
+    temporary_parent: Path | None = None,
 ):
     if archive.suffix.lower() == ".zip":
         with zipfile.ZipFile(archive) as handle:
@@ -506,7 +912,10 @@ def _read_archive_members(
         return
     if seven_zip_executable is None or not seven_zip_executable.is_file():
         raise QmtDataError("7z/rar minute archives require qd_7zip_executable")
-    with tempfile.TemporaryDirectory(prefix="stephen-quant-minute-") as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="stephen-quant-minute-",
+        dir=str(temporary_parent) if temporary_parent else None,
+    ) as temporary:
         root = Path(temporary).resolve()
         try:
             command = [
@@ -934,6 +1343,612 @@ def ensure_minute_range(
     }
 
 
+def _commit_range_chunk(
+    connection,
+    warehouse: Path,
+    *,
+    staging: Path,
+    archive_relative_path: str,
+    archive_sha256: str,
+    interval: int,
+    members: list[tuple[object, ...]],
+    quarantines: list[tuple[str, str, str]],
+    row_count: int,
+    min_date: str,
+    max_date: str,
+    min_bar_epoch: float,
+    max_bar_epoch: float,
+    batch_id: str,
+    started: datetime,
+) -> tuple[int, str]:
+    member_identity = "|".join(sorted(str(row[4]) for row in members))
+    partition_id = hashlib.sha256(
+        f"{archive_sha256}|{interval}|{member_identity}".encode()
+    ).hexdigest()
+    existing = connection.execute(
+        "SELECT row_count FROM minute_range_partitions WHERE partition_id=?",
+        [partition_id],
+    ).fetchone()
+    if existing is not None:
+        return int(existing[0]), partition_id
+    folder = (
+        warehouse
+        / "parquet"
+        / "qd_minute_ranges"
+        / f"interval={interval}"
+        / f"archive={archive_sha256[:16]}"
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    temporary = folder / f"pending-{partition_id}.parquet"
+    _write_minute_parquet(connection, staging, temporary)
+    digest = _sha256(temporary)
+    target = folder / f"{digest}.parquet"
+    created = False
+    if target.exists():
+        temporary.unlink()
+    else:
+        temporary.replace(target)
+        created = True
+    try:
+        connection.execute("BEGIN TRANSACTION")
+        connection.executemany(
+            "INSERT OR IGNORE INTO minute_source_members VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            members,
+        )
+        _insert_quarantines(
+            connection,
+            quarantines=quarantines,
+            batch_id=batch_id,
+            started=started,
+            staging=staging,
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO minute_range_partitions VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                partition_id,
+                archive_relative_path,
+                archive_sha256,
+                interval,
+                target.relative_to(warehouse).as_posix(),
+                digest,
+                target.stat().st_size,
+                row_count,
+                date.fromisoformat(min_date),
+                date.fromisoformat(max_date),
+                datetime.fromtimestamp(min_bar_epoch, timezone.utc),
+                datetime.fromtimestamp(max_bar_epoch, timezone.utc),
+                batch_id,
+            ],
+        )
+        _refresh_views(connection, warehouse)
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        if created:
+            target.unlink(missing_ok=True)
+        raise
+    return row_count, partition_id
+
+
+def materialize_minute_archive(
+    source_root: str | Path,
+    warehouse_root: str | Path,
+    *,
+    archive_relative_path: str,
+    intervals: tuple[int, ...] = MINUTE_INTERVALS,
+    chunk_source_bytes: int = 512_000_000,
+    minimum_free_bytes: int = 100_000_000_000,
+    parse_workers: int = 1,
+    seven_zip_executable: str | Path | None = None,
+) -> dict[str, object]:
+    """Fully materialize one cataloged archive in restartable range partitions."""
+    if chunk_source_bytes <= 0 or minimum_free_bytes < 0:
+        raise QmtDataError("minute materialization storage limits must be non-negative")
+    if not 1 <= parse_workers <= 16:
+        raise QmtDataError("parse_workers must be between 1 and 16")
+    requested = tuple(sorted(set(intervals)))
+    if not requested or any(item not in MINUTE_INTERVALS for item in requested):
+        raise QmtDataError(f"minute intervals must be selected from {MINUTE_INTERVALS}")
+    source = Path(source_root).expanduser().resolve()
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    seven_zip = (
+        Path(seven_zip_executable).expanduser().resolve() if seven_zip_executable else None
+    )
+    initialize_minute_warehouse(warehouse)
+    archive = (source / Path(*PurePosixPath(archive_relative_path).parts)).resolve()
+    if source not in archive.parents or not archive.is_file():
+        raise QmtDataError(f"minute archive is outside the source root or missing: {archive_relative_path}")
+    relative = archive.relative_to(source).as_posix()
+    archive_sha = _sha256(archive)
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"))
+    row = connection.execute(
+        "SELECT archive_sha256 FROM minute_archive_catalog "
+        "WHERE archive_relative_path=? AND archive_sha256=?",
+        [relative, archive_sha],
+    ).fetchone()
+    if row is None:
+        connection.close()
+        raise QmtDataError("minute archive must be cataloged with its current SHA-256 first")
+    known = {
+        str(item[0])
+        for item in connection.execute(
+            "SELECT member_path FROM minute_source_members "
+            "WHERE archive_relative_path=? AND archive_sha256=?",
+            [relative, archive_sha],
+        ).fetchall()
+    }
+    selected = [
+        item
+        for item in _archive_members(archive, seven_zip)
+        if item[0].lower().endswith(".csv")
+        and _interval(item[0], archive) in requested
+        and _instrument(item[0]) is not None
+        and item[0].replace("\\", "/") not in known
+    ]
+    if not selected:
+        latest = connection.execute(
+            "SELECT snapshot_id FROM minute_snapshots ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        connection.close()
+        return {
+            "status": "REPLAY_NOOP",
+            "archive_relative_path": relative,
+            "new_members": 0,
+            "new_revisions": 0,
+            "partition_count": 0,
+            "snapshot_id": latest[0] if latest else None,
+        }
+    batch_id = uuid.uuid4().hex
+    started = datetime.now(timezone.utc)
+    connection.execute(
+        "UPDATE minute_batches SET completed_at=?, status='INTERRUPTED', "
+        "error='recovered after an interrupted local process' WHERE status='RUNNING'",
+        [started],
+    )
+    connection.execute(
+        "INSERT INTO minute_batches VALUES (?, ?, NULL, 'RUNNING', NULL, 0, 0, 0, 0, NULL)",
+        [batch_id, started],
+    )
+    staging_root = warehouse / "staging" / f"minute-full-{batch_id}"
+    staging_root.mkdir(parents=True, exist_ok=False)
+    new_members = new_revisions = partition_count = quarantined_rows = 0
+    executor = (
+        ProcessPoolExecutor(
+            max_workers=parse_workers,
+            mp_context=multiprocessing.get_context("spawn"),
+        )
+        if parse_workers > 1
+        else None
+    )
+    try:
+        by_interval: defaultdict[int, list[tuple[str, int, str | None]]] = defaultdict(list)
+        for item in selected:
+            interval = _interval(item[0], archive)
+            if interval is not None:
+                by_interval[interval].append(item)
+        for interval, interval_members in sorted(by_interval.items()):
+            chunk_number = 0
+            staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
+            handle = staging.open("wb")
+            chunk_bytes = chunk_rows = 0
+            chunk_min_date: str | None = None
+            chunk_max_date: str | None = None
+            chunk_min_bar_epoch: float | None = None
+            chunk_max_bar_epoch: float | None = None
+            registrations: list[tuple[object, ...]] = []
+            rejected_rows: list[tuple[str, str, str]] = []
+            pending: list[
+                tuple[
+                    Future[_MemberParseResult],
+                    Path,
+                    str,
+                    str,
+                    int,
+                ]
+            ] = []
+            submission_number = 0
+
+            def merge_stats(
+                rows: int,
+                min_date: str | None,
+                max_date: str | None,
+                min_bar_epoch: float | None,
+                max_bar_epoch: float | None,
+            ) -> None:
+                nonlocal chunk_min_date, chunk_max_date
+                nonlocal chunk_min_bar_epoch, chunk_max_bar_epoch
+                if not rows:
+                    return
+                if None in (min_date, max_date, min_bar_epoch, max_bar_epoch):
+                    raise QmtDataError("non-empty minute parse result is missing range statistics")
+                assert min_date is not None and max_date is not None
+                assert min_bar_epoch is not None and max_bar_epoch is not None
+                chunk_min_date = (
+                    min_date if chunk_min_date is None else min(chunk_min_date, min_date)
+                )
+                chunk_max_date = (
+                    max_date if chunk_max_date is None else max(chunk_max_date, max_date)
+                )
+                chunk_min_bar_epoch = (
+                    min_bar_epoch
+                    if chunk_min_bar_epoch is None
+                    else min(chunk_min_bar_epoch, min_bar_epoch)
+                )
+                chunk_max_bar_epoch = (
+                    max_bar_epoch
+                    if chunk_max_bar_epoch is None
+                    else max(chunk_max_bar_epoch, max_bar_epoch)
+                )
+
+            def drain_one(
+                pending_items: list[
+                    tuple[
+                        Future[_MemberParseResult],
+                        Path,
+                        str,
+                        str,
+                        int,
+                    ]
+                ],
+                output_handle,
+                registration_rows: list[tuple[object, ...]],
+                quarantine_rows: list[tuple[str, str, str]],
+                member_interval: int,
+            ) -> None:
+                nonlocal chunk_rows, new_members, quarantined_rows
+                future, worker_output, normalized_member, identity, raw_size = pending_items.pop(0)
+                try:
+                    (
+                        rows,
+                        rejected,
+                        member_sha,
+                        min_date,
+                        max_date,
+                        min_bar_epoch,
+                        max_bar_epoch,
+                    ) = future.result()
+                    with worker_output.open("rb") as source_handle:
+                        shutil.copyfileobj(source_handle, output_handle, length=1024 * 1024)
+                finally:
+                    worker_output.unlink(missing_ok=True)
+                merge_stats(rows, min_date, max_date, min_bar_epoch, max_bar_epoch)
+                registration_rows.append(
+                    (
+                        relative,
+                        archive_sha,
+                        archive.stat().st_size,
+                        normalized_member,
+                        member_sha,
+                        raw_size,
+                        member_interval,
+                        batch_id,
+                    )
+                )
+                quarantine_rows.extend(
+                    (identity, reason, row_hash) for reason, row_hash in rejected
+                )
+                chunk_rows += rows
+                quarantined_rows += len(rejected)
+                new_members += 1
+
+            def drain_all(
+                pending_items: list[
+                    tuple[
+                        Future[_MemberParseResult],
+                        Path,
+                        str,
+                        str,
+                        int,
+                    ]
+                ],
+                output_handle,
+                registration_rows: list[tuple[object, ...]],
+                quarantine_rows: list[tuple[str, str, str]],
+                member_interval: int,
+            ) -> None:
+                while pending_items:
+                    drain_one(
+                        pending_items,
+                        output_handle,
+                        registration_rows,
+                        quarantine_rows,
+                        member_interval,
+                    )
+
+            def flush(interval: int = interval) -> None:
+                nonlocal handle, staging, chunk_number, chunk_bytes, chunk_rows
+                nonlocal registrations, rejected_rows, new_revisions, partition_count
+                nonlocal chunk_min_date, chunk_max_date
+                nonlocal chunk_min_bar_epoch, chunk_max_bar_epoch
+                if not registrations:
+                    return
+                handle.close()
+                if chunk_rows:
+                    if None in (
+                        chunk_min_date,
+                        chunk_max_date,
+                        chunk_min_bar_epoch,
+                        chunk_max_bar_epoch,
+                    ):
+                        raise QmtDataError("minute chunk is missing range statistics")
+                    assert chunk_min_date is not None and chunk_max_date is not None
+                    assert chunk_min_bar_epoch is not None and chunk_max_bar_epoch is not None
+                    rows, _ = _commit_range_chunk(
+                        connection,
+                        warehouse,
+                        staging=staging,
+                        archive_relative_path=relative,
+                        archive_sha256=archive_sha,
+                        interval=interval,
+                        members=registrations,
+                        quarantines=rejected_rows,
+                        row_count=chunk_rows,
+                        min_date=chunk_min_date,
+                        max_date=chunk_max_date,
+                        min_bar_epoch=chunk_min_bar_epoch,
+                        max_bar_epoch=chunk_max_bar_epoch,
+                        batch_id=batch_id,
+                        started=started,
+                    )
+                    new_revisions += rows
+                    partition_count += 1
+                else:
+                    connection.execute("BEGIN TRANSACTION")
+                    connection.executemany(
+                        "INSERT OR IGNORE INTO minute_source_members VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        registrations,
+                    )
+                    _insert_quarantines(
+                        connection,
+                        quarantines=rejected_rows,
+                        batch_id=batch_id,
+                        started=started,
+                        staging=staging,
+                    )
+                    connection.execute("COMMIT")
+                staging.unlink(missing_ok=True)
+                chunk_number += 1
+                staging = staging_root / f"{interval}m-{chunk_number:06d}.jsonl"
+                handle = staging.open("wb")
+                chunk_bytes = chunk_rows = 0
+                chunk_min_date = chunk_max_date = None
+                chunk_min_bar_epoch = chunk_max_bar_epoch = None
+                registrations = []
+                rejected_rows = []
+
+            try:
+                for member_path, raw in _read_archive_members(
+                    archive,
+                    interval_members,
+                    seven_zip_executable=seven_zip,
+                    targeted=False,
+                    temporary_parent=staging_root,
+                ):
+                    if chunk_bytes and chunk_bytes + len(raw) > chunk_source_bytes:
+                        drain_all(pending, handle, registrations, rejected_rows, interval)
+                        flush()
+                    if shutil.disk_usage(warehouse).free < minimum_free_bytes:
+                        raise QmtDataError(
+                            "minute materialization stopped at the configured free-space reserve"
+                        )
+                    normalized_member = member_path.replace("\\", "/")
+                    instrument = _instrument(normalized_member)
+                    if instrument is None:
+                        continue
+                    identity = f"{relative}@{archive_sha}!{normalized_member}"
+                    if executor is None:
+                        member_sha = hashlib.sha256(raw).hexdigest()
+                        for parsed, rejected in _iter_member_records(
+                            raw,
+                            identity=identity,
+                            member_path=normalized_member,
+                            instrument=instrument,
+                            interval=interval,
+                            archive_sha256=archive_sha,
+                            member_sha256=member_sha,
+                            ingested_at=started,
+                        ):
+                            if parsed is not None:
+                                handle.write(
+                                    (json.dumps(parsed, separators=(",", ":")) + "\n").encode()
+                                )
+                                chunk_rows += 1
+                                merge_stats(
+                                    1,
+                                    str(parsed["trade_date"]),
+                                    str(parsed["trade_date"]),
+                                    float(parsed["bar_at_epoch"]),
+                                    float(parsed["bar_at_epoch"]),
+                                )
+                            elif rejected is not None:
+                                rejected_rows.append((identity, rejected[0], rejected[1]))
+                                quarantined_rows += 1
+                        registrations.append(
+                            (
+                                relative,
+                                archive_sha,
+                                archive.stat().st_size,
+                                normalized_member,
+                                member_sha,
+                                len(raw),
+                                interval,
+                                batch_id,
+                            )
+                        )
+                        new_members += 1
+                    else:
+                        worker_output = staging_root / (
+                            f"worker-{interval}m-{submission_number:08d}.jsonl"
+                        )
+                        submission_number += 1
+                        pending.append(
+                            (
+                                executor.submit(
+                                    _parse_member_to_jsonl,
+                                    raw,
+                                    output_path=str(worker_output),
+                                    identity=identity,
+                                    member_path=normalized_member,
+                                    instrument=instrument,
+                                    interval=interval,
+                                    archive_sha256=archive_sha,
+                                    ingested_at=started,
+                                ),
+                                worker_output,
+                                normalized_member,
+                                identity,
+                                len(raw),
+                            )
+                        )
+                        if len(pending) >= parse_workers * 2:
+                            drain_one(pending, handle, registrations, rejected_rows, interval)
+                    chunk_bytes += len(raw)
+                drain_all(pending, handle, registrations, rejected_rows, interval)
+                flush()
+            finally:
+                if not handle.closed:
+                    handle.close()
+                staging.unlink(missing_ok=True)
+        _refresh_views(connection, warehouse)
+        snapshot_id = _minute_snapshot(connection, warehouse)
+        connection.execute(
+            "UPDATE minute_batches SET completed_at=?, status='COMPLETED', snapshot_id=?, "
+            "new_archives=1, new_members=?, new_revisions=?, quarantined_rows=? WHERE batch_id=?",
+            [
+                datetime.now(timezone.utc),
+                snapshot_id,
+                new_members,
+                new_revisions,
+                quarantined_rows,
+                batch_id,
+            ],
+        )
+        return {
+            "status": "COMPLETED",
+            "archive_relative_path": relative,
+            "new_members": new_members,
+            "new_revisions": new_revisions,
+            "partition_count": partition_count,
+            "quarantined_rows": quarantined_rows,
+            "snapshot_id": snapshot_id,
+        }
+    except Exception as exc:
+        connection.execute(
+            "UPDATE minute_batches SET completed_at=?, status='FAILED', error=?, "
+            "new_members=?, new_revisions=?, quarantined_rows=? WHERE batch_id=?",
+            [
+                datetime.now(timezone.utc),
+                str(exc),
+                new_members,
+                new_revisions,
+                quarantined_rows,
+                batch_id,
+            ],
+        )
+        raise
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True, cancel_futures=True)
+        connection.close()
+        for path in staging_root.glob("*"):
+            path.unlink(missing_ok=True)
+        staging_root.rmdir()
+
+
+def materialize_all_available_minutes(
+    source_root: str | Path,
+    warehouse_root: str | Path,
+    *,
+    intervals: tuple[int, ...] = MINUTE_INTERVALS,
+    chunk_source_bytes: int = 512_000_000,
+    minimum_free_bytes: int = 100_000_000_000,
+    parse_workers: int = 1,
+    seven_zip_executable: str | Path | None = None,
+) -> dict[str, object]:
+    """Materialize every recognized archive with restartable archive-level progress."""
+    source = Path(source_root).expanduser().resolve()
+    warehouse = Path(warehouse_root).expanduser().resolve()
+    catalog_minute_archives(
+        source,
+        warehouse,
+        intervals=intervals,
+        seven_zip_executable=seven_zip_executable,
+    )
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    pending = [
+        (str(row[0]), str(row[1]), int(row[2]))
+        for row in connection.execute(
+            "SELECT archive_relative_path, coverage_kind, uncompressed_bytes "
+            "FROM minute_archive_catalog WHERE materialization_status<>'MATERIALIZED' "
+            "ORDER BY CASE coverage_kind WHEN 'unbounded' THEN 0 "
+            "WHEN 'historical_bundle' THEN 1 WHEN 'annual' THEN 2 "
+            "WHEN 'daily' THEN 3 ELSE 4 END, coverage_start, archive_relative_path"
+        ).fetchall()
+    ]
+    connection.close()
+    estimated_parquet_bytes = int(sum(row[2] for row in pending) * 0.70)
+    free_before = shutil.disk_usage(warehouse).free
+    if pending and free_before - estimated_parquet_bytes < minimum_free_bytes:
+        raise QmtDataError(
+            "estimated full minute materialization would violate the configured free-space reserve"
+        )
+    results: list[dict[str, object]] = []
+    for relative, kind, _ in pending:
+        if kind == "daily":
+            archive = (source / Path(*PurePosixPath(relative).parts)).resolve()
+            day = _archive_coverage(archive)[1]
+            if day is None:
+                raise QmtDataError(f"daily archive has no date: {relative}")
+            results.append(
+                ingest_minute_archives(
+                    source,
+                    warehouse,
+                    start_date=day,
+                    end_date=day,
+                    intervals=intervals,
+                    seven_zip_executable=seven_zip_executable,
+                )
+            )
+        else:
+            results.append(
+                materialize_minute_archive(
+                    source,
+                    warehouse,
+                    archive_relative_path=relative,
+                    intervals=intervals,
+                    chunk_source_bytes=chunk_source_bytes,
+                    minimum_free_bytes=minimum_free_bytes,
+                    parse_workers=parse_workers,
+                    seven_zip_executable=seven_zip_executable,
+                )
+            )
+    final_catalog = catalog_minute_archives(
+        source,
+        warehouse,
+        intervals=intervals,
+        seven_zip_executable=seven_zip_executable,
+    )
+    incomplete = [
+        item for item in final_catalog["summaries"] if item["status"] != "MATERIALIZED"
+    ]
+    connection = _duckdb().connect(str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True)
+    latest = connection.execute(
+        "SELECT snapshot_id FROM minute_snapshots ORDER BY created_at DESC LIMIT 1"
+    ).fetchone()
+    connection.close()
+    return {
+        "status": "COMPLETED" if not incomplete else "INCOMPLETE",
+        "pending_archives_at_start": len(pending),
+        "estimated_parquet_bytes": estimated_parquet_bytes,
+        "free_bytes_before": free_before,
+        "free_bytes_after": shutil.disk_usage(warehouse).free,
+        "archive_results": results,
+        "catalog": final_catalog,
+        "snapshot_id": latest[0] if latest else None,
+    }
+
+
 def ingest_minute_archives(
     source_root: str | Path,
     warehouse_root: str | Path,
@@ -1193,6 +2208,8 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
         "schema_version": payload["schema_version"],
         "partitions": payload["partitions"],
     }
+    if "range_partitions" in payload:
+        stable["range_partitions"] = payload["range_partitions"]
     computed = hashlib.sha256(
         json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -1200,41 +2217,80 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
     if computed != snapshot_id:
         failures.append("minute snapshot hash mismatch")
     paths: list[str] = []
+    migrated_paths = 0
+    catalog = _duckdb().connect(
+        str(warehouse / "catalog" / "warehouse.duckdb"), read_only=True
+    )
+
+    def resolve_partition(relative: str, expected_sha: str, expected_size: int) -> Path | None:
+        nonlocal migrated_paths
+        partition = (warehouse / relative).resolve()
+        if (
+            warehouse in partition.parents
+            and partition.is_file()
+            and partition.stat().st_size == expected_size
+            and _sha256(partition) == expected_sha
+        ):
+            return partition
+        migrated = catalog.execute(
+            "SELECT new_parquet_relative_path, new_sha256, new_size_bytes "
+            "FROM minute_storage_migrations WHERE old_parquet_relative_path=? "
+            "AND old_sha256=? AND old_size_bytes=?",
+            [relative, expected_sha, expected_size],
+        ).fetchone()
+        if migrated is None:
+            return None
+        replacement = (warehouse / str(migrated[0])).resolve()
+        if (
+            warehouse not in replacement.parents
+            or not replacement.is_file()
+            or replacement.stat().st_size != int(migrated[2])
+            or _sha256(replacement) != str(migrated[1])
+        ):
+            return None
+        migrated_paths += 1
+        return replacement
+
     for row in payload["partitions"]:
         relative, expected_sha, expected_size = str(row[2]), str(row[3]), int(row[4])
-        partition = (warehouse / relative).resolve()
-        if warehouse not in partition.parents or not partition.is_file():
-            failures.append(f"missing minute partition: {relative}")
-            continue
-        if partition.stat().st_size != expected_size or _sha256(partition) != expected_sha:
+        partition = resolve_partition(relative, expected_sha, expected_size)
+        if partition is None:
             failures.append(f"minute partition integrity mismatch: {relative}")
+            continue
         paths.append(str(partition))
-    rows = duplicates = timing = 0
+    for row in payload.get("range_partitions", []):
+        relative, expected_sha, expected_size = str(row[4]), str(row[5]), int(row[6])
+        partition = resolve_partition(relative, expected_sha, expected_size)
+        if partition is None:
+            failures.append(f"minute range partition integrity mismatch: {relative}")
+            continue
+        paths.append(str(partition))
+    catalog.close()
+    rows = timing = 0
     if paths:
+        # Do not build one global row_number window over the complete minute lake here.
+        # qd_minute_current filters row_number(...)=1, so its logical key is unique by
+        # construction.  Snapshot verification still hashes every physical file above,
+        # then scans every row below for counts and PIT timing in bounded path batches.
+        # This keeps verification exact without requiring memory proportional to the
+        # complete history (which is billions of rows for a full local warehouse).
         connection = _duckdb().connect()
         try:
-            rows = int(connection.execute("SELECT count(*) FROM read_parquet(?)", [paths]).fetchone()[0])
-            current = (
-                "SELECT * EXCLUDE(rn) FROM (SELECT *, row_number() OVER (PARTITION BY "
-                "interval_minutes, bar_at, instrument ORDER BY ingested_at DESC, revision_id DESC) rn "
-                "FROM read_parquet(?)) WHERE rn=1"
-            )
-            duplicates = int(
-                connection.execute(
-                    f"SELECT count(*) FROM (SELECT interval_minutes, bar_at, instrument, count(*) n "
-                    f"FROM ({current}) GROUP BY 1,2,3 HAVING n>1)",
-                    [paths],
-                ).fetchone()[0]
-            )
-            timing = int(
-                connection.execute(
-                    "SELECT count(*) FROM read_parquet(?) WHERE effective_at > available_at "
-                    "OR available_at > ingested_at",
-                    [paths],
-                ).fetchone()[0]
-            )
+            for start in range(0, len(paths), 16):
+                literals = ",".join(
+                    f"'{path.replace(chr(39), chr(39) * 2)}'"
+                    for path in paths[start : start + 16]
+                )
+                relation = _minute_relation_sql(connection, literals, revision_mode="none")
+                batch_rows, batch_timing = connection.execute(
+                    f"SELECT count(*), count(*) FILTER (WHERE effective_at > available_at "
+                    f"OR available_at > ingested_at) FROM ({relation})"
+                ).fetchone()
+                rows += int(batch_rows)
+                timing += int(batch_timing)
         finally:
             connection.close()
+    duplicates = 0
     if duplicates:
         failures.append("duplicate minute current keys")
     if timing:
@@ -1247,4 +2303,5 @@ def verify_minute_snapshot(warehouse_root: str | Path, snapshot_id: str) -> dict
         "revision_rows": rows,
         "duplicate_current_keys": duplicates,
         "timing_violations": timing,
+        "migrated_partitions": migrated_paths,
     }
