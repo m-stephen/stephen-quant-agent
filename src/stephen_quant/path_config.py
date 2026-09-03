@@ -36,6 +36,7 @@ ALLOWED_PATH_KEYS = frozenset(
         "qd_asset_root",
         "qd_warehouse_root",
         "qd_7zip_executable",
+        "sw_l2_history_json",
     }
 )
 
