@@ -63,6 +63,12 @@ from .qmt.multisource_warehouse import (
     ingest_multisource_assets,
     verify_multisource_snapshot,
 )
+from .qmt.sw_industry_warehouse import (
+    fetch_sw_l2_url,
+    ingest_sw_l2_file,
+    verify_sw_l2_snapshot,
+    write_sw_l2_reports,
+)
 from .v2 import (
     ShadowBudgetError,
     ShadowLoopStopped,
@@ -327,6 +333,25 @@ def build_parser() -> argparse.ArgumentParser:
     multisource_verify.add_argument("--paths-config")
     multisource_verify.add_argument("--warehouse-root")
     multisource_verify.add_argument("--snapshot", required=True)
+
+    sw_l2_ingest = sub.add_parser("data-sw-l2-ingest")
+    sw_l2_ingest.add_argument("--paths-config")
+    sw_l2_ingest.add_argument("--warehouse-root")
+    sw_l2_ingest.add_argument("--source-file")
+    sw_l2_ingest.add_argument("--output")
+
+    sw_l2_fetch = sub.add_parser("data-sw-l2-fetch")
+    sw_l2_fetch.add_argument("--paths-config")
+    sw_l2_fetch.add_argument("--warehouse-root")
+    sw_l2_fetch.add_argument("--source-url", required=True)
+    sw_l2_fetch.add_argument("--timeout-seconds", type=float, default=30.0)
+    sw_l2_fetch.add_argument("--max-bytes", type=int, default=10_000_000)
+    sw_l2_fetch.add_argument("--output")
+
+    sw_l2_verify = sub.add_parser("data-sw-l2-verify")
+    sw_l2_verify.add_argument("--paths-config")
+    sw_l2_verify.add_argument("--warehouse-root")
+    sw_l2_verify.add_argument("--snapshot", required=True)
 
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("root")
@@ -886,6 +911,9 @@ def main() -> None:
         "data-minute-verify",
         "data-multisource-ingest",
         "data-multisource-verify",
+        "data-sw-l2-ingest",
+        "data-sw-l2-fetch",
+        "data-sw-l2-verify",
     }:
         try:
             local_paths = load_local_path_config(args.paths_config)
@@ -1011,6 +1039,29 @@ def main() -> None:
                         else None
                     ),
                 )
+            elif args.command == "data-sw-l2-verify":
+                result = verify_sw_l2_snapshot(warehouse_root, args.snapshot)
+            elif args.command in {"data-sw-l2-ingest", "data-sw-l2-fetch"}:
+                if args.command == "data-sw-l2-ingest":
+                    source_file = local_paths.choose(
+                        "sw_l2_history_json", args.source_file, "--source-file"
+                    )
+                    ingest_result = ingest_sw_l2_file(warehouse_root, source_file)
+                else:
+                    ingest_result = fetch_sw_l2_url(
+                        warehouse_root,
+                        args.source_url,
+                        timeout_seconds=args.timeout_seconds,
+                        max_bytes=args.max_bytes,
+                    )
+                if isinstance(ingest_result, dict):
+                    result = ingest_result
+                else:
+                    report_dir = args.output or str(
+                        Path(warehouse_root) / "reports" / "sw-l2" / ingest_result.snapshot_id
+                    )
+                    reports = write_sw_l2_reports(ingest_result, report_dir)
+                    result = {**asdict(ingest_result), "reports": reports}
             else:
                 asset_root = local_paths.choose(
                     "qd_asset_root", getattr(args, "asset_root", None), "--asset-root"
@@ -1047,6 +1098,7 @@ def main() -> None:
                 "data-warehouse-verify",
                 "data-minute-verify",
                 "data-multisource-verify",
+                "data-sw-l2-verify",
             } and not result["passed"]:
                 raise SystemExit(1)
             return
