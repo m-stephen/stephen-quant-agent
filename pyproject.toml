@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stephen-quant-agent"
-version = "8.6.0"
+version = "9.0.0"
 description = "Integrity-first quantitative research infrastructure for the Stephen Quant Agent project."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,8 +12,8 @@ authors = [{name = "Stephen"}]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "duckdb>=1.1,<2"]
-warehouse = ["duckdb>=1.1,<2"]
+dev = ["pytest>=8.0", "ruff>=0.6", "duckdb>=1.1,<2", "pytz>=2024"]
+warehouse = ["duckdb>=1.1,<2", "pytz>=2024"]
 qmt-dat = ["rleveldb==1.0.0"]
 
 [project.scripts]

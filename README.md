@@ -1,5 +1,19 @@
 # Stephen Quant Agent
 
+## V9.0 calibrated, portfolio-native alpha discovery
+
+V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism
+lineage, a frozen 50-candidate planning budget and portfolio-native validation into one reproducible
+workflow. Promotion now requires a CNY 3m Top40 portfolio with a 10-name buffer, explicit and
+doubled costs, capacity, benchmark-relative returns and placebo evidence; RankIC alone cannot pass.
+
+The frozen V8.1 flow-price-divergence candidate passed the 2015–2018 development segments but
+failed the untouched 2019 test and the 2020–2024 confirmation/stress segments. V9.0 therefore ships
+the discovery machinery while honestly reporting `NO_RELIABLE_ALPHA`; 2025–2026 remain sealed.
+
+See the [specification](docs/V9_0_SPEC.md), [English result](docs/V9_0_RESULT_EN.md), and
+[中文报告](docs/V9_0_RESULT_ZH.md).
+
 ## V8.9 restartable full minute materialization
 
 V8.9 adds a storage-guarded `data-minute-materialize-all` workflow. Daily archives keep their
