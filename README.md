@@ -12,6 +12,10 @@ candidates across experiments, separates universe placebo from signal shuffling,
 degenerate predictors without reading labels, and selects discovery candidates by worst-half
 robustness before peak Sharpe. See `docs/V10_1_RESULT.md`.
 
+V10.2 connects the verified fund-flow, opening-auction and chip-distribution warehouse
+adapters to the daily-minute empirical panel with explicit point-in-time dates and canonical
+units. See `docs/V10_2_RESULT.md`.
+
 ## V9.0 calibrated, portfolio-native alpha discovery
 
 V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism
