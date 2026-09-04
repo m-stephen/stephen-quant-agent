@@ -80,6 +80,8 @@ from .v2 import (
     verify_shadow_replay,
 )
 from .workflows import (
+    V10_EMPIRICAL_VERSION,
+    V10_VERSION,
     V55_VERSION,
     V56_VERSION,
     V57_VERSION,
@@ -142,6 +144,8 @@ from .workflows import (
     run_qmt_backtest_workflow,
     run_qmt_dat_backtest_validation,
     run_v4_platform,
+    run_v10_empirical,
+    run_v10_platform,
     run_v21_real_research,
     run_v22_portfolio_breadth,
     run_v23_style_residualization,
@@ -734,6 +738,24 @@ def build_parser() -> argparse.ArgumentParser:
     v90_replay.add_argument("--output", default="reports/v9.0-alpha-discovery")
     v90_replay.add_argument("--daily-snapshot")
     v90_replay.add_argument("--multisource-snapshot")
+
+    v10 = sub.add_parser("v10-alpha-discover")
+    v10.add_argument("--paths-config")
+    v10.add_argument("--warehouse-root")
+    v10.add_argument("--minute-snapshot", required=True)
+    v10.add_argument("--feature-start", default="2022-01-01")
+    v10.add_argument("--feature-end", default="2024-12-31")
+    v10.add_argument("--candidate-budget", type=int, default=128)
+    v10.add_argument("--capital", type=float, default=3_000_000.0)
+    v10.add_argument("--reuse-verified-minute-snapshot", action="store_true")
+    v10.add_argument("--output", default="reports/v10.0-alpha-platform")
+
+    v10_test = sub.add_parser("v10-alpha-test")
+    v10_test.add_argument("--warehouse-root", required=True)
+    v10_test.add_argument("--feature-snapshot", required=True)
+    v10_test.add_argument("--candidate-budget", type=int, default=24)
+    v10_test.add_argument("--prior-trials", type=int, default=533)
+    v10_test.add_argument("--output", default="reports/v10.0-alpha-platform/empirical")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2847,6 +2869,44 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V90_EMPIRICAL_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v10-alpha-discover":
+        try:
+            local_paths = load_local_path_config(args.paths_config)
+            warehouse_root = local_paths.choose(
+                "qd_warehouse_root", args.warehouse_root, "--warehouse-root"
+            )
+            report = run_v10_platform(
+                warehouse_root,
+                minute_snapshot_id=args.minute_snapshot,
+                feature_start=date.fromisoformat(args.feature_start),
+                feature_end=date.fromisoformat(args.feature_end),
+                candidate_budget=args.candidate_budget,
+                capital_cny=args.capital,
+                output_dir=args.output,
+                reuse_verified_minute_snapshot=args.reuse_verified_minute_snapshot,
+            )
+        except (PathConfigError, QmtDataError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V10_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v10-alpha-test":
+        report = run_v10_empirical(
+            args.warehouse_root,
+            feature_snapshot_id=args.feature_snapshot,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            budget=args.candidate_budget,
+            prior_trials=args.prior_trials,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V10_EMPIRICAL_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

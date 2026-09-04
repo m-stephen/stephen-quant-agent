@@ -130,6 +130,8 @@ from .v4_ohlcv_platform import (
     residualize_panel,
     run_v4_platform,
 )
+from .v10_empirical import V10_EMPIRICAL_VERSION, V10EmpiricalReport, run_v10_empirical
+from .v10_platform import V10_VERSION, V10PlatformReport, run_v10_platform
 from .v22_portfolio_breadth import (
     V22_CONFIG_VERSION,
     V22_METHOD_VERSION,
@@ -509,6 +511,8 @@ __all__ = [
     "PRICE_DISCOVERY_VERSION",
     "RETURN_MOMENTS_VERSION",
     "V4_PLATFORM_VERSION",
+    "V10_EMPIRICAL_VERSION",
+    "V10_VERSION",
     "V21_RESEARCH_VERSION",
     "V22_CONFIG_VERSION",
     "V22_METHOD_VERSION",
@@ -656,6 +660,8 @@ __all__ = [
     "UsageScore",
     "V4Config",
     "V4Report",
+    "V10EmpiricalReport",
+    "V10PlatformReport",
     "V21ReplayVerification",
     "V21ResearchManifest",
     "V21ResearchRun",
@@ -806,6 +812,8 @@ __all__ = [
     "run_qmt_backtest_workflow",
     "run_qmt_dat_backtest_validation",
     "run_v4_platform",
+    "run_v10_empirical",
+    "run_v10_platform",
     "run_v21_real_research",
     "run_v22_portfolio_breadth",
     "run_v23_style_residualization",

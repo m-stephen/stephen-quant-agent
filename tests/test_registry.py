@@ -46,3 +46,31 @@ def test_trial_count_rejects_unknown_experiment(tmp_path: Path) -> None:
     registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
     with pytest.raises(ValueError, match="unknown experiment"):
         registry.trial_count("exp_missing")
+
+
+def test_deterministic_experiment_and_trial_are_exact_replays(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "x.csv").write_text("x\n1\n", encoding="utf-8")
+    registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
+    snapshot_id = registry.register_snapshot(build_snapshot_manifest(data))
+    experiment = ExperimentSpec("v10", "bounded", snapshot_id, "commit")
+    first_experiment = registry.create_experiment_deterministic(experiment, "v10-run")
+    assert registry.create_experiment_deterministic(experiment, "v10-run") == first_experiment
+    trial = TrialSpec(
+        first_experiment,
+        "v10",
+        "candidate",
+        "{}",
+        42,
+        "2022-01-01",
+        "2022-12-31",
+        "2023-01-01",
+        "2024-12-31",
+        "2025-01-01",
+        "2026-08-16",
+    )
+    first = registry.create_trial_deterministic(trial, "v10-trial")
+    second = registry.create_trial_deterministic(trial, "v10-trial")
+    assert first == second
+    assert registry.trial_count(first_experiment) == 1

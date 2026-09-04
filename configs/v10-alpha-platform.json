@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "feature_window": ["2022-01-01", "2024-12-31"],
+  "sealed_from": "2025-01-01",
+  "candidate_budget": 128,
+  "empirical_budget": 24,
+  "prior_inferential_trials": 533,
+  "capital_cny": 3000000,
+  "portfolio": {
+    "top_k": 40,
+    "rank_buffer": 10,
+    "round_trip_cost_bps": 41.0,
+    "participation_rate": 0.05
+  },
+  "alpha_court": {
+    "minimum_dsr_probability": 0.95,
+    "maximum_pbo": 0.05,
+    "maximum_placebo_p_value": 0.05,
+    "double_cost_required": true
+  }
+}

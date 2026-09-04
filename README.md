@@ -1,5 +1,12 @@
 # Stephen Quant Agent
 
+## V10.0 automatic daily-minute alpha platform
+
+V10.0 adds a deterministic minute-feature mart, typed cross-source factor grammar,
+candidate/trial lineage, and a bounded real-data Alpha Court. The first 2022 discovery and
+2023-2024 validation run is recorded as `NO_RELIABLE_ALPHA`; see
+`docs/V10_RESULT.md`. The 2025-2026 window remains sealed and was not used to tune candidates.
+
 ## V9.0 calibrated, portfolio-native alpha discovery
 
 V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism
