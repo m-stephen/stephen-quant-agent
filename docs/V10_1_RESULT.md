@@ -47,12 +47,16 @@ retained as a tombstoned research result, not promoted as alpha.
 该候选在经济表现上值得记录，但对精确流动性股票池依赖过强，且多重检验调整后的
 证据很弱。因此它只作为研究结果和墓碑保留，不提升为可用 Alpha。
 
-## Remaining data blocker / 剩余数据阻塞
+## Remaining integration work / 剩余集成工作
 
-The warehouse contains fund-flow, auction and chip Parquet partitions, but their
-business columns are persisted with mojibake names. V10.1 refuses to bind columns
-by ordinal position. A canonical schema migration with explicit source-column
-lineage is required before those sources can safely enter the automatic grammar.
+The warehouse's verified schema-aware adapter successfully resolves the original
+Chinese fund-flow, auction and chip columns. Mojibake seen in an interactive
+PowerShell listing was a console-rendering artifact, not persisted schema damage.
+V10.1 did not yet join those sources into its empirical panel; V10.2 will use the
+existing verified adapter and explicit canonical mappings rather than ordinal
+column positions.
 
-仓库已有资金流、竞价和筹码 Parquet，但业务列名当前为乱码。V10.1 拒绝按列序号
-猜测字段含义；这些来源进入自动语法前，必须完成带明确源列血缘的规范化 schema 迁移。
+仓库现有的已验证 schema-aware adapter 可以正确解析资金流、竞价和筹码的中文原始
+列。交互式 PowerShell 列举中看到的乱码来自控制台渲染，并非持久化 schema 损坏。
+V10.1 尚未将这些来源接入实证面板；V10.2 将复用现有已验证适配器和显式规范字段
+映射，仍不会按列序号猜测含义。

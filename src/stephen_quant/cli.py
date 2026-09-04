@@ -755,6 +755,7 @@ def build_parser() -> argparse.ArgumentParser:
     v10_test.add_argument("--feature-snapshot", required=True)
     v10_test.add_argument("--candidate-budget", type=int, default=24)
     v10_test.add_argument("--prior-trials", type=int, default=533)
+    v10_test.add_argument("--cross-source", action="store_true")
     v10_test.add_argument("--output", default="reports/v10.0-alpha-platform/empirical")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
@@ -2904,6 +2905,7 @@ def main() -> None:
             code_version=_git_head(),
             budget=args.candidate_budget,
             prior_trials=args.prior_trials,
+            include_cross_sources=args.cross_source,
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V10_EMPIRICAL_VERSION

@@ -31,8 +31,12 @@ from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.integrity.snapshot import build_composite_snapshot_manifest
 from stephen_quant.qmt.data_warehouse import _duckdb
+from stephen_quant.qmt.multisource_warehouse import (
+    latest_multisource_snapshot,
+    load_warehouse_alternative,
+)
 
-V10_EMPIRICAL_VERSION = "v10.1-bounded-daily-minute-court-1.1.0"
+V10_EMPIRICAL_VERSION = "v10.2-cross-source-court-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -131,7 +135,7 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
            percent_rank() OVER(PARTITION BY e.trade_date ORDER BY e.prior_adv) amount_rank_20,
            f.intraday_return,f.late_30_return,f.realized_volatility,f.vwap_deviation,
            f.opening_volume_share,f.closing_volume_share,f.amihud_intraday,f.multiscale_divergence,
-           e.exit_open/e.execution_open-1 forward_return,e.prior_adv
+           e.exit_open/e.execution_open-1 forward_return,e.prior_adv,e.amount_cny
     FROM eligible e JOIN qd_minute_features_current f USING(trade_date,instrument)
     WHERE e.liquidity_rank<=800 AND f.sealed=false
     ORDER BY e.trade_date,e.instrument
@@ -143,6 +147,76 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
         return tuple(dict(zip(names, row, strict=True)) for row in cursor.fetchall())
     finally:
         connection.close()
+
+
+def _cross_source_panel(
+    root: Path, start: str, end: str
+) -> tuple[tuple[dict[str, object], ...], str]:
+    base = _panel(root, start, end)
+    instruments = tuple(sorted({str(row["instrument"]) for row in base}))
+    snapshot = latest_multisource_snapshot(root)
+    datasets = {
+        kind: load_warehouse_alternative(
+            root,
+            source_kind=kind,
+            start_date=start,
+            end_date=end,
+            instruments=instruments,
+            verified_snapshot_id=snapshot,
+        )
+        for kind in ("fund_flow", "auction", "chip")
+    }
+    indexes = {
+        kind: {(row.trade_date, row.instrument): row for row in dataset.observations}
+        for kind, dataset in datasets.items()
+    }
+    enriched: list[dict[str, object]] = []
+    for source in base:
+        row = dict(source)
+        signal_key = (str(row["signal_date"]), str(row["instrument"]))
+        execution_key = (str(row["execution_date"]), str(row["instrument"]))
+        flow = indexes["fund_flow"].get(signal_key)
+        auction = indexes["auction"].get(execution_key)
+        chip = indexes["chip"].get(signal_key)
+        amount = float(row["amount_cny"])
+        adv = float(row["prior_adv"])
+        if flow is not None and amount > 0:
+            values = dict(flow.values)
+            net = values["net_inflow_amount"]
+            main_cells = tuple(
+                values[name]
+                for name in (
+                    "large_buy_amount",
+                    "extra_large_buy_amount",
+                    "large_sell_amount",
+                    "extra_large_sell_amount",
+                )
+            )
+            row["net_inflow_ratio"] = None if net is None else net / amount
+            row["main_inflow_ratio"] = (
+                None
+                if any(value is None for value in main_cells)
+                else (main_cells[0] + main_cells[1] - main_cells[2] - main_cells[3]) / amount
+            )
+        if auction is not None and adv > 0:
+            values = dict(auction.values)
+            row["auction_return"] = values["auction_return"]
+            amount_value = values["auction_amount"]
+            row["auction_amount_ratio"] = (
+                None if amount_value is None else amount_value / adv
+            )
+        if chip is not None:
+            values = dict(chip.values)
+            row["profit_ratio"] = values["chip_win_rate"]
+            weighted = values["chip_weighted_cost"]
+            low, high = values["chip_cost_15"], values["chip_cost_85"]
+            row["concentration"] = (
+                None
+                if not weighted or low is None or high is None
+                else (high - low) / weighted
+            )
+        enriched.append(row)
+    return tuple(enriched), snapshot
 
 
 def _rank(values: list[float]) -> list[float]:
@@ -304,14 +378,22 @@ def run_v10_empirical(
     code_version: str,
     budget: int = 24,
     prior_trials: int = 533,
+    include_cross_sources: bool = False,
 ) -> V10EmpiricalReport:
     root = Path(warehouse_root).expanduser().resolve()
-    rows = _panel(root, "2022-01-01", "2024-12-31")
+    if include_cross_sources:
+        rows, multisource_snapshot = _cross_source_panel(root, "2022-01-01", "2024-12-31")
+    else:
+        rows = _panel(root, "2022-01-01", "2024-12-31")
+        multisource_snapshot = None
     if not rows:
         raise ValueError("V10 daily-minute panel is empty")
     discovery_rows = tuple(row for row in rows if str(row["signal_date"]).startswith("2022-"))
     validation_rows = tuple(row for row in rows if str(row["signal_date"]) >= "2023-01-01")
-    composite = build_composite_snapshot_manifest({"minute_features": feature_snapshot_id})
+    components = {"minute_features": feature_snapshot_id}
+    if multisource_snapshot is not None:
+        components["multisource"] = multisource_snapshot
+    composite = build_composite_snapshot_manifest(components)
     snapshot_id = registry.register_snapshot(composite, vendor_version=V10_EMPIRICAL_VERSION)
     experiment_spec = ExperimentSpec(
         "v10_bounded_daily_minute",
@@ -332,7 +414,12 @@ def run_v10_empirical(
             {
                 field.name
                 for candidate in generate_v10_candidates(
-                    budget=512, enabled_sources=("qd_daily", "minute_features")
+                    budget=512,
+                    enabled_sources=(
+                        ("qd_daily", "minute_features", "qd_fund_flow", "qd_auction", "qd_chip")
+                        if include_cross_sources
+                        else ("qd_daily", "minute_features")
+                    ),
                 ).candidates
                 for field in candidate.fields
             }
@@ -343,7 +430,11 @@ def run_v10_empirical(
         item
         for item in generate_v10_candidates(
             budget=512,
-            enabled_sources=("qd_daily", "minute_features"),
+            enabled_sources=(
+                ("qd_daily", "minute_features", "qd_fund_flow", "qd_auction", "qd_chip")
+                if include_cross_sources
+                else ("qd_daily", "minute_features")
+            ),
             historical_candidate_ids=historical,
         ).candidates
         if len(item.fields) <= 2 and all(field.name in eligible_fields for field in item.fields)

@@ -8,6 +8,7 @@ import duckdb
 from stephen_quant.discovery.portfolio_native import PortfolioObservation, PortfolioPolicy
 from stephen_quant.discovery.v10_generator import generate_v10_candidates
 from stephen_quant.workflows.v10_empirical import (
+    _cross_source_panel,
     _observations,
     _panel,
     _placebo,
@@ -123,3 +124,60 @@ def test_v10_predictor_quality_rejects_cross_sectional_constant_without_labels()
     eligible, rejected = _predictor_quality(rows, ("good", "constant"))
     assert eligible == ("good",)
     assert rejected == ("constant",)
+
+
+def test_v10_cross_source_panel_uses_prior_close_and_execution_auction(monkeypatch) -> None:
+    base = ({
+        "signal_date": "2022-01-03",
+        "execution_date": "2022-01-04",
+        "instrument": "000001.SZ",
+        "amount_cny": 1_000_000.0,
+        "prior_adv": 2_000_000.0,
+    },)
+    monkeypatch.setattr("stephen_quant.workflows.v10_empirical._panel", lambda *args: base)
+    monkeypatch.setattr(
+        "stephen_quant.workflows.v10_empirical.latest_multisource_snapshot",
+        lambda root: "a" * 64,
+    )
+    values = {
+        "fund_flow": (
+            "2022-01-03",
+            (
+                ("net_inflow_amount", 100_000.0),
+                ("large_buy_amount", 80_000.0),
+                ("extra_large_buy_amount", 40_000.0),
+                ("large_sell_amount", 20_000.0),
+                ("extra_large_sell_amount", 10_000.0),
+            ),
+        ),
+        "auction": (
+            "2022-01-04",
+            (("auction_return", 0.02), ("auction_amount", 200_000.0)),
+        ),
+        "chip": (
+            "2022-01-03",
+            (
+                ("chip_win_rate", 0.6),
+                ("chip_weighted_cost", 10.0),
+                ("chip_cost_15", 8.0),
+                ("chip_cost_85", 12.0),
+            ),
+        ),
+    }
+
+    def fake_load(root, *, source_kind, **kwargs):
+        day, cells = values[source_kind]
+        row = SimpleNamespace(trade_date=day, instrument="000001.SZ", values=cells)
+        return SimpleNamespace(observations=(row,))
+
+    monkeypatch.setattr(
+        "stephen_quant.workflows.v10_empirical.load_warehouse_alternative", fake_load
+    )
+    rows, snapshot = _cross_source_panel(Path("."), "2022-01-01", "2022-12-31")
+    assert snapshot == "a" * 64
+    assert rows[0]["net_inflow_ratio"] == 0.1
+    assert rows[0]["main_inflow_ratio"] == 0.09
+    assert rows[0]["auction_return"] == 0.02
+    assert rows[0]["auction_amount_ratio"] == 0.1
+    assert rows[0]["profit_ratio"] == 0.6
+    assert rows[0]["concentration"] == 0.4
