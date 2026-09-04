@@ -17,7 +17,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-slim
-    timeout-minutes: 10
+    # The complete cross-platform suite now contains 645 tests. The constrained
+    # ubuntu-slim runner reaches about 90% at the old ten-minute job limit, even
+    # though the same suite completes locally in roughly 75 seconds.
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
