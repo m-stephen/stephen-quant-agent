@@ -16,6 +16,9 @@ V10.2 connects the verified fund-flow, opening-auction and chip-distribution war
 adapters to the daily-minute empirical panel with explicit point-in-time dates and canonical
 units. See `docs/V10_2_RESULT.md`.
 
+V10.3 adds signed centered cross-source interactions and admits predeclared three-field
+mechanisms while keeping 2025-2026 sealed. See `docs/V10_3_RESULT.md`.
+
 ## V9.0 calibrated, portfolio-native alpha discovery
 
 V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism

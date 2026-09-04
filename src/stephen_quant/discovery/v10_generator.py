@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict, dataclass
 from itertools import combinations
 
-V10_GENERATOR_VERSION = "10.1.0"
+V10_GENERATOR_VERSION = "10.3.0"
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,8 @@ def _candidate(operator: str, fields: tuple[V10Field, ...], direction: int, mech
         expression = f"rank({ordered[0].name})-rank({ordered[1].name})"
     elif operator == "interaction":
         expression = "*".join(f"rank({item.name})" for item in ordered)
+    elif operator == "centered_interaction":
+        expression = "*".join(f"(2*rank({item.name})-1)" for item in ordered)
     else:
         raise ValueError(f"unsupported V10 operator: {operator}")
     identity = _sha(
@@ -145,7 +147,7 @@ def generate_v10_candidates(
         mechanism = MECHANISMS.get(sources)
         if mechanism is None or left.source == right.source:
             continue
-        for operator in ("divergence", "interaction"):
+        for operator in ("divergence", "interaction", "centered_interaction"):
             for direction in (-1, 1):
                 raw.append(_candidate(operator, (left, right), direction, mechanism))
     triads = (
@@ -155,22 +157,23 @@ def generate_v10_candidates(
     by_name = {item.name: item for item in fields}
     for left, middle, right, mechanism in triads:
         if {left, middle, right} <= set(by_name):
-            for direction in (-1, 1):
-                raw.append(
-                    _candidate(
-                        "interaction",
-                        (by_name[left], by_name[middle], by_name[right]),
-                        direction,
-                        mechanism,
+            for operator in ("interaction", "centered_interaction"):
+                for direction in (-1, 1):
+                    raw.append(
+                        _candidate(
+                            operator,
+                            (by_name[left], by_name[middle], by_name[right]),
+                            direction,
+                            mechanism,
+                        )
                     )
-                )
     policy = {
         "version": V10_GENERATOR_VERSION,
         "budget": budget,
         "enabled_sources": sorted(enabled),
         "field_catalog": [asdict(item) for item in fields],
         "mechanisms": sorted(MECHANISMS.values()),
-        "operators": ["rank", "divergence", "interaction"],
+        "operators": ["rank", "divergence", "interaction", "centered_interaction"],
         "directions": [-1, 1],
         "selection": "round_robin_by_mechanism_and_operator",
     }
