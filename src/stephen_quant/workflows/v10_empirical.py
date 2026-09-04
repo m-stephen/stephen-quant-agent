@@ -68,6 +68,7 @@ class V10EmpiricalReport:
     signal_placebo_p_value: float
     return_placebo_p_value: float
     universe_placebo_p_value: float
+    legacy_universe_metric_status: str
     cpcv_hygiene_passed: bool
     eligible_predictor_fields: tuple[str, ...]
     rejected_predictor_fields: tuple[str, ...]
@@ -94,7 +95,12 @@ class V10EmpiricalReport:
                 f"- {'入选表达式' if zh else 'Selected expression'}: `{winner.expression}`",
                 f"- DSR: {self.dsr_probability:.6f}",
                 f"- PBO: {self.pbo_probability:.6f}",
-                f"- Signal / return / universe placebo p: {self.signal_placebo_p_value:.6f} / {self.return_placebo_p_value:.6f} / {self.universe_placebo_p_value:.6f}",
+                f"- Signal / return placebo p: {self.signal_placebo_p_value:.6f} / {self.return_placebo_p_value:.6f}",
+                (
+                    f"- Legacy universe perturbation metric: "
+                    f"{self.universe_placebo_p_value:.6f} "
+                    f"(`{self.legacy_universe_metric_status}`)"
+                ),
                 f"- {'验证期净超额收益' if zh else 'Validation net excess return'}: {self.selected_validation.net_excess_total_return:.2%}",
                 f"- Validation Sharpe: {self.selected_validation.annualized_net_excess_sharpe:.3f}",
                 f"- {'验证期双倍成本收益' if zh else 'Validation double-cost return'}: {self.selected_validation.double_cost_total_return:.2%}",
@@ -115,8 +121,17 @@ class V10EmpiricalReport:
         )
 
 
-def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
-    query = """
+def _panel(
+    root: Path,
+    start: str,
+    end: str,
+    *,
+    holding_sessions: int = 20,
+) -> tuple[dict[str, object], ...]:
+    if holding_sessions not in {1, 3, 5, 10, 20}:
+        raise ValueError("holding_sessions must be one of 1, 3, 5, 10, 20")
+    exit_offset = holding_sessions + 1
+    query = f"""
     WITH raw AS (
       SELECT trade_date,instrument,close*adjustment_factor close_adj,open*adjustment_factor open_adj,
              amount*1000 amount_cny,
@@ -124,9 +139,9 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
              lag(close*adjustment_factor,20) OVER w close_lag20,
              avg(amount*1000) OVER wprior prior_adv,
              lead(open*adjustment_factor,1) OVER w execution_open,
-             lead(open*adjustment_factor,21) OVER w exit_open,
+             lead(open*adjustment_factor,{exit_offset}) OVER w exit_open,
              lead(trade_date,1) OVER w execution_date,
-             lead(trade_date,21) OVER w exit_date
+             lead(trade_date,{exit_offset}) OVER w exit_date
       FROM qd_daily_current
       WINDOW w AS(PARTITION BY instrument ORDER BY trade_date),
              wprior AS(PARTITION BY instrument ORDER BY trade_date ROWS BETWEEN 60 PRECEDING AND 1 PRECEDING)
@@ -136,7 +151,7 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
       ) volatility_20 FROM raw
     ), dates AS (
       SELECT trade_date FROM (SELECT trade_date,row_number() OVER(ORDER BY trade_date) n FROM (SELECT DISTINCT trade_date FROM d))
-      WHERE (n-1)%20=0
+      WHERE (n-1)%{holding_sessions}=0
     ), eligible AS (
       SELECT d.*,row_number() OVER(PARTITION BY d.trade_date ORDER BY prior_adv DESC,instrument) liquidity_rank
       FROM d JOIN dates USING(trade_date)
@@ -163,9 +178,13 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
 
 
 def _cross_source_panel(
-    root: Path, start: str, end: str
+    root: Path,
+    start: str,
+    end: str,
+    *,
+    holding_sessions: int = 20,
 ) -> tuple[tuple[dict[str, object], ...], str]:
-    base = _panel(root, start, end)
+    base = _panel(root, start, end, holding_sessions=holding_sessions)
     instruments = tuple(sorted({str(row["instrument"]) for row in base}))
     snapshot = latest_multisource_snapshot(root)
     datasets = {
@@ -608,6 +627,7 @@ def run_v10_empirical(
         signal_placebo,
         return_placebo,
         universe_placebo,
+        "DEPRECATED_REINTERPRETATION_ONLY",
         all(x.passed for x in findings),
         eligible_fields,
         rejected_fields,

@@ -4,6 +4,15 @@
 
 `NO_RELIABLE_ALPHA`
 
+V11.0 preservation note: the historical `universe placebo` number below is now
+classified as `DEPRECATED_REINTERPRETATION_ONLY`. It measured universe
+perturbation robustness, not an independently calibrated no-alpha null. This
+does not change the original V10.4 rejection.
+
+V11.0 留档说明：下方历史 `universe placebo` 数值现标记为
+`DEPRECATED_REINTERPRETATION_ONLY`。它衡量的是股票池扰动稳健性，并非经过
+独立校准的无 Alpha 零假设；该重解释不改变 V10.4 原始拒绝结论。
+
 V10.4 ranks discovery candidates by their worst temporal half and worst
 benchmark-up/down state before double-cost return and Sharpe. The court now
 reports and gates every validation year and both benchmark regimes. These are

@@ -1,5 +1,13 @@
 # Stephen Quant Agent
 
+## V11.0 research reset
+
+V11.0 freezes open-ended historical return search, reclassifies 2022–2024 as
+development-only, separates universe robustness from calibrated null tests,
+fails closed when PBO is not identifiable, freezes two append-only forward
+shadow protocols, and permits exactly one preregistered 12-candidate
+mechanism-horizon epoch. See `docs/V11_SPEC.md` and `docs/V11_RESULT.md`.
+
 ## V10.0 automatic daily-minute alpha platform
 
 V10.0 adds a deterministic minute-feature mart, typed cross-source factor grammar,

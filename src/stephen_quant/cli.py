@@ -200,6 +200,14 @@ from .workflows import (
     verify_v27_m2_replay,
     write_factor_family_validation_report,
 )
+from .workflows.v11_bounded_epoch import V11_EPOCH_VERSION, run_v11_bounded_epoch
+from .workflows.v11_research_reset import (
+    V11_VERSION,
+    assert_historical_search_frozen,
+    build_forward_protocol,
+    run_statistical_contract,
+    write_forward_protocol,
+)
 from .workflows.warehouse_factor_test import (
     WarehouseFactorTestConfig,
     run_warehouse_factor_test,
@@ -757,6 +765,22 @@ def build_parser() -> argparse.ArgumentParser:
     v10_test.add_argument("--prior-trials", type=int, default=533)
     v10_test.add_argument("--cross-source", action="store_true")
     v10_test.add_argument("--output", default="reports/v10.0-alpha-platform/empirical")
+
+    v11_contract = sub.add_parser("v11-statistical-contract")
+    v11_contract.add_argument("--maximum-data-date-at-freeze", default="2026-08-16")
+    v11_contract.add_argument("--output", default="reports/v11.0-research-reset/contract")
+
+    v11_forward = sub.add_parser("v11-freeze-forward")
+    v11_forward.add_argument("--frozen-at", required=True)
+    v11_forward.add_argument("--maximum-data-date-at-freeze", required=True)
+    v11_forward.add_argument("--source-snapshot", required=True)
+    v11_forward.add_argument("--output", default="reports/v11.0-research-reset/forward")
+
+    v11_epoch = sub.add_parser("v11-bounded-epoch")
+    v11_epoch.add_argument("--warehouse-root", required=True)
+    v11_epoch.add_argument("--feature-snapshot", required=True)
+    v11_epoch.add_argument("--contract-result", required=True)
+    v11_epoch.add_argument("--output", default="reports/v11.0-research-reset/epoch")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2875,6 +2899,10 @@ def main() -> None:
 
     if args.command == "v10-alpha-discover":
         try:
+            assert_historical_search_frozen()
+        except RuntimeError as exc:
+            raise SystemExit(str(exc)) from exc
+        try:
             local_paths = load_local_path_config(args.paths_config)
             warehouse_root = local_paths.choose(
                 "qd_warehouse_root", args.warehouse_root, "--warehouse-root"
@@ -2897,6 +2925,10 @@ def main() -> None:
         return
 
     if args.command == "v10-alpha-test":
+        try:
+            assert_historical_search_frozen()
+        except RuntimeError as exc:
+            raise SystemExit(str(exc)) from exc
         report = run_v10_empirical(
             args.warehouse_root,
             feature_snapshot_id=args.feature_snapshot,
@@ -2909,6 +2941,44 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V10_EMPIRICAL_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11-statistical-contract":
+        report = run_statistical_contract(
+            args.output,
+            maximum_data_date_at_freeze=args.maximum_data_date_at_freeze,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V11_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11-freeze-forward":
+        protocol = build_forward_protocol(
+            frozen_at=args.frozen_at,
+            maximum_data_date_at_freeze=args.maximum_data_date_at_freeze,
+            source_snapshot_id=args.source_snapshot,
+            code_version=_git_head(),
+        )
+        status = write_forward_protocol(protocol, args.output)
+        payload = {"protocol": asdict(protocol), "status": asdict(status)}
+        payload["cli_version"] = V11_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11-bounded-epoch":
+        contract = json.loads(Path(args.contract_result).read_text(encoding="utf-8"))
+        report = run_v11_bounded_epoch(
+            args.warehouse_root,
+            feature_snapshot_id=args.feature_snapshot,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+            contract_decision=str(contract["decision"]),
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V11_EPOCH_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 

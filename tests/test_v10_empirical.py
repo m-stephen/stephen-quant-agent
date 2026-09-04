@@ -185,7 +185,9 @@ def test_v10_cross_source_panel_uses_prior_close_and_execution_auction(monkeypat
         "amount_cny": 1_000_000.0,
         "prior_adv": 2_000_000.0,
     },)
-    monkeypatch.setattr("stephen_quant.workflows.v10_empirical._panel", lambda *args: base)
+    monkeypatch.setattr(
+        "stephen_quant.workflows.v10_empirical._panel", lambda *args, **kwargs: base
+    )
     monkeypatch.setattr(
         "stephen_quant.workflows.v10_empirical.latest_multisource_snapshot",
         lambda root: "a" * 64,
