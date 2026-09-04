@@ -221,6 +221,35 @@ class ExperimentRegistry:
             )
         return experiment_id
 
+    def create_experiment_deterministic(self, spec: ExperimentSpec, identity: str) -> str:
+        """Create or replay an immutable experiment identity for deterministic workflows."""
+
+        experiment_id = f"exp_{hashlib.sha256(identity.encode()).hexdigest()[:16]}"
+        self.initialize()
+        values = (
+            spec.name,
+            spec.hypothesis,
+            spec.dataset_snapshot_id,
+            spec.code_version,
+            spec.search_space,
+            spec.status,
+        )
+        with self.connect() as conn:
+            existing = conn.execute(
+                "SELECT name,hypothesis,dataset_snapshot_id,code_version,search_space,status "
+                "FROM experiments WHERE experiment_id=?",
+                (experiment_id,),
+            ).fetchone()
+            if existing is not None:
+                if tuple(existing) != values:
+                    raise ValueError("deterministic experiment identity collision")
+                return experiment_id
+            conn.execute(
+                "INSERT INTO experiments VALUES (?,?,?,?,?,?,?,?)",
+                (experiment_id, utc_now_iso(), *values),
+            )
+        return experiment_id
+
     def create_trial(self, spec: TrialSpec) -> tuple[str, int]:
         self.initialize()
         trial_id = f"trial_{uuid.uuid4().hex[:16]}"
@@ -256,6 +285,50 @@ class ExperimentRegistry:
                 ),
             )
         return trial_id, trial_number
+
+    def create_trial_deterministic(self, spec: TrialSpec, identity: str) -> tuple[str, int]:
+        """Create a Trial once and return the same evidence identity on exact replay."""
+
+        self.initialize()
+        trial_id = f"trial_{hashlib.sha256(identity.encode()).hexdigest()[:16]}"
+        values = (
+            spec.experiment_id,
+            spec.model_name,
+            spec.factor_set,
+            spec.hyperparams,
+            spec.seed,
+            spec.train_start,
+            spec.train_end,
+            spec.validation_start,
+            spec.validation_end,
+            spec.test_start,
+            spec.test_end,
+        )
+        with self.connect() as conn:
+            existing = conn.execute(
+                "SELECT trial_number,experiment_id,model_name,factor_set,hyperparams,seed,"
+                "train_start,train_end,validation_start,validation_end,test_start,test_end "
+                "FROM trials WHERE trial_id=?",
+                (trial_id,),
+            ).fetchone()
+            if existing is not None:
+                if tuple(existing)[1:] != values:
+                    raise ValueError("deterministic trial identity collision")
+                return trial_id, int(existing[0])
+            current = int(
+                conn.execute(
+                    "SELECT COALESCE(MAX(trial_number),0) FROM trials WHERE experiment_id=?",
+                    (spec.experiment_id,),
+                ).fetchone()[0]
+            )
+            number = current + 1
+            conn.execute(
+                "INSERT INTO trials (trial_id,trial_number,created_at,experiment_id,model_name,"
+                "factor_set,hyperparams,seed,train_start,train_end,validation_start,validation_end,"
+                "test_start,test_end) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (trial_id, number, utc_now_iso(), *values),
+            )
+        return trial_id, number
 
     def counts(self) -> dict[str, int]:
         self.initialize()
