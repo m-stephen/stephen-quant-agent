@@ -97,6 +97,16 @@ def test_v11_forward_protocol_uses_later_freeze_boundary_and_exact_direction() -
     assert len(protocol.protocol_sha256) == 64
 
 
+def test_v11_forward_protocol_accepts_powershell_seven_digit_timestamp() -> None:
+    protocol = build_forward_protocol(
+        frozen_at="2026-09-05T02:20:14.6623815+08:00",
+        maximum_data_date_at_freeze="2026-08-16",
+        source_snapshot_id="a" * 64,
+        code_version="b" * 40,
+    )
+    assert protocol.frozen_at == "2026-09-05T02:20:14.662381+08:00"
+
+
 def test_v11_forward_status_never_emits_performance_conclusion() -> None:
     protocol = build_forward_protocol(
         frozen_at="2026-09-05T09:00:00+08:00",

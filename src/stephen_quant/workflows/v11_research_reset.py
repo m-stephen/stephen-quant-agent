@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import random
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
@@ -226,7 +227,12 @@ def build_forward_protocol(
     source_snapshot_id: str,
     code_version: str,
 ) -> ForwardProtocol:
-    instant = datetime.fromisoformat(frozen_at.replace("Z", "+00:00"))
+    normalized = re.sub(
+        r"(\.\d{6})\d+(?=[+-]\d{2}:\d{2}$)",
+        r"\1",
+        frozen_at.replace("Z", "+00:00"),
+    )
+    instant = datetime.fromisoformat(normalized)
     if instant.tzinfo is None:
         raise ValueError("forward freeze timestamp must include a timezone")
     maximum = date.fromisoformat(maximum_data_date_at_freeze)
