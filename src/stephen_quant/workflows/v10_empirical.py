@@ -36,7 +36,7 @@ from stephen_quant.qmt.multisource_warehouse import (
     load_warehouse_alternative,
 )
 
-V10_EMPIRICAL_VERSION = "v10.3-centered-cross-source-court-1.0.0"
+V10_EMPIRICAL_VERSION = "v10.4-regime-robust-cross-source-court-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,13 @@ class V10CandidateEvidence:
     trial_id: str
     trial_number: int
     portfolio: PortfolioNativeReport
+
+
+@dataclass(frozen=True)
+class V10RegimeAttribution:
+    regime: str
+    periods: int
+    net_excess_total_return: float
 
 
 @dataclass(frozen=True)
@@ -61,9 +68,11 @@ class V10EmpiricalReport:
     signal_placebo_p_value: float
     return_placebo_p_value: float
     universe_placebo_p_value: float
+    legacy_universe_metric_status: str
     cpcv_hygiene_passed: bool
     eligible_predictor_fields: tuple[str, ...]
     rejected_predictor_fields: tuple[str, ...]
+    selected_validation_regimes: tuple[V10RegimeAttribution, ...]
     decision: str
     failed_gates: tuple[str, ...]
 
@@ -77,7 +86,7 @@ class V10EmpiricalReport:
         )
         return "\n".join(
             [
-                "# V10.3 有界真实候选测试" if zh else "# V10.3 Bounded Real-candidate Test",
+                "# V10.4 有界真实候选测试" if zh else "# V10.4 Bounded Real-candidate Test",
                 "",
                 f"**{'结论' if zh else 'Decision'}: `{self.decision}`**",
                 "",
@@ -86,12 +95,22 @@ class V10EmpiricalReport:
                 f"- {'入选表达式' if zh else 'Selected expression'}: `{winner.expression}`",
                 f"- DSR: {self.dsr_probability:.6f}",
                 f"- PBO: {self.pbo_probability:.6f}",
-                f"- Signal / return / universe placebo p: {self.signal_placebo_p_value:.6f} / {self.return_placebo_p_value:.6f} / {self.universe_placebo_p_value:.6f}",
+                f"- Signal / return placebo p: {self.signal_placebo_p_value:.6f} / {self.return_placebo_p_value:.6f}",
+                (
+                    f"- Legacy universe perturbation metric: "
+                    f"{self.universe_placebo_p_value:.6f} "
+                    f"(`{self.legacy_universe_metric_status}`)"
+                ),
                 f"- {'验证期净超额收益' if zh else 'Validation net excess return'}: {self.selected_validation.net_excess_total_return:.2%}",
                 f"- Validation Sharpe: {self.selected_validation.annualized_net_excess_sharpe:.3f}",
                 f"- {'验证期双倍成本收益' if zh else 'Validation double-cost return'}: {self.selected_validation.double_cost_total_return:.2%}",
                 f"- {'容量' if zh else 'Capacity'}: CNY {self.selected_validation.capacity_cny:,.0f}",
                 f"- {'拒绝的退化字段' if zh else 'Rejected degenerate fields'}: {', '.join(self.rejected_predictor_fields) or 'none'}",
+                f"- {'验证期状态归因' if zh else 'Validation regime attribution'}: "
+                + ", ".join(
+                    f"{item.regime}={item.net_excess_total_return:.2%}"
+                    for item in self.selected_validation_regimes
+                ),
                 f"- {'失败门禁' if zh else 'Failed gates'}: {', '.join(self.failed_gates) or 'none'}",
                 "",
                 "> 2025–2026 未被读取；该结果不是冻结前向 PASS。"
@@ -102,8 +121,17 @@ class V10EmpiricalReport:
         )
 
 
-def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
-    query = """
+def _panel(
+    root: Path,
+    start: str,
+    end: str,
+    *,
+    holding_sessions: int = 20,
+) -> tuple[dict[str, object], ...]:
+    if holding_sessions not in {1, 3, 5, 10, 20}:
+        raise ValueError("holding_sessions must be one of 1, 3, 5, 10, 20")
+    exit_offset = holding_sessions + 1
+    query = f"""
     WITH raw AS (
       SELECT trade_date,instrument,close*adjustment_factor close_adj,open*adjustment_factor open_adj,
              amount*1000 amount_cny,
@@ -111,9 +139,9 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
              lag(close*adjustment_factor,20) OVER w close_lag20,
              avg(amount*1000) OVER wprior prior_adv,
              lead(open*adjustment_factor,1) OVER w execution_open,
-             lead(open*adjustment_factor,21) OVER w exit_open,
+             lead(open*adjustment_factor,{exit_offset}) OVER w exit_open,
              lead(trade_date,1) OVER w execution_date,
-             lead(trade_date,21) OVER w exit_date
+             lead(trade_date,{exit_offset}) OVER w exit_date
       FROM qd_daily_current
       WINDOW w AS(PARTITION BY instrument ORDER BY trade_date),
              wprior AS(PARTITION BY instrument ORDER BY trade_date ROWS BETWEEN 60 PRECEDING AND 1 PRECEDING)
@@ -123,7 +151,7 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
       ) volatility_20 FROM raw
     ), dates AS (
       SELECT trade_date FROM (SELECT trade_date,row_number() OVER(ORDER BY trade_date) n FROM (SELECT DISTINCT trade_date FROM d))
-      WHERE (n-1)%20=0
+      WHERE (n-1)%{holding_sessions}=0
     ), eligible AS (
       SELECT d.*,row_number() OVER(PARTITION BY d.trade_date ORDER BY prior_adv DESC,instrument) liquidity_rank
       FROM d JOIN dates USING(trade_date)
@@ -150,9 +178,13 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
 
 
 def _cross_source_panel(
-    root: Path, start: str, end: str
+    root: Path,
+    start: str,
+    end: str,
+    *,
+    holding_sessions: int = 20,
 ) -> tuple[tuple[dict[str, object], ...], str]:
-    base = _panel(root, start, end)
+    base = _panel(root, start, end, holding_sessions=holding_sessions)
     instruments = tuple(sorted({str(row["instrument"]) for row in base}))
     snapshot = latest_multisource_snapshot(root)
     datasets = {
@@ -255,8 +287,26 @@ def _predictor_quality(
     return tuple(sorted(eligible)), tuple(sorted(rejected))
 
 
-def _robust_discovery_key(report: PortfolioNativeReport) -> tuple[float, float, float, float]:
-    """Prefer candidates that survive both halves of discovery before peak Sharpe."""
+def _regime_attribution(report: PortfolioNativeReport) -> tuple[V10RegimeAttribution, ...]:
+    buckets = {
+        "benchmark_down": tuple(item for item in report.periods if item.benchmark_return < 0),
+        "benchmark_up": tuple(item for item in report.periods if item.benchmark_return >= 0),
+    }
+    return tuple(
+        V10RegimeAttribution(
+            regime,
+            len(items),
+            math.prod(1.0 + item.net_excess_return for item in items) - 1.0,
+        )
+        for regime, items in sorted(buckets.items())
+        if items
+    )
+
+
+def _robust_discovery_key(
+    report: PortfolioNativeReport,
+) -> tuple[float, float, float, float, float, float]:
+    """Prefer candidates that survive temporal halves and benchmark regimes."""
 
     periods = report.periods
     if len(periods) < 4:
@@ -268,8 +318,13 @@ def _robust_discovery_key(report: PortfolioNativeReport) -> tuple[float, float, 
 
     first_half = compound(periods[:middle])
     second_half = compound(periods[middle:])
+    regimes = _regime_attribution(report)
+    regime_floor = min(item.net_excess_total_return for item in regimes)
+    temporal_floor = min(first_half, second_half)
     return (
-        min(first_half, second_half),
+        min(temporal_floor, regime_floor),
+        regime_floor,
+        temporal_floor,
         report.double_cost_total_return,
         report.annualized_net_excess_sharpe,
         -report.total_turnover,
@@ -541,6 +596,7 @@ def run_v10_empirical(
     signal_placebo = _placebo(validation_obs, validation, policy, "signal")
     return_placebo = _placebo(validation_obs, validation, policy, "return")
     universe_placebo = _placebo(validation_obs, validation, policy, "universe")
+    validation_regimes = _regime_attribution(validation)
     failed = []
     if dsr.probability < 0.95:
         failed.append("DSR")
@@ -554,6 +610,10 @@ def run_v10_empirical(
         failed.append("DOUBLE_COST")
     if not validation.capacity_passed:
         failed.append("CAPACITY")
+    if any(item.net_excess_return <= 0 for item in validation.year_attribution):
+        failed.append("YEAR_STABILITY")
+    if any(item.net_excess_total_return <= 0 for item in validation_regimes):
+        failed.append("REGIME_STABILITY")
     failed.append("SEALED_FORWARD_NOT_RUN")
     report = V10EmpiricalReport(
         V10_EMPIRICAL_VERSION,
@@ -567,9 +627,11 @@ def run_v10_empirical(
         signal_placebo,
         return_placebo,
         universe_placebo,
+        "DEPRECATED_REINTERPRETATION_ONLY",
         all(x.passed for x in findings),
         eligible_fields,
         rejected_fields,
+        validation_regimes,
         "NO_RELIABLE_ALPHA",
         tuple(failed),
     )

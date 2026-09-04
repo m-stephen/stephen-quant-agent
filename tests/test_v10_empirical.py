@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import duckdb
+import pytest
 
 from stephen_quant.discovery.portfolio_native import PortfolioObservation, PortfolioPolicy
 from stephen_quant.discovery.v10_generator import generate_v10_candidates
@@ -13,6 +14,7 @@ from stephen_quant.workflows.v10_empirical import (
     _panel,
     _placebo,
     _predictor_quality,
+    _regime_attribution,
     _robust_discovery_key,
     _signed_expression,
 )
@@ -125,21 +127,38 @@ def test_v10_universe_placebo_perturbs_membership_not_signal(monkeypatch) -> Non
 
 def test_v10_robust_key_prefers_two_positive_halves() -> None:
     stable = SimpleNamespace(
-        periods=tuple(SimpleNamespace(net_excess_return=value) for value in (0.02,) * 6),
+        periods=tuple(
+            SimpleNamespace(net_excess_return=value, benchmark_return=(-1) ** index * 0.01)
+            for index, value in enumerate((0.02,) * 6)
+        ),
         double_cost_total_return=0.08,
         annualized_net_excess_sharpe=1.0,
         total_turnover=4.0,
     )
     spike = SimpleNamespace(
         periods=tuple(
-            SimpleNamespace(net_excess_return=value)
-            for value in (0.12, 0.12, 0.12, -0.04, -0.04, -0.04)
+            SimpleNamespace(net_excess_return=value, benchmark_return=(-1) ** index * 0.01)
+            for index, value in enumerate((0.12, 0.12, 0.12, -0.04, -0.04, -0.04))
         ),
         double_cost_total_return=0.20,
         annualized_net_excess_sharpe=2.0,
         total_turnover=4.0,
     )
     assert _robust_discovery_key(stable) > _robust_discovery_key(spike)
+
+
+def test_v10_regime_attribution_compounds_up_and_down_markets() -> None:
+    report = SimpleNamespace(
+        periods=(
+            SimpleNamespace(benchmark_return=-0.01, net_excess_return=0.02),
+            SimpleNamespace(benchmark_return=0.01, net_excess_return=0.03),
+            SimpleNamespace(benchmark_return=-0.02, net_excess_return=0.04),
+        )
+    )
+    regimes = {item.regime: item for item in _regime_attribution(report)}
+    assert regimes["benchmark_down"].periods == 2
+    assert regimes["benchmark_down"].net_excess_total_return == pytest.approx(0.0608)
+    assert regimes["benchmark_up"].net_excess_total_return == pytest.approx(0.03)
 
 
 def test_v10_predictor_quality_rejects_cross_sectional_constant_without_labels() -> None:
@@ -166,7 +185,9 @@ def test_v10_cross_source_panel_uses_prior_close_and_execution_auction(monkeypat
         "amount_cny": 1_000_000.0,
         "prior_adv": 2_000_000.0,
     },)
-    monkeypatch.setattr("stephen_quant.workflows.v10_empirical._panel", lambda *args: base)
+    monkeypatch.setattr(
+        "stephen_quant.workflows.v10_empirical._panel", lambda *args, **kwargs: base
+    )
     monkeypatch.setattr(
         "stephen_quant.workflows.v10_empirical.latest_multisource_snapshot",
         lambda root: "a" * 64,
