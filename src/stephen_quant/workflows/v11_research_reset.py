@@ -7,7 +7,7 @@ import random
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from pathlib import Path
 from statistics import median
 
@@ -236,7 +236,10 @@ def build_forward_protocol(
     if instant.tzinfo is None:
         raise ValueError("forward freeze timestamp must include a timezone")
     maximum = date.fromisoformat(maximum_data_date_at_freeze)
-    freeze_day = instant.astimezone(timezone.utc).date()
+    # The boundary is a trading-calendar date in the timestamp's declared
+    # timezone. Converting an early China-market freeze to UTC would move it
+    # to the prior calendar day and incorrectly admit already-existing data.
+    freeze_day = instant.date()
     boundary = max(maximum, freeze_day).isoformat()
     candidates = (
         FrozenCandidate(

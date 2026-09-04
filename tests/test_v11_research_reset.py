@@ -105,6 +105,7 @@ def test_v11_forward_protocol_accepts_powershell_seven_digit_timestamp() -> None
         code_version="b" * 40,
     )
     assert protocol.frozen_at == "2026-09-05T02:20:14.662381+08:00"
+    assert protocol.first_eligible_date_exclusive == "2026-09-05"
 
 
 def test_v11_forward_status_never_emits_performance_conclusion() -> None:
