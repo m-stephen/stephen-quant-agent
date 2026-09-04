@@ -19,6 +19,9 @@ units. See `docs/V10_2_RESULT.md`.
 V10.3 adds signed centered cross-source interactions and admits predeclared three-field
 mechanisms while keeping 2025-2026 sealed. See `docs/V10_3_RESULT.md`.
 
+V10.4 makes discovery selection robust to both temporal halves and benchmark-up/down
+states, and adds explicit year and regime stability gates. See `docs/V10_4_RESULT.md`.
+
 ## V9.0 calibrated, portfolio-native alpha discovery
 
 V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism
