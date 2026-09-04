@@ -127,10 +127,22 @@ def _panel(
     end: str,
     *,
     holding_sessions: int = 20,
+    include_labels: bool = True,
 ) -> tuple[dict[str, object], ...]:
     if holding_sessions not in {1, 3, 5, 10, 20}:
         raise ValueError("holding_sessions must be one of 1, 3, 5, 10, 20")
     exit_offset = holding_sessions + 1
+    label_columns = (
+        f"lead(open*adjustment_factor,{exit_offset}) OVER w exit_open,"
+        f"lead(trade_date,{exit_offset}) OVER w exit_date"
+        if include_labels
+        else "CAST(NULL AS DOUBLE) exit_open,CAST(NULL AS DATE) exit_date"
+    )
+    label_filter = "AND exit_open>0" if include_labels else ""
+    forward_return = "e.exit_open/e.execution_open-1" if include_labels else "CAST(NULL AS DOUBLE)"
+    execution_open = (
+        "lead(open*adjustment_factor,1) OVER w" if include_labels else "CAST(1.0 AS DOUBLE)"
+    )
     query = f"""
     WITH raw AS (
       SELECT trade_date,instrument,close*adjustment_factor close_adj,open*adjustment_factor open_adj,
@@ -138,10 +150,9 @@ def _panel(
              lag(close*adjustment_factor,1) OVER w previous_close,
              lag(close*adjustment_factor,20) OVER w close_lag20,
              avg(amount*1000) OVER wprior prior_adv,
-             lead(open*adjustment_factor,1) OVER w execution_open,
-             lead(open*adjustment_factor,{exit_offset}) OVER w exit_open,
+             {execution_open} execution_open,
              lead(trade_date,1) OVER w execution_date,
-             lead(trade_date,{exit_offset}) OVER w exit_date
+             {label_columns}
       FROM qd_daily_current
       WINDOW w AS(PARTITION BY instrument ORDER BY trade_date),
              wprior AS(PARTITION BY instrument ORDER BY trade_date ROWS BETWEEN 60 PRECEDING AND 1 PRECEDING)
@@ -155,7 +166,7 @@ def _panel(
     ), eligible AS (
       SELECT d.*,row_number() OVER(PARTITION BY d.trade_date ORDER BY prior_adv DESC,instrument) liquidity_rank
       FROM d JOIN dates USING(trade_date)
-      WHERE d.trade_date BETWEEN ? AND ? AND close_lag20>0 AND execution_open>0 AND exit_open>0 AND prior_adv>0
+      WHERE d.trade_date BETWEEN ? AND ? AND close_lag20>0 AND execution_open>0 {label_filter} AND prior_adv>0
     )
     SELECT CAST(e.trade_date AS VARCHAR) signal_date,CAST(e.execution_date AS VARCHAR) execution_date,
            CAST(e.exit_date AS VARCHAR) exit_date,e.instrument,
@@ -163,7 +174,7 @@ def _panel(
            percent_rank() OVER(PARTITION BY e.trade_date ORDER BY e.prior_adv) amount_rank_20,
            f.intraday_return,f.late_30_return,f.realized_volatility,f.vwap_deviation,
            f.opening_volume_share,f.closing_volume_share,f.amihud_intraday,f.multiscale_divergence,
-           e.exit_open/e.execution_open-1 forward_return,e.prior_adv,e.amount_cny
+           {forward_return} forward_return,e.prior_adv,e.amount_cny
     FROM eligible e JOIN qd_minute_features_current f USING(trade_date,instrument)
     WHERE e.liquidity_rank<=800 AND f.sealed=false
     ORDER BY e.trade_date,e.instrument
@@ -183,8 +194,15 @@ def _cross_source_panel(
     end: str,
     *,
     holding_sessions: int = 20,
+    include_labels: bool = True,
 ) -> tuple[tuple[dict[str, object], ...], str]:
-    base = _panel(root, start, end, holding_sessions=holding_sessions)
+    base = _panel(
+        root,
+        start,
+        end,
+        holding_sessions=holding_sessions,
+        include_labels=include_labels,
+    )
     instruments = tuple(sorted({str(row["instrument"]) for row in base}))
     snapshot = latest_multisource_snapshot(root)
     datasets = {
@@ -248,6 +266,40 @@ def _cross_source_panel(
                 else (high - low) / weighted
             )
         enriched.append(row)
+    previous: dict[str, dict[str, float | None]] = {}
+    for row in enriched:
+        instrument = str(row["instrument"])
+        prior = previous.get(instrument, {})
+        for field in (
+            "profit_ratio",
+            "concentration",
+            "net_inflow_ratio",
+            "main_inflow_ratio",
+        ):
+            current = row.get(field)
+            earlier = prior.get(field)
+            row[f"{field}_change"] = (
+                None
+                if current is None or earlier is None
+                else float(current) - float(earlier)
+            )
+        for field in ("net_inflow_ratio", "main_inflow_ratio"):
+            current = row.get(field)
+            earlier = prior.get(field)
+            row[f"{field}_persistence"] = (
+                None
+                if current is None or earlier is None
+                else (float(current) + float(earlier)) / 2.0
+            )
+        previous[instrument] = {
+            field: None if row.get(field) is None else float(row[field])
+            for field in (
+                "profit_ratio",
+                "concentration",
+                "net_inflow_ratio",
+                "main_inflow_ratio",
+            )
+        }
     return tuple(enriched), snapshot
 
 

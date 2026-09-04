@@ -208,6 +208,7 @@ from .workflows.v11_research_reset import (
     run_statistical_contract,
     write_forward_protocol,
 )
+from .workflows.v111_mechanism_discovery import V111_VERSION, run_v111_mechanism_epoch
 from .workflows.warehouse_factor_test import (
     WarehouseFactorTestConfig,
     run_warehouse_factor_test,
@@ -781,6 +782,11 @@ def build_parser() -> argparse.ArgumentParser:
     v11_epoch.add_argument("--feature-snapshot", required=True)
     v11_epoch.add_argument("--contract-result", required=True)
     v11_epoch.add_argument("--output", default="reports/v11.0-research-reset/epoch")
+
+    v111_epoch = sub.add_parser("v11.1-mechanism-discovery")
+    v111_epoch.add_argument("--warehouse-root", required=True)
+    v111_epoch.add_argument("--feature-snapshot", required=True)
+    v111_epoch.add_argument("--output", default="reports/v11.1-mechanism-discovery")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2979,6 +2985,19 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V11_EPOCH_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11.1-mechanism-discovery":
+        report = run_v111_mechanism_epoch(
+            args.warehouse_root,
+            feature_snapshot_id=args.feature_snapshot,
+            registry=registry,
+            output_dir=args.output,
+            code_version=_git_head(),
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V111_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
