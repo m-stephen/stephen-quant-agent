@@ -1,5 +1,26 @@
 # Stephen Quant Agent
 
+## V11.1 bounded mechanism discovery
+
+V11.1 adds one fail-closed, fifteen-Trial mechanism epoch for chip-state
+transitions, flow-price mismatch and auction-close absorption. Candidate
+coverage, variability, duplication, turnover and capacity are screened without
+return labels. Formulas and primary horizons are frozen before Trial
+registration; only then are 2022–2024 development labels attached. Industry,
+liquidity and volatility cleaning is prediction-time cross-sectional, and the
+V11 DSR/PBO/null/cost gates remain unchanged. See
+[`docs/V11_1_SPEC.md`](docs/V11_1_SPEC.md).
+
+```bash
+stephen-quant v11.1-mechanism-discovery \
+  --warehouse-root /path/to/local/warehouse \
+  --feature-snapshot <sha256> \
+  --output reports/v11.1-mechanism-discovery
+```
+
+The command always stops after its frozen budget and does not resume continuous
+historical search.
+
 ## V11.0 research reset
 
 V11.0 freezes open-ended historical return search, reclassifies 2022–2024 as
