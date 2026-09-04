@@ -36,7 +36,7 @@ from stephen_quant.qmt.multisource_warehouse import (
     load_warehouse_alternative,
 )
 
-V10_EMPIRICAL_VERSION = "v10.2-cross-source-court-1.0.0"
+V10_EMPIRICAL_VERSION = "v10.3-centered-cross-source-court-1.0.0"
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class V10EmpiricalReport:
         )
         return "\n".join(
             [
-                "# V10.0 有界真实候选测试" if zh else "# V10.0 Bounded Real-candidate Test",
+                "# V10.3 有界真实候选测试" if zh else "# V10.3 Bounded Real-candidate Test",
                 "",
                 f"**{'结论' if zh else 'Decision'}: `{self.decision}`**",
                 "",
@@ -276,6 +276,10 @@ def _robust_discovery_key(report: PortfolioNativeReport) -> tuple[float, float, 
     )
 
 
+def _signed_expression(candidate: V10Candidate) -> str:
+    return candidate.expression if candidate.direction > 0 else f"-({candidate.expression})"
+
+
 def _observations(
     rows: tuple[dict[str, object], ...],
     candidate: V10Candidate,
@@ -305,13 +309,16 @@ def _observations(
         benchmark = mean(float(row["forward_return"]) for row in cross)
         for index, row in enumerate(cross):
             values = [field_ranks[field.name][index] for field in candidate.fields]
-            score = (
-                values[0]
-                if candidate.operator == "rank"
-                else values[0] - values[1]
-                if candidate.operator == "divergence"
-                else math.prod(values)
-            )
+            if candidate.operator == "rank":
+                score = values[0]
+            elif candidate.operator == "divergence":
+                score = values[0] - values[1]
+            elif candidate.operator == "interaction":
+                score = math.prod(values)
+            elif candidate.operator == "centered_interaction":
+                score = math.prod(2.0 * value - 1.0 for value in values)
+            else:
+                raise ValueError(f"unsupported V10 operator: {candidate.operator}")
             result.append(
                 PortfolioObservation(
                     day,
@@ -437,7 +444,7 @@ def run_v10_empirical(
             ),
             historical_candidate_ids=historical,
         ).candidates
-        if len(item.fields) <= 2 and all(field.name in eligible_fields for field in item.fields)
+        if len(item.fields) <= 3 and all(field.name in eligible_fields for field in item.fields)
     )[:budget]
     if len(candidates) < budget:
         raise ValueError("V10 candidate space exhausted after historical tombstones")
@@ -469,7 +476,7 @@ def run_v10_empirical(
         evidence.append(
             V10CandidateEvidence(
                 candidate.candidate_id,
-                candidate.expression,
+                _signed_expression(candidate),
                 trial_id,
                 number,
                 evaluate_portfolio_native(obs, policy=policy),

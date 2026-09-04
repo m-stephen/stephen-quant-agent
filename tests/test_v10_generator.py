@@ -25,6 +25,7 @@ def test_v10_generator_is_bounded_cross_source_and_label_free() -> None:
     assert any(len(item.fields) == 2 for item in first.candidates)
     full = generate_v10_candidates(budget=500)
     assert any(len(item.fields) == 3 for item in full.candidates)
+    assert any(item.operator == "centered_interaction" for item in full.candidates)
 
 
 def test_v10_generator_historical_dedup_and_budget() -> None:

@@ -14,6 +14,7 @@ from stephen_quant.workflows.v10_empirical import (
     _placebo,
     _predictor_quality,
     _robust_discovery_key,
+    _signed_expression,
 )
 
 
@@ -60,6 +61,37 @@ def test_v10_empirical_omits_cross_sections_smaller_than_frozen_top_k() -> None:
         for index in range(39)
     )
     assert _observations(rows, candidate) == ()
+
+
+def test_v10_centered_interaction_preserves_signed_cross_section() -> None:
+    candidate = next(
+        item
+        for item in generate_v10_candidates(budget=500).candidates
+        if item.operator == "centered_interaction" and len(item.fields) == 2
+    )
+    rows = tuple(
+        {
+            "signal_date": "2022-01-03",
+            "execution_date": "2022-01-04",
+            "exit_date": "2022-02-01",
+            "instrument": f"{index:06d}.SZ",
+            candidate.fields[0].name: float(index),
+            candidate.fields[1].name: float((index * 7) % 40),
+            "forward_return": index / 1000,
+            "prior_adv": 1_000_000.0,
+        }
+        for index in range(40)
+    )
+    scores = [item.score for item in _observations(rows, candidate)]
+    assert min(scores) < 0 < max(scores)
+
+
+def test_v10_report_expression_includes_candidate_direction() -> None:
+    candidates = generate_v10_candidates(budget=500).candidates
+    positive = next(item for item in candidates if item.direction > 0)
+    negative = next(item for item in candidates if item.direction < 0)
+    assert _signed_expression(positive) == positive.expression
+    assert _signed_expression(negative) == f"-({negative.expression})"
 
 
 def test_v10_universe_placebo_perturbs_membership_not_signal(monkeypatch) -> None:
