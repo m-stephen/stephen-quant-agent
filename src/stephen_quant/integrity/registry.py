@@ -384,6 +384,27 @@ class ExperimentRegistry:
         with self.connect() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0])
 
+    def historical_factor_sets(
+        self, model_name: str | None = None, *, exclude_experiment_id: str | None = None
+    ) -> frozenset[str]:
+        """Return already exposed factor identities for cross-experiment tombstoning."""
+
+        self.initialize()
+        with self.connect() as conn:
+            clauses: list[str] = []
+            parameters: list[str] = []
+            if model_name is not None:
+                clauses.append("model_name=?")
+                parameters.append(model_name)
+            if exclude_experiment_id is not None:
+                clauses.append("experiment_id<>?")
+                parameters.append(exclude_experiment_id)
+            where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+            rows = conn.execute(
+                f"SELECT DISTINCT factor_set FROM trials{where}", parameters
+            ).fetchall()
+        return frozenset(str(row[0]) for row in rows)
+
     def record_search_ledger_entry(
         self,
         *,
