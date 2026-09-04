@@ -32,7 +32,7 @@ from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.integrity.snapshot import build_composite_snapshot_manifest
 from stephen_quant.qmt.data_warehouse import _duckdb
 
-V10_EMPIRICAL_VERSION = "v10.0-bounded-daily-minute-court-1.0.0"
+V10_EMPIRICAL_VERSION = "v10.1-bounded-daily-minute-court-1.1.0"
 
 
 @dataclass(frozen=True)
@@ -58,6 +58,8 @@ class V10EmpiricalReport:
     return_placebo_p_value: float
     universe_placebo_p_value: float
     cpcv_hygiene_passed: bool
+    eligible_predictor_fields: tuple[str, ...]
+    rejected_predictor_fields: tuple[str, ...]
     decision: str
     failed_gates: tuple[str, ...]
 
@@ -85,6 +87,7 @@ class V10EmpiricalReport:
                 f"- Validation Sharpe: {self.selected_validation.annualized_net_excess_sharpe:.3f}",
                 f"- {'验证期双倍成本收益' if zh else 'Validation double-cost return'}: {self.selected_validation.double_cost_total_return:.2%}",
                 f"- {'容量' if zh else 'Capacity'}: CNY {self.selected_validation.capacity_cny:,.0f}",
+                f"- {'拒绝的退化字段' if zh else 'Rejected degenerate fields'}: {', '.join(self.rejected_predictor_fields) or 'none'}",
                 f"- {'失败门禁' if zh else 'Failed gates'}: {', '.join(self.failed_gates) or 'none'}",
                 "",
                 "> 2025–2026 未被读取；该结果不是冻结前向 PASS。"
@@ -145,6 +148,58 @@ def _panel(root: Path, start: str, end: str) -> tuple[dict[str, object], ...]:
 def _rank(values: list[float]) -> list[float]:
     ranks = average_ranks(values)
     return [value / (len(values) + 1) for value in ranks]
+
+
+def _predictor_quality(
+    rows: tuple[dict[str, object], ...], field_names: tuple[str, ...]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Screen predictors without reading returns or any other outcome label."""
+
+    by_day: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for row in rows:
+        by_day[str(row["signal_date"])].append(row)
+    dates = sorted(by_day)
+    eligible: list[str] = []
+    rejected: list[str] = []
+    for field in field_names:
+        variable_days = 0
+        covered = 0
+        for day in dates:
+            values = [
+                float(row[field])
+                for row in by_day[day]
+                if row.get(field) is not None
+                and math.isfinite(float(row[field]))
+            ]
+            covered += bool(values)
+            if len(set(values)) >= 20:
+                variable_days += 1
+        if dates and covered / len(dates) >= 0.8 and variable_days / len(dates) >= 0.8:
+            eligible.append(field)
+        else:
+            rejected.append(field)
+    return tuple(sorted(eligible)), tuple(sorted(rejected))
+
+
+def _robust_discovery_key(report: PortfolioNativeReport) -> tuple[float, float, float, float]:
+    """Prefer candidates that survive both halves of discovery before peak Sharpe."""
+
+    periods = report.periods
+    if len(periods) < 4:
+        raise ValueError("V10 robust selection requires at least four discovery periods")
+    middle = len(periods) // 2
+
+    def compound(items) -> float:
+        return math.prod(1.0 + item.net_excess_return for item in items) - 1.0
+
+    first_half = compound(periods[:middle])
+    second_half = compound(periods[middle:])
+    return (
+        min(first_half, second_half),
+        report.double_cost_total_return,
+        report.annualized_net_excess_sharpe,
+        -report.total_turnover,
+    )
 
 
 def _observations(
@@ -217,14 +272,22 @@ def _placebo(
             cross = grouped[day]
             scores = [item.score for item in cross]
             returns = [item.forward_return for item in cross]
-            if mode in {"signal", "universe"}:
+            if mode == "signal":
                 rng.shuffle(scores)
-            else:
+            elif mode == "return":
                 rng.shuffle(returns)
-            shuffled.extend(
-                replace(item, score=score, forward_return=forward_return)
-                for item, score, forward_return in zip(cross, scores, returns, strict=True)
-            )
+            if mode == "universe":
+                # Perturb membership, not the signal.  Keeping a deterministic
+                # 80% sample tests whether the result depends on the exact
+                # tradable cross-section while preserving the frozen top-k.
+                keep = max(policy.top_k, int(len(cross) * 0.8))
+                indices = sorted(rng.sample(range(len(cross)), k=keep))
+                shuffled.extend(cross[index] for index in indices)
+            else:
+                shuffled.extend(
+                    replace(item, score=score, forward_return=forward_return)
+                    for item, score, forward_return in zip(cross, scores, returns, strict=True)
+                )
         exceed += (
             evaluate_portfolio_native(tuple(shuffled), policy=policy).net_excess_total_return
             >= observed.net_excess_total_return
@@ -246,13 +309,8 @@ def run_v10_empirical(
     rows = _panel(root, "2022-01-01", "2024-12-31")
     if not rows:
         raise ValueError("V10 daily-minute panel is empty")
-    candidates = tuple(
-        item
-        for item in generate_v10_candidates(
-            budget=512, enabled_sources=("qd_daily", "minute_features")
-        ).candidates
-        if len(item.fields) <= 2
-    )[:budget]
+    discovery_rows = tuple(row for row in rows if str(row["signal_date"]).startswith("2022-"))
+    validation_rows = tuple(row for row in rows if str(row["signal_date"]) >= "2023-01-01")
     composite = build_composite_snapshot_manifest({"minute_features": feature_snapshot_id})
     snapshot_id = registry.register_snapshot(composite, vendor_version=V10_EMPIRICAL_VERSION)
     experiment_spec = ExperimentSpec(
@@ -264,13 +322,37 @@ def run_v10_empirical(
     )
     experiment_id = registry.create_experiment_deterministic(
         experiment_spec,
-        f"v10|{feature_snapshot_id}|{code_version}|{budget}",
+        f"v10|{V10_EMPIRICAL_VERSION}|{feature_snapshot_id}|{code_version}|{budget}",
     )
+    historical = registry.historical_factor_sets(
+        "v10_auto_factor", exclude_experiment_id=experiment_id
+    )
+    field_names = tuple(
+        sorted(
+            {
+                field.name
+                for candidate in generate_v10_candidates(
+                    budget=512, enabled_sources=("qd_daily", "minute_features")
+                ).candidates
+                for field in candidate.fields
+            }
+        )
+    )
+    eligible_fields, rejected_fields = _predictor_quality(discovery_rows, field_names)
+    candidates = tuple(
+        item
+        for item in generate_v10_candidates(
+            budget=512,
+            enabled_sources=("qd_daily", "minute_features"),
+            historical_candidate_ids=historical,
+        ).candidates
+        if len(item.fields) <= 2 and all(field.name in eligible_fields for field in item.fields)
+    )[:budget]
+    if len(candidates) < budget:
+        raise ValueError("V10 candidate space exhausted after historical tombstones")
     policy = PortfolioPolicy(
         initial_nav_cny=3_000_000, top_k=40, rank_buffer=10, round_trip_cost_bps=41.0
     )
-    discovery_rows = tuple(row for row in rows if str(row["signal_date"]).startswith("2022-"))
-    validation_rows = tuple(row for row in rows if str(row["signal_date"]) >= "2023-01-01")
     evidence = []
     observation_map = {}
     for candidate in candidates:
@@ -303,7 +385,8 @@ def run_v10_empirical(
             )
         )
     selected = max(
-        evidence, key=lambda item: (item.portfolio.annualized_net_excess_sharpe, item.candidate_id)
+        evidence,
+        key=lambda item: (_robust_discovery_key(item.portfolio), item.candidate_id),
     )
     selected_obs = observation_map[selected.candidate_id]
     selected_candidate = next(
@@ -387,6 +470,8 @@ def run_v10_empirical(
         return_placebo,
         universe_placebo,
         all(x.passed for x in findings),
+        eligible_fields,
+        rejected_fields,
         "NO_RELIABLE_ALPHA",
         tuple(failed),
     )

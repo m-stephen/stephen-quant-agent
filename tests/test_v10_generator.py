@@ -37,6 +37,21 @@ def test_v10_generator_historical_dedup_and_budget() -> None:
     assert any(item.startswith("HISTORICAL_DUPLICATE:") for item in next_packet.rejected)
 
 
+def test_v10_generator_small_budget_is_semantically_balanced() -> None:
+    packet = generate_v10_candidates(budget=24)
+    strata = {(item.mechanism, item.operator) for item in packet.candidates}
+    mechanisms = {item.mechanism for item in packet.candidates}
+    assert len(strata) >= 12
+    assert {
+        "daily_intraday_multiscale_divergence",
+        "flow_persistence_vs_intraday_absorption",
+        "auction_price_discovery_vs_session_path",
+        "crowding_reversal_with_intraday_liquidity",
+        "flow_price_divergence",
+        "flow_crowding_interaction",
+    } <= mechanisms
+
+
 def test_v10_generator_rejects_unavailable_execution_time() -> None:
     candidate = generate_v10_candidates(budget=1).candidates[0]
     validate_candidate_availability(candidate, "T+1_OPEN")

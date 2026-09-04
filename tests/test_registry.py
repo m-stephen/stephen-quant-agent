@@ -74,3 +74,9 @@ def test_deterministic_experiment_and_trial_are_exact_replays(tmp_path: Path) ->
     second = registry.create_trial_deterministic(trial, "v10-trial")
     assert first == second
     assert registry.trial_count(first_experiment) == 1
+    assert registry.historical_factor_sets() == frozenset({"candidate"})
+    assert registry.historical_factor_sets("v10") == frozenset({"candidate"})
+    assert registry.historical_factor_sets("other") == frozenset()
+    assert registry.historical_factor_sets(
+        "v10", exclude_experiment_id=first_experiment
+    ) == frozenset()

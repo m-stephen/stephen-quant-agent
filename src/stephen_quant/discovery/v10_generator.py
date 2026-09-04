@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict, dataclass
 from itertools import combinations
 
-V10_GENERATOR_VERSION = "10.0.0"
+V10_GENERATOR_VERSION = "10.1.0"
 
 
 @dataclass(frozen=True)
@@ -92,6 +92,34 @@ def _candidate(operator: str, fields: tuple[V10Field, ...], direction: int, mech
     return V10Candidate(identity, operator, ordered, direction, mechanism, expression, availability)
 
 
+def _balanced_select(
+    candidates: tuple[V10Candidate, ...], budget: int
+) -> tuple[V10Candidate, ...]:
+    """Select candidates without labels using round-robin semantic strata."""
+
+    groups: dict[tuple[str, str], list[V10Candidate]] = {}
+    for candidate in candidates:
+        groups.setdefault((candidate.mechanism, candidate.operator), []).append(candidate)
+    for values in groups.values():
+        values.sort(key=lambda item: item.candidate_id)
+    strata = tuple(sorted(groups))
+    selected: list[V10Candidate] = []
+    depth = 0
+    while len(selected) < budget:
+        added = False
+        for stratum in strata:
+            values = groups[stratum]
+            if depth < len(values):
+                selected.append(values[depth])
+                added = True
+                if len(selected) == budget:
+                    break
+        if not added:
+            break
+        depth += 1
+    return tuple(selected)
+
+
 def generate_v10_candidates(
     *,
     budget: int,
@@ -144,6 +172,7 @@ def generate_v10_candidates(
         "mechanisms": sorted(MECHANISMS.values()),
         "operators": ["rank", "divergence", "interaction"],
         "directions": [-1, 1],
+        "selection": "round_robin_by_mechanism_and_operator",
     }
     unique: dict[str, V10Candidate] = {}
     rejected: list[str] = []
@@ -152,7 +181,7 @@ def generate_v10_candidates(
             rejected.append(f"HISTORICAL_DUPLICATE:{candidate.candidate_id}")
             continue
         unique.setdefault(candidate.candidate_id, candidate)
-    selected = tuple(unique[key] for key in sorted(unique)[:budget])
+    selected = _balanced_select(tuple(unique.values()), budget)
     return V10CandidatePacket(
         V10_GENERATOR_VERSION,
         _sha(policy),

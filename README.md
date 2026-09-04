@@ -7,6 +7,11 @@ candidate/trial lineage, and a bounded real-data Alpha Court. The first 2022 dis
 2023-2024 validation run is recorded as `NO_RELIABLE_ALPHA`; see
 `docs/V10_RESULT.md`. The 2025-2026 window remains sealed and was not used to tune candidates.
 
+V10.1 makes small candidate budgets mechanism-balanced, tombstones previously exposed
+candidates across experiments, separates universe placebo from signal shuffling, rejects
+degenerate predictors without reading labels, and selects discovery candidates by worst-half
+robustness before peak Sharpe. See `docs/V10_1_RESULT.md`.
+
 ## V9.0 calibrated, portfolio-native alpha discovery
 
 V9.0 joins search-power calibration, a structure-first factor grammar, five-level mechanism
