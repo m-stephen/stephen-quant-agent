@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "domains": [
+    {
+      "name": "announcement_expectation_surprise",
+      "authorization_sustainable": true,
+      "stable_entity_ids": true,
+      "deterministic_dedup": true,
+      "pit_semantics_verified": true,
+      "revision_semantics_verified": true,
+      "raw_snapshot_sha256": "<64_HEX_SHA256>",
+      "replay_passed": true,
+      "label_interfaces": [],
+      "source_inventory": ["<SOURCE_ID>"],
+      "field_dictionary": {
+        "instrument": "stable stock identifier",
+        "event_id": "stable announcement event identifier",
+        "actual_value": "reported event value",
+        "expected_value": "point-in-time consensus expectation",
+        "effective_at": "economic effective time",
+        "available_at": "decision-time availability",
+        "ingested_at": "trusted collector first-seen time",
+        "revision_id": "append-only revision identity"
+      },
+      "timestamp_fields": ["effective_at", "available_at", "ingested_at"],
+      "revision_policy": "append_only_supersedes_chain",
+      "proposed_hypothesis": "<LABEL_FREE_ECONOMIC_HYPOTHESIS>",
+      "negative_control": "<PREDECLARED_NEGATIVE_CONTROL>",
+      "primary_horizon": 20,
+      "future_trial_budget": 1,
+      "coverage_ratio": 0.0,
+      "missing_ratio": 1.0,
+      "median_delay_hours": null,
+      "revision_completeness": 0.0
+    }
+  ]
+}
