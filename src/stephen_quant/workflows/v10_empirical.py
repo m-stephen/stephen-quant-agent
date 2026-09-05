@@ -128,6 +128,7 @@ def _panel(
     *,
     holding_sessions: int = 20,
     include_labels: bool = True,
+    maximum_exit_date: str | None = None,
 ) -> tuple[dict[str, object], ...]:
     if holding_sessions not in {1, 3, 5, 10, 20}:
         raise ValueError("holding_sessions must be one of 1, 3, 5, 10, 20")
@@ -139,6 +140,10 @@ def _panel(
         else "CAST(NULL AS DOUBLE) exit_open,CAST(NULL AS DATE) exit_date"
     )
     label_filter = "AND exit_open>0" if include_labels else ""
+    if maximum_exit_date is not None:
+        if not include_labels:
+            raise ValueError("maximum_exit_date requires include_labels=True")
+        label_filter += " AND exit_date<=?"
     forward_return = "e.exit_open/e.execution_open-1" if include_labels else "CAST(NULL AS DOUBLE)"
     execution_open = (
         "lead(open*adjustment_factor,1) OVER w" if include_labels else "CAST(1.0 AS DOUBLE)"
@@ -181,7 +186,10 @@ def _panel(
     """
     connection = _duckdb().connect(str(root / "catalog" / "warehouse.duckdb"), read_only=True)
     try:
-        cursor = connection.execute(query, [start, end])
+        parameters = [start, end]
+        if maximum_exit_date is not None:
+            parameters.append(maximum_exit_date)
+        cursor = connection.execute(query, parameters)
         names = [item[0] for item in cursor.description]
         return tuple(dict(zip(names, row, strict=True)) for row in cursor.fetchall())
     finally:
@@ -195,6 +203,7 @@ def _cross_source_panel(
     *,
     holding_sessions: int = 20,
     include_labels: bool = True,
+    maximum_exit_date: str | None = None,
 ) -> tuple[tuple[dict[str, object], ...], str]:
     base = _panel(
         root,
@@ -202,6 +211,7 @@ def _cross_source_panel(
         end,
         holding_sessions=holding_sessions,
         include_labels=include_labels,
+        maximum_exit_date=maximum_exit_date,
     )
     instruments = tuple(sorted({str(row["instrument"]) for row in base}))
     snapshot = latest_multisource_snapshot(root)
