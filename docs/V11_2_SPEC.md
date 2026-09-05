@@ -5,6 +5,9 @@ Issue: [#175](https://github.com/m-stephen/stephen-quant-agent/issues/175)
 Spec version: `11.2.0`  
 Normative contract SHA-256: `09d5e702580c534c425581a24e06592df908d5fb1cb6610d85e4cef40517dd68`
 
+Approval metadata is frozen separately in `docs/V11_2_SPEC_LOCK.json`. Adding that approval anchor
+does not modify this normative machine contract or its hash.
+
 The hash is computed from `SPEC_CONTRACT` in
 `stephen_quant.workflows.v112_candidate_nursery` using canonical sorted JSON. Business artifacts
 must cite it. This document explains that machine contract; JSON is authoritative and Chinese and
