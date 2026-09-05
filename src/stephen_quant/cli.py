@@ -210,6 +210,11 @@ from .workflows.v11_research_reset import (
 )
 from .workflows.v111_mechanism_discovery import V111_VERSION, run_v111_mechanism_epoch
 from .workflows.v112_candidate_nursery import V112_VERSION, run_v112_candidate_nursery
+from .workflows.v113_search_power_lab import (
+    V113_VERSION,
+    run_v113_calibration_only,
+    run_v113_search_power_lab,
+)
 from .workflows.warehouse_factor_test import (
     WarehouseFactorTestConfig,
     run_warehouse_factor_test,
@@ -806,6 +811,18 @@ def build_parser() -> argparse.ArgumentParser:
     v112.add_argument("--operation-id")
     v112.add_argument("--created-at")
     v112.add_argument("--output", default="reports/v11.2-candidate-nursery")
+
+    v113 = sub.add_parser("v11.3-search-power")
+    v113.add_argument("--warehouse-root", required=True)
+    v113.add_argument("--state-root", required=True)
+    v113.add_argument("--spec", default="docs/V11_3_2_SPEC_LOCK.json")
+    v113.add_argument("--prior-failed-holdout-state")
+    v113.add_argument("--output", default="reports/v11.3-search-power")
+
+    v113_calibration = sub.add_parser("v11.3-calibration-audit")
+    v113_calibration.add_argument("--state-root", required=True)
+    v113_calibration.add_argument("--spec", default="docs/V11_3_2_SPEC_LOCK.json")
+    v113_calibration.add_argument("--output", required=True)
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -3038,6 +3055,32 @@ def main() -> None:
         payload = json.loads(report.to_json())
         payload["run_envelope"] = report.run_envelope
         payload["cli_version"] = V112_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11.3-search-power":
+        report = run_v113_search_power_lab(
+            args.warehouse_root,
+            registry=registry,
+            state_root=args.state_root,
+            output_dir=args.output,
+            code_version=_git_head(),
+            spec_path=args.spec,
+            prior_failed_holdout_state=args.prior_failed_holdout_state,
+        )
+        payload = json.loads(report.to_json())
+        payload["cli_version"] = V113_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11.3-calibration-audit":
+        result = run_v113_calibration_only(
+            state_root=args.state_root,
+            output_file=args.output,
+            spec_path=args.spec,
+        )
+        payload = asdict(result)
+        payload["cli_version"] = V113_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
