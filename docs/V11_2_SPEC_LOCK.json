@@ -1,0 +1,9 @@
+{
+  "approved_at": "2026-09-05T08:17:12Z",
+  "approved_commit_sha": "1c16f476a925e45ab48e60a7be346ad9ff676c3b",
+  "approval_issue": 175,
+  "semantic_change_after_approval": false,
+  "spec_hash": "09d5e702580c534c425581a24e06592df908d5fb1cb6610d85e4cef40517dd68",
+  "spec_version": "11.2.0",
+  "supersedes": null
+}

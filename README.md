@@ -1,5 +1,18 @@
 # Stephen Quant Agent
 
+## V11.2 Candidate Nursery and trusted forward clock
+
+V11.2 preserves the V11/V11.1 negative evidence, migrates the exact frozen V10.1/V10.3
+prospective protocol, and adds a trusted first-seen clock with candidate and family calendars. It
+does not search historical returns or claim Alpha. See [`docs/V11_2_SPEC.md`](docs/V11_2_SPEC.md).
+
+```bash
+stephen-quant v11.2-candidate-nursery \
+  --clock-manifest artifacts/v11.2/clock.json \
+  --establish-clock-at 2026-09-05T08:00:00Z \
+  --output reports/v11.2-candidate-nursery
+```
+
 ## V11.1 bounded mechanism discovery
 
 V11.1 adds one fail-closed, fifteen-Trial mechanism epoch for chip-state

@@ -1,0 +1,51 @@
+{
+  "candidates": [
+    {
+      "candidate_id": "ec9faf313b03bd78dd999158c994d9a8464149c220c256abca6fa2c96009c1f2",
+      "decision_time": "T+1_OPEN",
+      "direction": 1,
+      "expression": "rank(amihud_intraday)-rank(amount_rank_20)",
+      "holding_sessions": 20,
+      "method_version": "v10.1-bounded-daily-minute-court-1.1.0",
+      "name": "V10.1 intraday liquidity",
+      "operator": "divergence",
+      "trial_id": "trial_9cc16d0cb3d4fbb5"
+    },
+    {
+      "candidate_id": "25023e50365dc75cf614bc025ef36296193ac0447e06cc98feb18d4ff4340f7a",
+      "decision_time": "T+1_OPEN",
+      "direction": 1,
+      "expression": "rank(closing_volume_share)*rank(concentration)",
+      "holding_sessions": 20,
+      "method_version": "v10.3-centered-cross-source-court-1.0.0",
+      "name": "V10.3 closing volume x chip",
+      "operator": "interaction",
+      "trial_id": "trial_61b095cc20ecdb4d"
+    }
+  ],
+  "checkpoints": [
+    25,
+    126,
+    252
+  ],
+  "code_version": "592a8ab41fe10222b218cd40b993d2c53239d263",
+  "family_correction": "Holm two-hypothesis correction at day 252 only",
+  "first_eligible_date_exclusive": "2026-09-05",
+  "frozen_at": "2026-09-05T02:21:05.728475+08:00",
+  "maximum_data_date_at_freeze": "2026-08-16",
+  "portfolio": {
+    "capital_cny": 3000000,
+    "cash_treatment": "unfilled_weight_remains_cash",
+    "corporate_action_adjustment": "point_in_time_adjustment_factor",
+    "double_round_trip_cost_bps": 82.0,
+    "estimand": "long_only_top40_minus_investable_dynamic_universe_equal_weight",
+    "participation_rate": 0.05,
+    "rank_buffer": 10,
+    "standard_round_trip_cost_bps": 41.0,
+    "suspension_limit_delisting": "frozen_v10_stateful_execution_contract",
+    "top_k": 40
+  },
+  "protocol_sha256": "71ba4f198f2f3dcbc4877d684f5a5fd8023d806a469e2d2a482ead4174a77106",
+  "source_snapshot_id": "2521040fa77437a8f032308866ecd2f8da4db76dd3bade5ff8f88831337335b4",
+  "version": "11.0.0"
+}

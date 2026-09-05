@@ -209,6 +209,7 @@ from .workflows.v11_research_reset import (
     write_forward_protocol,
 )
 from .workflows.v111_mechanism_discovery import V111_VERSION, run_v111_mechanism_epoch
+from .workflows.v112_candidate_nursery import V112_VERSION, run_v112_candidate_nursery
 from .workflows.warehouse_factor_test import (
     WarehouseFactorTestConfig,
     run_warehouse_factor_test,
@@ -787,6 +788,24 @@ def build_parser() -> argparse.ArgumentParser:
     v111_epoch.add_argument("--warehouse-root", required=True)
     v111_epoch.add_argument("--feature-snapshot", required=True)
     v111_epoch.add_argument("--output", default="reports/v11.1-mechanism-discovery")
+
+    v112 = sub.add_parser("v11.2-candidate-nursery")
+    v112.add_argument(
+        "--frozen-protocol", default="configs/v11-forward-protocol.freeze.json"
+    )
+    v112.add_argument(
+        "--v11.1-evidence", dest="v111_evidence",
+        default="configs/v11.1-candidate-evidence.freeze.json",
+    )
+    v112.add_argument("--clock-manifest", required=True)
+    v112.add_argument("--establish-clock-at")
+    v112.add_argument("--collector-id", default="stephen-quant-v112")
+    v112.add_argument("--collector-version", default=V112_VERSION)
+    v112.add_argument("--receipts")
+    v112.add_argument("--domain-inventory")
+    v112.add_argument("--operation-id")
+    v112.add_argument("--created-at")
+    v112.add_argument("--output", default="reports/v11.2-candidate-nursery")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
     v2_shadow.add_argument("--config", default="configs/v2.0-m5-shadow.json")
@@ -2998,6 +3017,27 @@ def main() -> None:
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V111_VERSION
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "v11.2-candidate-nursery":
+        report = run_v112_candidate_nursery(
+            frozen_protocol=args.frozen_protocol,
+            v111_evidence=args.v111_evidence,
+            clock_manifest=args.clock_manifest,
+            output_root=args.output,
+            runtime_code_version=_git_head(),
+            genesis_at=args.establish_clock_at,
+            collector_id=args.collector_id,
+            collector_version=args.collector_version,
+            receipts_path=args.receipts,
+            domain_inventory_path=args.domain_inventory,
+            operation_id=args.operation_id,
+            created_at=args.created_at,
+        )
+        payload = json.loads(report.to_json())
+        payload["run_envelope"] = report.run_envelope
+        payload["cli_version"] = V112_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
