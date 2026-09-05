@@ -154,3 +154,24 @@ def test_cli_exposes_v113_command() -> None:
         ]
     )
     assert args.command == "v11.3-search-power"
+
+
+def test_outer_period_floor_matches_six_fold_contract() -> None:
+    rows = []
+    for day in range(1, 7):
+        for instrument in range(80):
+            rows.append(
+                {
+                    "signal_date": f"2024-0{day}-01",
+                    "execution_date": f"2024-0{day}-02",
+                    "instrument": f"S{instrument:03d}",
+                    "industry_code": f"I{instrument // 10}",
+                    "ret_20": instrument / 100,
+                    "forward_return": 0.001,
+                    "prior_adv": 100_000_000.0,
+                }
+            )
+    prepared = lab._prepare_days(tuple(rows), "price_liquidity_state", ("ret_20",))
+    assert len(prepared) == 6
+    with pytest.raises(ValueError, match="insufficient"):
+        lab._prepare_days(tuple(rows[:-80]), "price_liquidity_state", ("ret_20",))

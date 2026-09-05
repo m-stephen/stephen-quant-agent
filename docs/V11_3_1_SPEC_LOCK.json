@@ -1,0 +1,70 @@
+{
+  "version": "11.3.1",
+  "issue": 178,
+  "supersedes": "11.3.0",
+  "runtime_fix": "outer diagnostic minimum valid dates is six, matching the frozen six-fold minimum",
+  "failed_run_treatment": {
+    "first_label_reads_remain_trials": true,
+    "failed_trials_must_be_tombstoned": true,
+    "replayed_2024_state": "REUSED_CONTAMINATED_DIAGNOSTIC",
+    "replay_cannot_support_ranking_capable": true,
+    "candidate_set_and_inner_freeze_must_match": true
+  },
+  "static_candidate_minimum": 10000,
+  "real_label_budget": 1000,
+  "real_label_hard_cap": 1000,
+  "windows": {
+    "inner_development": ["2022-01-01", "2023-12-31"],
+    "outer_contaminated_diagnostic": ["2024-01-01", "2024-12-31"],
+    "sealed": ["2025-01-01", "2026-12-31"]
+  },
+  "mechanism_domains": [
+    "price_liquidity_state",
+    "industry_relative_flow",
+    "auction_close_chip_gate"
+  ],
+  "portfolio": {
+    "initial_nav_cny": 3000000,
+    "standard_round_trip_bps": 41,
+    "double_round_trip_bps": 82,
+    "participation_rate": 0.05,
+    "top_k": 40,
+    "rank_buffer": 10
+  },
+  "calibration_audit": {
+    "planted_scenarios": 24,
+    "semantic_top10_recovery_min": 0.75,
+    "direction_recovery_min": 0.90,
+    "horizon_recovery_min": 0.80,
+    "median_rank_correlation_min": 0.60,
+    "median_exposure_overlap_min": 0.60,
+    "null_paths": 100,
+    "path_fwer_max": 0.05
+  },
+  "inner_hard_constraints": {
+    "minimum_folds": 6,
+    "minimum_outer_periods": 6,
+    "positive_double_cost_fold_ratio_min": 0.666666666667,
+    "maximum_drawdown_floor": -0.30,
+    "standard_return_positive": true,
+    "double_cost_return_positive": true,
+    "universe_q25_floor": 0.0
+  },
+  "result_thresholds": {
+    "inner_outer_spearman_min": 0.10,
+    "positive_outer_domains_min": 2,
+    "outer_double_cost_sharpe_min": 0.50,
+    "outer_maximum_drawdown_floor": -0.25
+  },
+  "multiplicity": {
+    "dsr_minimum_unchanged": 0.95,
+    "pbo_maximum_unchanged": 0.05,
+    "placebo_maximum_unchanged": 0.05,
+    "raw_global_trials_before": 770,
+    "aborted_runtime_trials": 1000,
+    "effective_trial_count_is_diagnostic_only": true
+  },
+  "forced_stop": true,
+  "automatic_promotion": false,
+  "v11_2_isolation_required": true
+}

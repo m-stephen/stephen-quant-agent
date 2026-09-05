@@ -811,7 +811,8 @@ def build_parser() -> argparse.ArgumentParser:
     v113 = sub.add_parser("v11.3-search-power")
     v113.add_argument("--warehouse-root", required=True)
     v113.add_argument("--state-root", required=True)
-    v113.add_argument("--spec", default="docs/V11_3_SPEC_LOCK.json")
+    v113.add_argument("--spec", default="docs/V11_3_1_SPEC_LOCK.json")
+    v113.add_argument("--prior-failed-holdout-state")
     v113.add_argument("--output", default="reports/v11.3-search-power")
 
     v2_shadow = sub.add_parser("v2-shadow-validate")
@@ -3056,6 +3057,7 @@ def main() -> None:
             output_dir=args.output,
             code_version=_git_head(),
             spec_path=args.spec,
+            prior_failed_holdout_state=args.prior_failed_holdout_state,
         )
         payload = json.loads(report.to_json())
         payload["cli_version"] = V113_VERSION

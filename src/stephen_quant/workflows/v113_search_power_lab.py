@@ -33,7 +33,7 @@ from stephen_quant.qmt.multisource_warehouse import latest_multisource_snapshot
 from .v10_empirical import _cross_source_panel, _rank
 from .v111_mechanism_discovery import _attach_industry
 
-V113_VERSION = "v11.3-search-power-lab-1.0.0"
+V113_VERSION = "v11.3-search-power-lab-1.0.1"
 RAW_GLOBAL_TRIALS_BEFORE_V113 = 770
 SPEC_FILE = Path("docs/V11_3_SPEC_LOCK.json")
 
@@ -166,7 +166,7 @@ class SearchPowerReport:
 def _load_spec(path: str | Path = SPEC_FILE) -> tuple[dict[str, object], str]:
     raw = Path(path).read_bytes()
     payload = json.loads(raw)
-    if payload.get("version") != "11.3.0":
+    if payload.get("version") not in {"11.3.0", "11.3.1"}:
         raise ValueError("unexpected V11.3 specification version")
     return payload, hashlib.sha256(raw).hexdigest()
 
@@ -419,7 +419,7 @@ def _prepare_days(
                 mean(returns),
             )
         )
-    if len(prepared) < 12:
+    if len(prepared) < 6:
         raise ValueError(f"insufficient complete-case dates for {domain}")
     return tuple(prepared)
 
@@ -605,6 +605,7 @@ def run_v113_search_power_lab(
     output_dir: str | Path,
     code_version: str,
     spec_path: str | Path = SPEC_FILE,
+    prior_failed_holdout_state: str | Path | None = None,
 ) -> SearchPowerReport:
     spec, spec_sha = _load_spec(spec_path)
     root = Path(warehouse_root).resolve()
@@ -685,6 +686,7 @@ def run_v113_search_power_lab(
         ),
         f"{V113_VERSION}|{spec_sha}|{snapshot}|{code_version}",
     )
+    prior_runtime_trials = registry.global_trial_count()
     trial_map = {}
     for candidate in candidates:
         trial_map[candidate.candidate_id] = registry.create_trial_deterministic(
@@ -744,15 +746,38 @@ def run_v113_search_power_lab(
             for key, value in sorted(inner_evaluations.items())
         }
     )
-    _exclusive_json(
-        state / "diagnostic-holdout.consumed.json",
-        {
-            "spec_sha256": spec_sha,
-            "candidate_set_sha256": candidate_set_hash,
-            "inner_freeze_sha256": inner_freeze_hash,
-            "state": "CONSUMED_FOR_DIAGNOSTIC",
-        },
-    )
+    holdout_state = "CONSUMED_FOR_DIAGNOSTIC"
+    if prior_failed_holdout_state is None:
+        _exclusive_json(
+            state / "diagnostic-holdout.consumed.json",
+            {
+                "spec_sha256": spec_sha,
+                "candidate_set_sha256": candidate_set_hash,
+                "inner_freeze_sha256": inner_freeze_hash,
+                "state": holdout_state,
+            },
+        )
+    else:
+        prior_state_path = Path(prior_failed_holdout_state).resolve()
+        prior_state = json.loads(prior_state_path.read_text(encoding="utf-8"))
+        if prior_state.get("state") != "CONSUMED_FOR_DIAGNOSTIC":
+            raise ValueError("prior failed holdout state was not consumed")
+        if prior_state.get("candidate_set_sha256") != candidate_set_hash:
+            raise ValueError("resume candidate set differs from the failed frozen run")
+        if prior_state.get("inner_freeze_sha256") != inner_freeze_hash:
+            raise ValueError("resume inner evidence differs from the failed frozen run")
+        holdout_state = "REUSED_CONTAMINATED_DIAGNOSTIC"
+        _exclusive_json(
+            state / "diagnostic-holdout.reused.json",
+            {
+                "spec_sha256": spec_sha,
+                "prior_state_sha256": hashlib.sha256(prior_state_path.read_bytes()).hexdigest(),
+                "candidate_set_sha256": candidate_set_hash,
+                "inner_freeze_sha256": inner_freeze_hash,
+                "state": holdout_state,
+                "reason": "LABEL_BLIND_MINIMUM_DATE_GUARD_RUNTIME_FAILURE",
+            },
+        )
 
     outer_evaluations: dict[str, _Evaluation] = {}
     for domain in sorted(by_domain):
@@ -844,7 +869,12 @@ def run_v113_search_power_lab(
         and item.universe_q25_return is not None
         and item.universe_q25_return >= 0
     )
-    ranking_capable = top_better and correlation >= 0.10 and positive_domains >= 2
+    ranking_capable = (
+        holdout_state == "CONSUMED_FOR_DIAGNOSTIC"
+        and top_better
+        and correlation >= 0.10
+        and positive_domains >= 2
+    )
     if ranking_capable and attractive:
         decision = "CANDIDATES_READY_FOR_REVIEW"
     elif ranking_capable:
@@ -857,6 +887,9 @@ def run_v113_search_power_lab(
     per_period_sharpe = winner.inner_double_sharpe / math.sqrt(
         max(1, 252 // next(c.horizon for c in candidates if c.candidate_id == winner.candidate_id))
     )
+    raw_global_trials_after = (
+        RAW_GLOBAL_TRIALS_BEFORE_V113 + prior_runtime_trials + len(candidates)
+    )
     dsr = deflated_sharpe_ratio(
         observed_sharpe=per_period_sharpe,
         trial_sharpes=[
@@ -864,7 +897,7 @@ def run_v113_search_power_lab(
             / math.sqrt(max(1, 252 // next(c.horizon for c in candidates if c.candidate_id == item.candidate_id)))
             for item in diagnostics
         ],
-        recorded_trial_count=RAW_GLOBAL_TRIALS_BEFORE_V113 + len(candidates),
+        recorded_trial_count=raw_global_trials_after,
         observations=winner.inner_periods,
     ).probability
     pbo = _pbo(inner_evaluations)
@@ -878,15 +911,17 @@ def run_v113_search_power_lab(
         "decision": decision,
         "real_label_authorized": True,
         "label_evaluated_trials": len(candidates),
-        "raw_global_trials_after": RAW_GLOBAL_TRIALS_BEFORE_V113 + len(candidates),
-        "diagnostic_holdout_state": "CONSUMED_FOR_DIAGNOSTIC",
+        "raw_global_trials_after": raw_global_trials_after,
+        "diagnostic_holdout_state": holdout_state,
         "epoch_dsr_probability": dsr,
         "epoch_pbo_probability": pbo,
         "inner_outer_spearman": correlation,
         "top_decile_outer_rank_better": top_better,
         "positive_outer_domains": positive_domains,
         "candidates": [asdict(item) for item in ranked],
-        "selected_candidate_ids": list(attractive),
+        "selected_candidate_ids": (
+            list(attractive) if holdout_state == "CONSUMED_FOR_DIAGNOSTIC" else []
+        ),
         "unauthorized_sealed_label_reads": 0,
         "v112_state_changes": 0,
         "forced_stop": True,
@@ -901,15 +936,15 @@ def run_v113_search_power_lab(
         decision,
         True,
         len(candidates),
-        RAW_GLOBAL_TRIALS_BEFORE_V113 + len(candidates),
-        "CONSUMED_FOR_DIAGNOSTIC",
+        raw_global_trials_after,
+        holdout_state,
         dsr,
         pbo,
         correlation,
         top_better,
         positive_domains,
         tuple(ranked),
-        attractive,
+        attractive if holdout_state == "CONSUMED_FOR_DIAGNOSTIC" else (),
         0,
         0,
         True,
