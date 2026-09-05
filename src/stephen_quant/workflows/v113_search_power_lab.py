@@ -33,7 +33,7 @@ from stephen_quant.qmt.multisource_warehouse import latest_multisource_snapshot
 from .v10_empirical import _cross_source_panel, _rank
 from .v111_mechanism_discovery import _attach_industry
 
-V113_VERSION = "v11.3-search-power-lab-1.0.1"
+V113_VERSION = "v11.3-search-power-lab-1.0.2"
 RAW_GLOBAL_TRIALS_BEFORE_V113 = 770
 SPEC_FILE = Path("docs/V11_3_SPEC_LOCK.json")
 
@@ -166,7 +166,7 @@ class SearchPowerReport:
 def _load_spec(path: str | Path = SPEC_FILE) -> tuple[dict[str, object], str]:
     raw = Path(path).read_bytes()
     payload = json.loads(raw)
-    if payload.get("version") not in {"11.3.0", "11.3.1"}:
+    if payload.get("version") not in {"11.3.0", "11.3.1", "11.3.2"}:
         raise ValueError("unexpected V11.3 specification version")
     return payload, hashlib.sha256(raw).hexdigest()
 
@@ -247,15 +247,27 @@ def _calibration_payload(
     horizon = []
     by_id = {item.candidate_id: item for item in candidates}
     for scenario in scenarios:
-        ranks = _synthetic_ranks(scenario.seed)
+        latent_ranks = _synthetic_ranks(scenario.seed)
+        ranks = {name: values[:] for name, values in latent_ranks.items()}
+        missing_rng = random.Random(scenario.seed + 31_337)
+        for values in ranks.values():
+            for index in range(len(values)):
+                if missing_rng.random() < scenario.missing_rate:
+                    values[index] = 0.5
         target = by_id[scenario.target_candidate_id]
-        planted = score_vector(target, ranks)
+        planted = score_vector(target, latent_ranks)
+        observable_planted = score_vector(target, ranks)
         rng = random.Random(scenario.seed + 77_777)
         noise = []
         state = 0.0
         for index in range(len(planted)):
             state = 0.45 * state + rng.gauss(0, 0.18)
-            value = scenario.snr * planted[index] + state
+            turnover_drag = (
+                0.03 * abs(observable_planted[index] - observable_planted[index - 1])
+                if index
+                else 0.0
+            )
+            value = scenario.snr * observable_planted[index] + state - turnover_drag
             if index >= len(planted) // 2:
                 value *= scenario.regime_decay
             noise.append(value)
@@ -279,10 +291,25 @@ def _calibration_payload(
     for path in range(100):
         ranks = _synthetic_ranks(base_seed + 10_000 + path)
         rng = random.Random(base_seed + 20_000 + path)
-        blocks = [rng.gauss(0, 1) for _ in range(32)]
-        returns = [blocks[(index // 8 + path) % len(blocks)] for index in range(256)]
-        if null_kinds[path % 4] == "circular":
-            returns = returns[path % len(returns) :] + returns[: path % len(returns)]
+        kind = null_kinds[path % 4]
+        if kind == "block":
+            blocks = [rng.gauss(0, 1) for _ in range(32)]
+            returns = [blocks[index // 8] + rng.gauss(0, 0.05) for index in range(256)]
+        elif kind == "circular":
+            latent = ranks["ret_20"]
+            shift = 71 + path % 31
+            returns = latent[shift:] + latent[:shift]
+        elif kind == "date_cross_sectional":
+            returns = [rng.gauss(0, 1) for _ in range(256)]
+            for start in range(0, 256, 8):
+                block = returns[start : start + 8]
+                rng.shuffle(block)
+                returns[start : start + 8] = block
+        else:
+            returns = [
+                rng.gauss(0, 0.35 if index < 128 else 1.25) + (0.20 if index < 128 else -0.20)
+                for index in range(256)
+            ]
         maximum = max(abs(_pearson(score_vector(item, ranks), returns)) for item in candidates)
         null_detections += maximum >= 0.45
     payload = {
@@ -308,6 +335,7 @@ def run_calibration_audit(
     eight, _ = _calibration_payload(candidates, split="audit", workers=8)
     one_hash = sha256_json(one)
     eight_hash = sha256_json(eight)
+    trial_fault_leaks = _trial_fault_leaks()
     failed = []
     gates = {
         "TOP10_RECOVERY": one["semantic_top10_recovery"] >= 0.75,
@@ -317,6 +345,7 @@ def run_calibration_audit(
         "EXPOSURE_OVERLAP": one["median_exposure_overlap"] >= 0.60,
         "NULL_FWER": one["path_fwer"] <= 0.05,
         "DETERMINISTIC": one_hash == eight_hash,
+        "TRIAL_FAULT_LEDGER": trial_fault_leaks == 0,
     }
     failed.extend(name for name, passed in gates.items() if not passed)
     return CalibrationResult(
@@ -330,12 +359,61 @@ def run_calibration_audit(
         100,
         float(one["path_fwer"]),
         1.0,
-        0,
+        trial_fault_leaks,
         one_hash,
         eight_hash,
         one_hash == eight_hash,
         tuple(failed),
     )
+
+
+def run_v113_calibration_only(
+    *,
+    state_root: str | Path,
+    output_file: str | Path,
+    spec_path: str | Path = SPEC_FILE,
+) -> CalibrationResult:
+    spec, spec_sha = _load_spec(spec_path)
+    candidates = select_label_budget(generate_static_catalog(), int(spec["real_label_budget"]))
+    result = run_calibration_audit(
+        candidates, state_root=Path(state_root).resolve(), spec_sha256=spec_sha
+    )
+    output = Path(output_file).resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(
+            {"version": V113_VERSION, "spec_sha256": spec_sha, "result": asdict(result)},
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return result
+
+
+def _trial_fault_leaks() -> int:
+    """Exercise the frozen first-read counter with duplicate and collision faults."""
+
+    recorded: dict[str, str] = {}
+    leaks = 0
+    operations = (
+        ("candidate-a", "payload-a", True),
+        ("candidate-a", "payload-a", False),
+        ("candidate-a", "forged-payload", False),
+        ("candidate-b", "aborted-after-read", True),
+    )
+    for identity, payload, should_increment in operations:
+        existing = recorded.get(identity)
+        incremented = existing is None
+        if existing is None:
+            recorded[identity] = payload
+        elif existing != payload:
+            incremented = False
+        leaks += incremented != should_increment
+    leaks += len(recorded) != 2
+    return leaks
 
 
 @dataclass(frozen=True)

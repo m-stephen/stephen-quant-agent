@@ -154,6 +154,10 @@ def test_cli_exposes_v113_command() -> None:
         ]
     )
     assert args.command == "v11.3-search-power"
+    calibration = build_parser().parse_args(
+        ["v11.3-calibration-audit", "--state-root", "state", "--output", "audit.json"]
+    )
+    assert calibration.command == "v11.3-calibration-audit"
 
 
 def test_outer_period_floor_matches_six_fold_contract() -> None:

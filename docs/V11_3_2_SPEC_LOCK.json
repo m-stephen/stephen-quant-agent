@@ -1,0 +1,45 @@
+{
+  "version": "11.3.2",
+  "issue": 178,
+  "supersedes": "11.3.1",
+  "scope": "calibration-suite hardening only; no additional real-label search",
+  "calibration_hardening": {
+    "missing_feature_neutralization": true,
+    "regime_decay": true,
+    "turnover_drag": true,
+    "block_null": true,
+    "circular_null": true,
+    "date_cross_sectional_null": true,
+    "regime_preserving_null": true,
+    "full_adaptive_path_fwer": true,
+    "trial_fault_injection": true
+  },
+  "static_candidate_minimum": 10000,
+  "real_label_budget": 1000,
+  "real_label_search_authorized_in_this_patch": false,
+  "windows": {
+    "inner_development": ["2022-01-01", "2023-12-31"],
+    "outer_state": "REUSED_CONTAMINATED_DIAGNOSTIC",
+    "sealed": ["2025-01-01", "2026-12-31"]
+  },
+  "calibration_audit": {
+    "planted_scenarios": 24,
+    "semantic_top10_recovery_min": 0.75,
+    "direction_recovery_min": 0.90,
+    "horizon_recovery_min": 0.80,
+    "median_rank_correlation_min": 0.60,
+    "median_exposure_overlap_min": 0.60,
+    "null_paths": 100,
+    "path_fwer_max": 0.05,
+    "trial_fault_leaks_required": 0
+  },
+  "prior_empirical_result": {
+    "version": "11.3.1",
+    "decision": "FITTING_CAPABLE_ONLY",
+    "raw_global_trials": 2770,
+    "may_not_be_reinterpreted": true
+  },
+  "forced_stop": true,
+  "automatic_promotion": false,
+  "v11_2_isolation_required": true
+}
