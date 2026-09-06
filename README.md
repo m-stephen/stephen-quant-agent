@@ -1,5 +1,37 @@
 # Stephen Quant Agent
 
+## V11.11 temporal mechanisms and frozen allocation / 时间机制与稳定配置
+
+Issue #184 now has three gap-aware temporal mechanisms and native yearly fit
+lineage. All three add zero versus the matched stable-lowrisk allocation:
+six fits + fifteen accounts are independently audited, not promoted to Alpha.
+The stable allocation itself is frozen as a post-selected historical observation.
+Its ten matched stress accounts survive82/102/132bps,quarter ADV capacity and an
+extra execution-day delay. It is NOT independently validated or brokerage-ready.
+Full suite:811 passed,1 skipped; historical Trial lower bound3320,including31new
+fit/account reservations. No2025/2026 access or changes to previous frozen leads.
+
+See [中文机制报告](docs/V11_11_RESULT.zh.md) / [English mechanism report](docs/V11_11_RESULT.en.md),
+[中文深挖报告](docs/V11_11_DEEP.zh.md) / [English stress report](docs/V11_11_DEEP.en.md),
+[frozen observation](configs/v11.11-frozen-stability-observation.json),
+[verification](docs/V11_11_VERIFICATION.json) and [continuation](docs/V11_11_CONTINUATION.md).
+
+Completed operations are single-use and cannot be replayed. For code review only:
+
+```text
+python -m stephen_quant.workflows.v1111_temporal_epoch --config configs/temporal-increments.local.json
+python scripts/audit_temporal_epoch.py --operation artifacts/temporal-increments/epoch-001
+python scripts/build_temporal_report.py
+python scripts/finalize_temporal_artifact.py
+python scripts/run_stability_challenge.py --config configs/temporal-increments.local.json --parent artifacts/temporal-increments/epoch-001 --output artifacts/stability-challenge/epoch-001 --preregistration 5560193208
+python scripts/audit_stability_challenge.py
+python scripts/build_stability_report.py
+```
+
+The native report payloads are archived locally and schema-validated; ordinary
+non-certified results are not proactively surfaced. See verification for delivery
+and visual-QA limits. Runtime evidence, raw data and local paths are gitignored.
+
 ## V11.10.1 native fit lineage / 分阶段拟合血缘
 
 Engineering-only continuation of Issue #184. New Trials can declare their model
