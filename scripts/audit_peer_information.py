@@ -106,7 +106,7 @@ def graph_check(con, models, calendar):
           count(*) n,corr(x.residual,y.residual) r FROM train x JOIN train y ON x.date=y.date
           WHERE x.instrument IN (SELECT instrument FROM sample) AND x.instrument!=y.instrument
           AND y.instrument IN (SELECT instrument FROM train GROUP BY instrument HAVING count(*)>=120)
-          GROUP BY ALL HAVING n>=120 AND isfinite(r) AND r>=0.15), b AS (
+          GROUP BY ALL HAVING count(*)>=120 AND isfinite(r) AND r>=0.15), b AS (
           SELECT *,row_number() OVER(PARTITION BY receiver ORDER BY r DESC,peer) k FROM a)
           SELECT receiver,peer FROM b WHERE k<=10 ORDER BY receiver,k""").fetchall()
         expected = {n: [] for n in chosen}

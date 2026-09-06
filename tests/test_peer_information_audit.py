@@ -109,7 +109,7 @@ def test_independent_graph_audit_catches_tampering(audit_module, mutation):
         )
     with duckdb.connect() as con:
         con.execute(
-            "CREATE TABLE demeaned AS SELECT (value->>'date')::DATE date,value->>'instrument' instrument,"
+            "CREATE TABLE demeaned AS SELECT 5 AS n,(value->>'date')::DATE date,value->>'instrument' instrument,"
             "(value->>'residual')::DOUBLE residual,(value->>'volatility_20')::DOUBLE volatility_20,"
             "(value->>'liquidity')::DOUBLE liquidity,(value->>'ret_20')::DOUBLE ret_20 FROM json_each(?)",
             [json.dumps(rows)],

@@ -1,5 +1,21 @@
 # Stephen Quant Agent
 
+## V11.17 statistical peers / 跨股统计关联
+
+Train-only return-correlation graphs test two peer-gap signals across three risk
+strata, with own/common-information, topology-shuffled and stable-hash controls.
+All50 continuous CNY3m accounts and independent source/graph/target/native-fit
+audits complete. **0/6 identities pass the two-cost economic screen; no certified
+usable Alpha.** Both-year common receiver coverage exceeds92%; failure is not
+missing graph support. Historical Trial lower bound3556;2025/26 remain sealed.
+
+See [中文报告](docs/V11_17_RESULT.zh.md), [English report](docs/V11_17_RESULT.en.md),
+[all accounts](docs/V11_17_RESULT.summary.json), [design](docs/V11_17_DESIGN.md),
+[audit companion](notebooks/V11_17_AUDIT.ipynb), and
+[recovery](docs/V11_17_CONTINUATION.md). Research dependencies: `pip install -e ".[research]"`.
+The notebook's four plain-Python cells execute; Jupyter frontend QA is not claimed.
+No main merge, broker action, raw source or credential publication.
+
 ## V11.16 sparse sequence events / 稀疏次序事件
 
 Eight preregistered shock-confirmation identities and 50 continuous accounts test
