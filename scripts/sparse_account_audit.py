@@ -21,7 +21,7 @@ def near(a, b, why, tol=1e-6):
         raise ValueError(why)
 
 
-def audit_accounts(ROOT, result):
+def audit_accounts(ROOT, result, *, expected_accounts=50):
     query = (
         Path("scripts/lead_challenge_audit.sql")
         .read_text(encoding="utf-8")
@@ -31,14 +31,14 @@ def audit_accounts(ROOT, result):
         data = conn.execute(query)
         columns = [x[0] for x in data.description]
         sql = {r[0]: dict(zip(columns, r, strict=True)) for r in data.fetchall()}
-    if len(sql) != 50 or set(sql) != set(result["records"]):
-        raise ValueError("all50 accounts required")
+    if len(sql) != expected_accounts or set(sql) != set(result["records"]):
+        raise ValueError("all predeclared accounts required")
     rows, max_balance = [], 0.0
     for key, record in result["records"].items():
         path = ROOT / "accounts" / f"{key}.jsonl"
         if file_sha(path) != record["account_sha256"]:
             raise ValueError("account hash changed")
-        target_key = record["identity"] + "-" + record["policy"]
+        target_key = key.rsplit("-", 1)[0]
         targets = read(ROOT / "targets" / f"{target_key}.json")
         if (
             sha256_json(targets) != record["target_sha256"]
