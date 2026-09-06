@@ -1,5 +1,19 @@
 # Stephen Quant Agent
 
+## V11.10.1 native fit lineage / 分阶段拟合血缘
+
+Engineering-only continuation of Issue #184. New Trials can declare their model
+stages atomically before fitting; actual training sessions, mature label dates,
+snapshot/code identity and model bytes are bound append-only. The guarded residual
+execution entry rejects missing or replaced models before target calculation.
+Synthetic planted/null and blocked-fill accounts test the complete execution path.
+No new market experiment, no Alpha promotion, historical Trial lower bound stays3289.
+Existing V11.10 evidence is immutable; its closed runner is not the new research entry.
+
+See [中文测试报告](docs/V11_10_1_RESULT.zh.md),
+[English engineering report](docs/V11_10_1_RESULT.en.md), and
+[continuation](docs/V11_10_1_CONTINUATION.md).
+
 ## V11.10 residual mechanisms / 训练期残差机制
 
 Issue #184 adds training-only risk residualization, three fixed interactions and
@@ -19,7 +33,9 @@ See [中文报告](docs/V11_10_RESULT.zh.md) / [English report](docs/V11_10_RESU
 python -m stephen_quant.workflows.v1110_residual_epoch --config configs/residual-mechanisms.local.json
 ```
 
-Use gitignored local configuration; completed operations are not rerunnable.
+Historical command only. Use its frozen branch for source review, not a new market
+run. Completed operations are not rerunnable; a new experiment needs a new identity,
+full cumulative Trial debt and native fit contracts.
 
 ## V11.9 calendar robustness / 调仓日历稳健性
 

@@ -107,6 +107,19 @@ def test_missing_exit_is_not_silently_dropped():
     )
 
 
+def test_actual_training_sessions_exclude_dates_with_no_accepted_samples():
+    days = fixture_days()
+    changed = (replace(days[0], features={}), *days[1:])
+    original, model = fit_year(days, 2023), fit_year(changed, 2023)
+    assert days[0].date not in model["training_signal_sessions"]
+    assert model["training_signal_dates"] == len(model["training_signal_sessions"])
+    assert model["training_signal_dates"] == original["training_signal_dates"] - 1
+    assert (
+        model["models"][MECHANISMS[0]]["samples"]
+        == original["models"][MECHANISMS[0]]["samples"] - 100
+    )
+
+
 def test_immature_model_refused():
     d = fixture_days()
     model = fit_year(d, 2023)

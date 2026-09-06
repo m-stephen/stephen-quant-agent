@@ -179,7 +179,8 @@ def fit_year(days, year, cache=None):
         raise ValueError("insufficient matured prefix")
     cache = {} if cache is None else cache
     fits = {m: ResidualFit() for m in MECHANISMS}
-    missing_entry = missing_exit = count_dates = 0
+    missing_entry = missing_exit = 0
+    training_sessions = []
     maximum_label_end = ""
     for i in range(0, len(prefix) - HORIZON - 1, 5):
         signal = prefix[i]
@@ -188,8 +189,7 @@ def fit_year(days, year, cache=None):
         rows = cache[signal.date]
         entry = {b.instrument: b.open_price for b in prefix[i + 1].bars}
         exit_prices = {b.instrument: b.open_price for b in prefix[i + HORIZON + 1].bars}
-        maximum_label_end = prefix[i + HORIZON + 1].date
-        count_dates += 1
+        accepted = 0
         for n, row in rows.items():
             if n not in entry or not math.isfinite(entry[n]) or entry[n] <= 0:
                 missing_entry += 1
@@ -201,11 +201,16 @@ def fit_year(days, year, cache=None):
                 y = exit_prices[n] / entry[n] - 1
             for m, fit in fits.items():
                 fit.add(row["x"], row["z"][m], y)
+            accepted += 1
+        if accepted:
+            training_sessions.append(signal.date)
+            maximum_label_end = prefix[i + HORIZON + 1].date
     return {
         "year": year,
         "fit_cutoff": prefix[-1].date,
         "maximum_label_end": maximum_label_end,
-        "training_signal_dates": count_dates,
+        "training_signal_dates": len(training_sessions),
+        "training_signal_sessions": training_sessions,
         "missing_entry_excluded": missing_entry,
         "missing_exit_imputed_loss": missing_exit,
         "models": {m: fit.finish() for m, fit in fits.items()},
