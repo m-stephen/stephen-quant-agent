@@ -11,6 +11,9 @@ previously exposed and remains restricted for this run. No deployable Alpha is i
 See [中文规范](docs/V11_4_6_RELIABLE_RESEARCH.zh.md) and
 [English specification](docs/V11_4_6_RELIABLE_RESEARCH.en.md).
 
+The completed bounded test is recorded in [中文测试报告](docs/V11_6_RESULT.zh.md) /
+[English results](docs/V11_6_RESULT.en.md). Engineering checks pass; no validated Alpha.
+
 ```bash
 stephen-quant reliable-research --config configs/reliable-research.local.json
 ```

@@ -5,8 +5,10 @@ Engineering repairs delivered; no new validated Alpha in this epoch.
 ## Engineering checks
 
 - Full local suite:702 passed,1 skipped; Ruff passed.
+- The skipped case requires symbolic-link creation unavailable under this Windows permission context; no failed factor test was suppressed.
 - Repaired gate direction, future exit-price eligibility, unused-field filtering, minute availability joins, daily accounting and statistical definitions.
 - 96 account-window reconciliations passed; maximum balance residual CNY0.0000000005.
+- An independent process replayed all96 accounts from frozen inputs. Every metric and target hash matched exactly;zero additional trials;SQLite registry byte hash unchanged.
 - Synthetic audit:actual1/8-worker parity,24/24 first-place recovery,0/100 false positives (95% Wilson upper bound3.70%).
 - Economic detection is not Court calibration:the raw-count DSR sensitivity rejects all24 strong planted signals; this limitation remains explicit.
 
@@ -40,4 +42,5 @@ Each year starts independently with CNY3m. Net of modeled costs. Benchmark:theor
 - Snapshot SHA-256: `b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51`.
 - Result SHA-256: `e2a4bb5344c7f17e1033b9dba6ed9069e749fbad4c9e32a0296e353a95958bc9`.
 - Runtime SHA-256: `9c4312c345ed46c0b4785a59e89a374003e1f0e11036d56715ff6f8548e25ee8`.
+- Replay operation:`47446023-0023-46af-987b-732002e3f13b`;evidence SHA-256:`15f9fffc8d426aa87d563d7f871eb19a06cc6a6274aa733bfffccb403d262140`. Machine evidence:`V11_6_REPLAY.json`.
 - Next:investable benchmark and cost/style attribution, then an identifiable historical statistical contract. Do not manufacture PASS by increasing random templates or relaxing thresholds. Keep this epoch frozen.
