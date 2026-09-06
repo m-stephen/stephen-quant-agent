@@ -1,5 +1,20 @@
 # Stephen Quant Agent
 
+## V11.13 matched stability attribution / 持仓稳定性归因
+
+Twelve preregistered accounts separate membership retention from unnecessary
+weight maintenance, including zero-cost counterfactuals and genuine82/164bps
+costs. Frozen targets are unchanged and both82bps legacy accounts replay exactly.
+Fewer tickets help implementation but do not solve the weak-year economic test:
+stable target_changes returns32.95% over reused2023–2024 at82bps;at164bps,
+2023 is−1.22%. **Neither mode passes the full screen;no usable Alpha certificate.**
+
+Full suite843passed,1skipped;15new regression tests;independent12-account SQL,
+cash/positions,fees,returns and native no-fit ledger audit pass. Trial debt3334.
+See [中文](docs/V11_13_RESULT.zh.md),[English](docs/V11_13_RESULT.en.md),
+[contract](docs/V11_13_SPEC.md),[summary](docs/V11_13_RESULT.summary.json),
+and[continuation](docs/V11_13_CONTINUATION.md). No2025/2026 access or main merge.
+
 ## V11.12 frozen-account execution evidence / 冻结账户执行证据
 
 Issue #184 now distinguishes historical adjusted-fractional returns from raw-share
