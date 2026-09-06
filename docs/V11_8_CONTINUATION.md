@@ -10,7 +10,8 @@ Python processes and local operation receipts. Never start a duplicate live job.
 The following paths are repository-relative and ignored:
 
 - `artifacts/lead-challenge/epoch-001/RESULT.json`: completed66-account challenge.
-- `artifacts/lead-successor/epoch-001/`: predeclared16-candidate conditional60 epoch.
+- `artifacts/lead-successor/epoch-001/RESULT.json`: completed16-candidate conditional60 epoch;
+  zero economic leads. Independent192-account and SQL verification passed.
 - `artifacts/lead-successor/claims/`: exclusive predecessor claims; failures retain
   claims and reservations. Do not delete them to restart a research attempt.
 - `configs/lead-challenge.local.json`: private parent/input references.
@@ -20,6 +21,14 @@ policies;3184 after96 successor reservations, even if the successor aborts. The
 old unused96 V11.7 reservations remain charged. Exact replay adds zero trials.
 Every subsequent epoch must carry the complete prior operation chain, including
 aborted reservations. Do not derive debt only from the last successful epoch.
+
+Both operations are now complete. Do not rerun them: source result hashes and
+the751-pass local test receipt are in `docs/V11_8_VERIFICATION.json`. Current
+research debt is3184. Draft PR185 is stacked on PR183; check CI/review status
+before calling engineering ready. The automatic follow-up runs every30 minutes.
+Next research should explain why all conditional60 combinations lag low-vol;
+prioritize timing and continuous-holding mechanisms, not another horizon-only
+repeat. Preserve the old chip lead even though its132bps stress is fragile.
 
 ## Decision tree
 

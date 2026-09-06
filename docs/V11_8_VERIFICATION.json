@@ -1,0 +1,40 @@
+{
+  "version": "11.8.0",
+  "issue": 184,
+  "engineering_test_status": "LOCAL_PASSED_REMOTE_CI_PENDING_AT_PUBLICATION",
+  "pytest": {"passed": 751, "skipped": 1, "skip_reason": "Windows symlink permission", "command": "python -m pytest -q --tb=short"},
+  "ruff": "All checks passed",
+  "test_environment": "AlphaPai API variables removed only from test subprocess to prevent credential-bearing error output",
+  "runtime_code_sha256": "888a0e09deb994189750a5bf987c979a70cd63df231ea07eec727f4362a58b33",
+  "input_snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "challenge": {
+    "result_sha256": "811af6aa3b2318d1d63d1b9f1e22e806b50ca9190f6a596606cff916037e1510",
+    "accounts": 66,
+    "new_trials": 30,
+    "exact_baseline_replay_accounts": 12,
+    "replay_trial_delta": 0,
+    "stress_survivors": 0,
+    "independent_account_and_sql_audit": "PASS"
+  },
+  "successor": {
+    "result_sha256": "a449ad26193ecd0aadac9d281bbf2469a9b8e6cb1c4d7b490a68c2ac9f28d1fa",
+    "accounts": 192,
+    "new_trials": 96,
+    "candidates": 16,
+    "economic_leads": 0,
+    "independent_account_and_sql_audit": "PASS",
+    "dsr_sensitivity": 0.016301195168819893,
+    "pbo_diagnostic": 0.55,
+    "family_placebo_p": 0.995
+  },
+  "total_account_windows": 258,
+  "raw_global_trial_lower_bound": 3184,
+  "protected_evidence_unchanged": true,
+  "restricted_2025_2026_rows_read": 0,
+  "validated_alpha": false,
+  "brokerage_ready": false,
+  "native_report_validation": "PASS",
+  "native_report_render": "accepted by artifact renderer; pixel-level inspection unavailable",
+  "automatic_continuation": "ACTIVE; checks every30 minutes in the existing task; no duplicate running jobs",
+  "next": "preregister distinct timing and continuous-holding mechanisms; freeze any lead before execution/style/independent verification"
+}
