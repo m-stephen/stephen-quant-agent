@@ -1,0 +1,11 @@
+{
+  "frozen_inputs_dir": "artifacts/previous-epoch/inputs",
+  "legacy_operation_dirs": ["artifacts/v116-aborted", "artifacts/v116-complete"],
+  "prior_incremental_dirs": [],
+  "output_dir": "artifacts/incremental-alpha/epoch-001",
+  "protected_paths": [
+    "configs/v4.8-frozen-candidate.json",
+    "configs/v11-forward-protocol.freeze.json",
+    "configs/v11.1-candidate-evidence.freeze.json"
+  ]
+}

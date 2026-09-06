@@ -389,7 +389,12 @@ def selection_key(values, identity):
     return (mean(values), -stdev(values) if len(values) > 1 else 0.0, identity)
 
 
-def temporal_selection(dates: list[str], returns: dict[str, list[float]], raw_trials: int):
+def temporal_selection(
+    dates: list[str], returns: dict[str, list[float]], raw_trials: int,
+    *, holding_period_sessions: int = 20,
+):
+    if holding_period_sessions < 1:
+        raise ValueError("holding period must be positive")
     if not returns or len(dates) < 126 or any(len(v) != len(dates) for v in returns.values()):
         raise ValueError("selection requires aligned daily series and at least126 dates")
     samples = [
@@ -398,7 +403,7 @@ def temporal_selection(dates: list[str], returns: dict[str, list[float]], raw_tr
             "portfolio",
             f"{d}T08:00:00+08:00",
             f"{d}T09:30:00+08:00",
-            f"{dates[min(i + 20, len(dates) - 1)]}T15:00:00+08:00",
+            f"{dates[min(i + holding_period_sessions, len(dates) - 1)]}T15:00:00+08:00",
         )
         for i, d in enumerate(dates)
     ]
@@ -436,7 +441,7 @@ def temporal_selection(dates: list[str], returns: dict[str, list[float]], raw_tr
         observed_sharpe=sharpe(selected) / math.sqrt(252),
         trial_sharpes=[sharpe(v) / math.sqrt(252) for v in returns.values()],
         recorded_trial_count=raw_trials,
-        observations=effective_n(selected),
+        observations=effective_n(selected, lag=holding_period_sessions),
         skewness=skew,
         excess_kurtosis=kurtosis,
     )
@@ -450,7 +455,7 @@ def temporal_selection(dates: list[str], returns: dict[str, list[float]], raw_tr
         "dsr_raw_trial_count": raw_trials,
         "dsr_benchmark_daily_sharpe": dsr.benchmark_sharpe,
         "dsr_assumption": "current-family Sharpe dispersion extrapolated to all raw trials; not a calibrated full-history DSR",
-        "effective_observations": effective_n(selected),
+        "effective_observations": effective_n(selected, lag=holding_period_sessions),
         "daily_observations": len(dates),
         "empirical_skewness": skew,
         "empirical_excess_kurtosis": kurtosis,
