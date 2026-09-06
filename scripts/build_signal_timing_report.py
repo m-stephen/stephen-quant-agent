@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from stephen_quant.discovery.risk_stratified import MECHANISMS
+from stephen_quant.discovery.signal_timing import LABELS
 from stephen_quant.workflows.v114_reliable_epoch import write_json
 
 ROOT = Path("artifacts/signal-timing/epoch-001")
@@ -30,6 +31,24 @@ def build():
                 }
             )
     strong = [k for k, passed in summary["strong_responses"].items() if passed]
+    chart_rows.sort(key=lambda r: (r["group"], LABELS.index(r["label"]), r["year"], r["policy"]))
+    mechanism_rows = [r for r in rows if r["policy"] in MECHANISMS]
+    short_max = {
+        label: max(r["mean_gross"] for r in mechanism_rows if r["label"] == label)
+        for label in ("open_1", "open_5")
+    }
+    positive20 = {
+        year: sum(
+            r["mean_gross"] > 0
+            for r in mechanism_rows
+            if r["year"] == year and r["label"] == "open_20"
+        )
+        for year in ("2023", "2024")
+    }
+    quiet = [
+        lookup["low", "quiet_accumulation", "open_20", year]["mean_gross"]
+        for year in ("2023", "2024")
+    ]
     sections = [
         (
             "decision",
@@ -55,6 +74,24 @@ def build():
                 f"{summary['signal_dates']} common mature signal dates,{summary['first_signal']} through {summary['last_signal']}."
                 "2022warmup,reused2023/24,no2025/26. Years refer to signal dates,not accounting years."
                 "Daily top10 per cell,2.5% each,no retention buffer;cell-equal-weight assigns25% per nonempty cell."
+            ),
+        ),
+        (
+            "findings",
+            "本轮实际发现 / What the evidence shows",
+            (
+                f"九个机制在20日区间的正毛收益数量，2023年为{positive20['2023']}/9，2024年为{positive20['2024']}/9。"
+                f"低波安静吸筹分别为{quiet[0]:.4%}/{quiet[1]:.4%}，但2024年低于同档全部三个对照。"
+                f"所有机制和年份中，1日、5日毛均值的最大值分别仅{short_max['open_1']:.4%}、{short_max['open_5']:.4%}，"
+                "均不到1.64%单次完整往返参考线。这不是净收益测算，也不排除buffer降低实际换手；"
+                "但不能把缩短持有期本身当成已证实的解法。有些短期信号存在，核心问题是幅度、对照增量和跨年稳定性，不能全部归咎于买入前收益。"
+            ),
+            (
+                f"Positive20-session gross responses: {positive20['2023']}/9 in2023 versus {positive20['2024']}/9 in2024."
+                f"Low-risk quiet accumulation averages {quiet[0]:.4%}/{quiet[1]:.4%},but trails all three same-stratum controls in2024."
+                f"The largest1/5-session gross means across mechanisms and years are only{short_max['open_1']:.4%}/{short_max['open_5']:.4%},"
+                "both below the1.64% full-roundtrip reference. This is not net-return arithmetic and does not rule out turnover reduction via buffers."
+                "Simply shortening holding time is not an established remedy. Some short-lived response exists;amplitude,increment over controls and year stability matter,not only inaccessible pre-entry gains."
             ),
         ),
         (

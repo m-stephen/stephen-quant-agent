@@ -35,6 +35,8 @@ def audit(output, inputs):
         raise ValueError("protected source changed")
     con = duckdb.connect()
     con.execute("SET threads=4")
+    con.execute("SET memory_limit='4GB'")
+    con.execute(f"SET temp_directory={quoted(output / 'audit_tmp')}")
     con.execute(
         f"CREATE TABLE e AS SELECT * FROM read_csv({quoted(output / 'endpoints.csv.gz')},header=true)"
     )
