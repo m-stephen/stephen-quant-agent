@@ -1,5 +1,22 @@
 # Stephen Quant Agent
 
+## V11.7 incremental alpha / 增量因子实验
+
+Issue #182 adds matched Top40 low-volatility and no-signal controls, explicit
+zero/standard/double costs, bounded mechanism generation and an automatic
+successor batch only when the first batch finds no historical lead. All192
+candidate/control/cost reservations precede source reads; previous trial debt
+is retained. Historical-lead status never grants Alpha Court or trading approval.
+
+See [中文设计](docs/V11_7_SPEC.zh.md) / [English design](docs/V11_7_SPEC.en.md).
+Configure a gitignored local copy of `configs/incremental-alpha.example.json`:
+
+```text
+stephen-quant incremental-alpha --config configs/incremental-alpha.local.json
+```
+
+The command uses immutable existing input snapshots and does not reopen2025–2026.
+
 ## V11.6 reliable research / 可信研究首轮
 
 Version11.6.0 delivers Issue #180's V11.4–V11.6 bounded implementation: shared daily

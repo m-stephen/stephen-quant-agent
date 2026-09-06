@@ -208,3 +208,35 @@ def test_trials_registered_before_source_read_and_aborts_retained(tmp_path, monk
     assert json.loads((output / "ABORTED.json").read_text())["reservations_preserved"]
     with pytest.raises(FileExistsError):
         workflow.run_incremental_epoch(config)
+
+
+@pytest.mark.parametrize("seed", [182001, 182002, 182003, 182004])
+def test_planted_increment_recovers_correct_direction(seed):
+    from stephen_quant.discovery.reliability_calibration import synthetic_days
+
+    sample, field, direction = synthetic_days(seed, True, size=160)
+    sample = tuple(
+        replace(d, features={n: {**f, "volatility_20": 0.02} for n, f in d.features.items()})
+        for d in sample
+    )
+    h = IncrementalHypothesis(field, direction, "blend", 20)
+    good, _ = incremental_targets(sample, h)
+    bad, _ = incremental_targets(sample, replace(h, direction=-direction))
+    control, _ = incremental_targets(sample, h, "lowvol")
+    a, b, c = (execute(sample, t, 2) for t in (good, bad, control))
+    assert a.metrics.net_total_return > c.metrics.net_total_return > b.metrics.net_total_return
+    assert all(audit_account(r)["pass"] for r in (a, b, c))
+
+
+def test_long_horizon_has_at_least_as_much_purging():
+    import math
+    from datetime import date, timedelta
+
+    dates = [(date(2023, 1, 1) + timedelta(days=i)).isoformat() for i in range(484)]
+    matrix = {
+        "one": [0.001 * math.sin(i / 11) for i in range(484)],
+        "two": [0.002 * math.cos(i / 13) for i in range(484)],
+    }
+    short = temporal_selection(dates, matrix, 3058, holding_period_sessions=20)
+    long = temporal_selection(dates, matrix, 3058, holding_period_sessions=60)
+    assert sum(f["purged_n"] for f in long["folds"]) > sum(f["purged_n"] for f in short["folds"])

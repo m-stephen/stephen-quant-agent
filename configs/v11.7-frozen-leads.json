@@ -1,0 +1,95 @@
+{
+  "version": "11.7.0",
+  "status": "FROZEN_HISTORICAL_LEADS_NOT_VALIDATED_ALPHA",
+  "primary": "6aef857e541e9787432cf5a9b888fbf9b67866e4e46fc86495f6781f3ddf1f60",
+  "source_result_sha256": "e10b06647b6b00e40bc4b898f00916ab120b2932bf1d839ccfd2cc4e11c40731",
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "runtime_code_sha256": "1ace82b80813fab1380ed67d8726cc515f65066065d09263f042934b7864286f",
+  "trial_lower_bound": 3058,
+  "criteria": {
+    "annual_drawdown_floor": -0.25,
+    "annual_increment_vs_lowvol_floor": -0.05,
+    "both_years_positive": true,
+    "compound_increment_vs_hash_min_exclusive": 0,
+    "compound_increment_vs_lowvol_min": 0.03,
+    "cost_multiplier": 2,
+    "pooled_sharpe_min": 0.7,
+    "status": "CONTAMINATED_HISTORICAL_LEAD_NOT_VALIDATED_ALPHA"
+  },
+  "development_years": [
+    2023,
+    2024
+  ],
+  "prior_exposure_retained": true,
+  "validated_alpha": false,
+  "leads": [
+    {
+      "name": "blend_concentration_+1_h20",
+      "identity": "6aef857e541e9787432cf5a9b888fbf9b67866e4e46fc86495f6781f3ddf1f60",
+      "hypothesis": {
+        "direction": 1,
+        "field": "concentration",
+        "horizon": 20,
+        "method": "blend"
+      },
+      "mechanism": {
+        "falsifier": "net incremental wealth disappears after matched low-vol control and doubled costs",
+        "formula": "0.7*(-rank(vol20))+0.3*direction*rank(signal)",
+        "hypothesis": "concentration direction +1 adds information within a low-risk allocation",
+        "source": "bounded deterministic mechanism grammar; no external LLM call"
+      },
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": true,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": true,
+          "positive_both_years": true,
+          "sharpe": true
+        },
+        "compound_increment_vs_hash": 0.30051646508111296,
+        "compound_increment_vs_lowvol": 0.08505788016079929,
+        "compound_return_reset_accounts": 0.3487961110628126,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 1.0670496168206172,
+        "suspected_lead": true,
+        "validated_alpha": false
+      }
+    },
+    {
+      "name": "blend_late_30_return_-1_h20",
+      "identity": "dbcf5838021af944830a7dc7269c1770306e1c1fdbe6df8fd0784aeaff43b60e",
+      "hypothesis": {
+        "direction": -1,
+        "field": "late_30_return",
+        "horizon": 20,
+        "method": "blend"
+      },
+      "mechanism": {
+        "falsifier": "net incremental wealth disappears after matched low-vol control and doubled costs",
+        "formula": "0.7*(-rank(vol20))+0.3*direction*rank(signal)",
+        "hypothesis": "late_30_return direction -1 adds information within a low-risk allocation",
+        "source": "bounded deterministic mechanism grammar; no external LLM call"
+      },
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": true,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": true,
+          "positive_both_years": true,
+          "sharpe": true
+        },
+        "compound_increment_vs_hash": 0.2456779527013888,
+        "compound_increment_vs_lowvol": 0.06480377627912604,
+        "compound_return_reset_accounts": 0.32854200718113935,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.9538043100540863,
+        "suspected_lead": true,
+        "validated_alpha": false
+      }
+    }
+  ]
+}
