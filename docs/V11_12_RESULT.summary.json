@@ -1,0 +1,129 @@
+{
+  "audit_sha256": "968aa0550108862b81cb31775cf0e58cffb0752d2974fdb007f0ef1d22398ff9",
+  "chart_rows": [
+    {
+      "account_start_cny": 3000000,
+      "all_buy_tickets": 5484,
+      "cumulative_buy_notional_cny": 56209286.29099852,
+      "period": "2023-2024",
+      "policy": "lowvol",
+      "quantity_status": "below_minimum",
+      "share_of_buy_tickets": 0.3610503282275711,
+      "ticket_count": 1980
+    },
+    {
+      "account_start_cny": 3000000,
+      "all_buy_tickets": 5484,
+      "cumulative_buy_notional_cny": 56209286.29099852,
+      "period": "2023-2024",
+      "policy": "lowvol",
+      "quantity_status": "nonzero_rounded",
+      "share_of_buy_tickets": 0.6389496717724289,
+      "ticket_count": 3504
+    },
+    {
+      "account_start_cny": 3000000,
+      "all_buy_tickets": 4827,
+      "cumulative_buy_notional_cny": 37041808.07999825,
+      "period": "2023-2024",
+      "policy": "stable_lowrisk",
+      "quantity_status": "below_minimum",
+      "share_of_buy_tickets": 0.4373316759892273,
+      "ticket_count": 2111
+    },
+    {
+      "account_start_cny": 3000000,
+      "all_buy_tickets": 4827,
+      "cumulative_buy_notional_cny": 37041808.07999825,
+      "period": "2023-2024",
+      "policy": "stable_lowrisk",
+      "quantity_status": "nonzero_rounded",
+      "share_of_buy_tickets": 0.5626683240107727,
+      "ticket_count": 2716
+    }
+  ],
+  "independent_audit_pass": true,
+  "new_accounts": 0,
+  "new_diagnostic_trials": 2,
+  "new_fits": 0,
+  "raw_trial_lower_bound": 3322,
+  "restricted_rows_read": 0,
+  "result_sha256": "b42aed511e775c8588cf7b60f50fe8469a47f48f6ed28d2dd6ce0c781246bde4",
+  "rows": [
+    {
+      "below_minimum_buy_tickets": 1980,
+      "board_buy_counts": {
+        "CHINEXT": 158,
+        "SH_MAIN": 3751,
+        "STAR": 110,
+        "SZ_MAIN": 1465
+      },
+      "buy_notional_cny": 56209286.29099852,
+      "buy_tickets": 5484,
+      "commission_floor_tickets": 5056,
+      "executed_tickets": 10536,
+      "extra_minimum_commission_cny": 23739.12513424347,
+      "fit_lineage_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "held_factor_change_keys": 415,
+      "held_prior_factor_missing_keys": 0,
+      "held_raw_missing_keys": 35,
+      "interpretation": "SAME_SAVED_TICKETS_ONLY_NOT_A_PORTFOLIO_REPLAY_OR_NAV_ADJUSTMENT",
+      "maximum_bound_buy_tickets": 0,
+      "minimum_commission_cny_assumption": 5,
+      "minimum_commission_is_broker_confirmed": false,
+      "missing_buy_prices": 0,
+      "physical_execution_verified": false,
+      "policy": "lowvol",
+      "rounded_buy_notional_cny": 53838725.1,
+      "sell_tickets": 5052,
+      "sessions": 484,
+      "supported_buy_notional_cny": 56209286.29099852,
+      "unallocated_buy_fraction": 0.042173835453555006,
+      "unallocated_buy_notional_cny": 2370561.1909983368,
+      "unsupported_buy_tickets": 0,
+      "validated_alpha": false
+    },
+    {
+      "below_minimum_buy_tickets": 2111,
+      "board_buy_counts": {
+        "CHINEXT": 95,
+        "SH_MAIN": 3384,
+        "STAR": 91,
+        "SZ_MAIN": 1257
+      },
+      "buy_notional_cny": 37041808.07999825,
+      "buy_tickets": 4827,
+      "commission_floor_tickets": 5811,
+      "executed_tickets": 9100,
+      "extra_minimum_commission_cny": 26998.518040150724,
+      "fit_lineage_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "held_factor_change_keys": 352,
+      "held_prior_factor_missing_keys": 0,
+      "held_raw_missing_keys": 35,
+      "interpretation": "SAME_SAVED_TICKETS_ONLY_NOT_A_PORTFOLIO_REPLAY_OR_NAV_ADJUSTMENT",
+      "maximum_bound_buy_tickets": 0,
+      "minimum_commission_cny_assumption": 5,
+      "minimum_commission_is_broker_confirmed": false,
+      "missing_buy_prices": 0,
+      "physical_execution_verified": false,
+      "policy": "stable_lowrisk",
+      "rounded_buy_notional_cny": 35277559.980000004,
+      "sell_tickets": 4273,
+      "sessions": 484,
+      "supported_buy_notional_cny": 37041808.07999825,
+      "unallocated_buy_fraction": 0.0476285632760697,
+      "unallocated_buy_notional_cny": 1764248.0999982264,
+      "unsupported_buy_tickets": 0,
+      "validated_alpha": false
+    }
+  ],
+  "scoped_worklist_keys": 512,
+  "source_price_rows": 47573,
+  "validated_alpha": false,
+  "version": "11.12.0",
+  "worklist_reason_counts": {
+    "held_adjustment_change": 477,
+    "held_raw_missing": 35
+  },
+  "worklist_unique_instruments": 253
+}

@@ -1,5 +1,22 @@
 # Stephen Quant Agent
 
+## V11.12 frozen-account execution evidence / 冻结账户执行证据
+
+Issue #184 now distinguishes historical adjusted-fractional returns from raw-share
+executability. Two registered diagnostics inspect 10,311 frozen buy tickets without
+changing targets or simulating new accounts. Of 4,827 stable-allocation buys,2,111
+are below the raw-price minimum quantity; cumulative ticket rounding is4.76% of
+buy notional,NOT a return loss. A private512-key event/price worklist narrows the
+execution-evidence gap. The candidate is preserved;usable Alpha remains unproven.
+
+Full suite828passed,1skipped;Ruff passes;raw Trial lower bound3322. No2025/2026
+market reads,no new fits/accounts,and no changes to the original frozen card.
+See [中文报告](docs/V11_12_RESULT.zh.md),[English report](docs/V11_12_RESULT.en.md),
+[中文契约](docs/V11_12_SPEC.zh.md),[English contract](docs/V11_12_SPEC.en.md),
+[source evidence](docs/V11_12_SOURCE_EVIDENCE.json),
+[aggregate notebook](notebooks/V11_12_execution_evidence.ipynb),
+[verification](docs/V11_12_VERIFICATION.json),and[continuation](docs/V11_12_CONTINUATION.md).
+
 ## V11.11 temporal mechanisms and frozen allocation / 时间机制与稳定配置
 
 Issue #184 now has three gap-aware temporal mechanisms and native yearly fit

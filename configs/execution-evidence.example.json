@@ -1,0 +1,7 @@
+{
+  "parent_dir": "../v11.11-temporal-increments/artifacts/stability-challenge/epoch-001",
+  "input_dir": "../v11.4-research-reliability/artifacts/reliable-research/epoch-002/inputs",
+  "original_card": "../v11.11-temporal-increments/configs/v11.11-frozen-stability-observation.json",
+  "output_dir": "artifacts/execution-evidence/epoch-001",
+  "preregistration_comment": 0
+}
