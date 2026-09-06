@@ -6,6 +6,8 @@ import hashlib
 import json
 import math
 import os
+import shutil
+import sqlite3
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +64,28 @@ def protected_digest(paths):
         for item in selected:
             files[str(item)] = file_sha(item)
     return sha256_json(files), len(files)
+
+
+def historical_debt(prior_operations):
+    """Charge every reserved attempt, including operations stopped by engineering errors."""
+    debt = 2770
+    evidence = []
+    for folder in sorted({Path(p).resolve() for p in prior_operations}):
+        reservations = json.loads((folder / "first_read_reservations.json").read_text())
+        database = folder / "registry.sqlite3"
+        with sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True) as conn:
+            registered = conn.execute("SELECT count(*) FROM trials").fetchone()[0]
+        charged = max(registered, len(reservations["trials"]))
+        debt += charged
+        evidence.append(
+            {
+                "operation": folder.name,
+                "charged_trials": charged,
+                "reservations_sha256": file_sha(folder / "first_read_reservations.json"),
+                "registry_sha256": file_sha(database),
+            }
+        )
+    return debt, evidence
 
 
 def calibrate(output: Path):
@@ -287,6 +311,7 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
     output = Path(config["output_dir"]).resolve()
     output.mkdir(parents=True, exist_ok=False)
     candidates = candidate_pack()
+    debt_before, prior_operations = historical_debt(config.get("prior_operation_dirs", []))
     spec = {
         "version": RELIABLE_VERSION,
         "candidates": [asdict(c) for c in candidates],
@@ -296,7 +321,9 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
         "historical_exposure": "2022-2026 previously exposed;2025-2026 restricted this run",
         "account_capital": 3_000_000,
         "cost_variants": [1, 2],
-        "raw_debt_before": 2770,
+        "raw_debt_before": debt_before,
+        "prior_operations": prior_operations,
+        "minute_alignment": "latest_available_by_signal_close_max_7_calendar_days",
         "selector": "mean net daily active return, lower volatility, canonical identity",
         "model_fit": "common2022 training prefix in every selection fold; frozen afterwards",
         "maximum_predictor_identities": 24,
@@ -330,7 +357,11 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
         },
     )
     try:
-        snapshot = freeze_inputs(Path(config["warehouse_root"]), output / "inputs")
+        if config.get("frozen_inputs_dir"):
+            shutil.copytree(Path(config["frozen_inputs_dir"]), output / "inputs")
+            snapshot = json.loads((output / "inputs/manifest.json").read_text())
+        else:
+            snapshot = freeze_inputs(Path(config["warehouse_root"]), output / "inputs")
         registry = ExperimentRegistry(output / "registry.sqlite3")
         snapshot_id = registry.register_snapshot(
             build_composite_snapshot_manifest({"bounded_inputs": snapshot["snapshot_sha256"]}),
@@ -366,6 +397,20 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
                     f"{c.identity}:{cost}",
                 )[0]
         days, quality = load_frozen_days(output / "inputs")
+        required = {
+            field
+            for c in candidates
+            for field in c.fields + ((c.gate_field,) if c.gate_field else ())
+        }
+        unavailable = sorted(
+            field for field in required if not quality.get(f"available_rows:{field}")
+        )
+        write_json(output / "DATA_PREFLIGHT.json", {"quality": quality, "unavailable": unavailable})
+        if unavailable:
+            raise ValueError(
+                "campaign fields unavailable; do not report cash as an evaluated factor: "
+                + ",".join(unavailable)
+            )
         training = tuple(d for d in days if d.date < "2023-01-01")
         models = {
             c.identity: fit_prefix_model(training, c)
@@ -417,7 +462,9 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
                 )
             write_json(output / f"{stage}_overlap.json", overlap_evidence(series, holding_sets))
             if stage == "inner":
-                selection = temporal_selection([d.date for d in window], series, 2770 + len(trials))
+                selection = temporal_selection(
+                    [d.date for d in window], series, debt_before + len(trials)
+                )
                 placebo = family_placebo(series)
                 write_json(output / "inner_selection_frozen.json", selection)
                 write_json(output / "inner_placebo.json", placebo)
@@ -467,7 +514,7 @@ def run_reliable_epoch(config_path: str, *, code_version: str):
             "models": models,
             "runtime_quality": quality,
             "source_snapshot": snapshot,
-            "raw_global_trial_lower_bound": 2770 + len(trials),
+            "raw_global_trial_lower_bound": debt_before + len(trials),
             "new_trials": len(trials),
             "protected_state": {
                 "files": count,

@@ -53,6 +53,7 @@ class ResearchCandidate:
                 **asdict(self),
                 "universe": "prior_60d_ADV_ge_10m_history_ge_20",
                 "execution": "signal_close_to_next_open",
+                "minute_alignment": "latest_available_by_signal_close_max_7_calendar_days",
                 "portfolio": "Top40_buffer10_cash_unfilled",
                 "cost_pair_round_trip_bps": [41, 82],
             }

@@ -9,6 +9,7 @@ Issue #180; package version11.6.0. The release repairs shared semantics, execute
 -Each annual account starts independently with CNY3m. Do not add independent-window returns as one continuous account.
 -Decision-time universe:at least20 observations, trailing up-to60-session ADV>=CNY10m, excluding contemporaneous ST flags. No Top800 truncation, future exit-price filter or unrelated-field completeness filter.
 -Signals at close execute next-session open. Auction inputs lag a session.5/10/20-session rebalance, Top40, ten-rank buffer based on previous targets; rejected orders remain unfilled. Coverage and liquidity strata are recorded.
+- Minute features use an as-of join at the decision cutoff, with maximum age seven calendar days. A T feature available at T+1 09:30 can first enter the T+1-close decision/T+2-open trade. Globally unavailable campaign fields stop the epoch before fitting; zero coverage is not an evaluated cash-return factor.
 -41bps round trip:3bps commission and15bps slippage each way plus5bps sell tax;82bps stress case. Capacity:5% of prior-observable ADV.
 -Shared daily stateful execution retains missing positions and applies a conservative20-session writeoff with recovery. Adjusted prices and fractional shares approximate execution, not precise board-lot or corporate-action accounting.
 -Benchmark:equal-weight same-day matched field-availability universe with identical execution/costs, not CSI300. Benchmarks differ across dependencies; this is not proof of market-neutral Alpha.
@@ -28,6 +29,8 @@ Family placebo reselects the winner under199 common20-session block-sign draws. 
 Before real labels:24 planted and100 null cases through actual scores, Top40, costs, execution, first-place selection and placebo. Actual1/8-worker execution must be deterministic. Recovery and economic detection>=75%; null95% Wilson upper bound<=5%. DSR/PBO are additionally computed on every path. Economic detection power must not be advertised as full Alpha Court power. This audit covers a fixed four-formula family, not the real24-candidate family or unbounded adaptive search.
 
 Failed calibration stops before real labels. Preserve failures and seeds; do not retune and recycle an audit. After a successful audit, exactly one frozen historical epoch runs without new candidates, winner changes or threshold changes.
+
+Engineering errors are distinct from unfavorable performance. The first2026-09-06 engineering operation stopped after detecting a same-date minute-availability join error. Its48 registered trials remain charged. One corrected operation reuses the exact frozen inputs and charges48 additional trials:raw lower bound2866. Poor returns do not authorize another retry.
 
 Copy `configs/reliable-research.example.json` to a gitignored `*.local.json` and configure local directories. Run:
 

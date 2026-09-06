@@ -168,12 +168,17 @@ def load_frozen_days(folder: Path):
       d.amount,d.volume,d.previous_raw_close,d.execution_adv,d.adv60,d.history,d.ret_20,
       d.volatility_20,f.net_inflow_amount / nullif(d.amount*1000,0),
       (c.chip_cost_85-c.chip_cost_15)/nullif(c.chip_weighted_cost,0),
-      m.late_30_return,m.realized_volatility,m.amihud_intraday,a.auction_return,
+      CASE WHEN m.trade_date BETWEEN d.trade_date-INTERVAL 7 DAY AND d.trade_date THEN m.late_30_return END,
+      CASE WHEN m.trade_date BETWEEN d.trade_date-INTERVAL 7 DAY AND d.trade_date THEN m.realized_volatility END,
+      CASE WHEN m.trade_date BETWEEN d.trade_date-INTERVAL 7 DAY AND d.trade_date THEN m.amihud_intraday END,
+      a.auction_return,
       d.available_at,f.available_at,c.available_at,a.available_at,m.available_at
     FROM features d LEFT JOIN fund_flow f USING(trade_date,instrument)
       LEFT JOIN chip c USING(trade_date,instrument)
-      LEFT JOIN minute m USING(trade_date,instrument)
       LEFT JOIN auction a USING(trade_date,instrument)
+      ASOF LEFT JOIN minute m ON d.instrument=m.instrument AND
+        ((CAST(d.trade_date AS TIMESTAMP) AT TIME ZONE 'Asia/Shanghai')
+          +INTERVAL 1 DAY-INTERVAL 1 SECOND)>=m.available_at
     WHERE d.trade_date>=DATE '2022-01-01' ORDER BY d.trade_date,d.instrument
     """.replace("BETWEEN59", "BETWEEN 59").replace("BETWEEN19", "BETWEEN 19")
     cursor = conn.execute(query)
@@ -289,6 +294,8 @@ def load_frozen_days(folder: Path):
             features[symbol] = {
                 k: float(v) for k, v in vals.items() if v is not None and math.isfinite(v)
             }
+            for field in features[symbol]:
+                quality[f"available_rows:{field}"] += 1
     if bars:
         frames.append(ResearchDay(day, features, tuple(bars)))
     conn.close()

@@ -28,7 +28,7 @@ from stephen_quant.discovery.reliable_research import (
 from stephen_quant.qmt.reliable_panel import freeze_inputs
 
 
-def _frozen_fixture(folder, *, drop_last=False, missing_minute=False):
+def _frozen_fixture(folder, *, drop_last=False, missing_minute=False, minute_delayed=False):
     import json
 
     duckdb = pytest.importorskip("duckdb")
@@ -50,7 +50,13 @@ def _frozen_fixture(folder, *, drop_last=False, missing_minute=False):
         )
     tables = {
         "daily": "SELECT * FROM daily",
-        "minute": "SELECT trade_date,instrument,available_at,0.01 late_30_return,0.02 realized_volatility,0.001 amihud_intraday FROM daily"
+        "minute": "SELECT trade_date,instrument,"
+        + (
+            "available_at+INTERVAL 1 DAY+INTERVAL 9 HOUR+INTERVAL 30 MINUTE AS available_at"
+            if minute_delayed
+            else "available_at"
+        )
+        + ",extract(day FROM trade_date)/100.0 late_30_return,0.02 realized_volatility,0.001 amihud_intraday FROM daily"
         + (" WHERE false" if missing_minute else ""),
         "fund_flow": "SELECT trade_date,instrument,available_at,1000.0 net_inflow_amount FROM daily",
         "chip": "SELECT trade_date,instrument,available_at,8.0 chip_cost_15,12.0 chip_cost_85,10.0 chip_weighted_cost FROM daily",
@@ -90,6 +96,27 @@ def test_frozen_loader_rejects_changed_bytes(tmp_path):
         stream.write(b"changed")
     with pytest.raises(ValueError, match="hash changed"):
         load_frozen_days(tmp_path / "first")
+
+
+def test_delayed_minute_feature_uses_only_latest_available_observation(tmp_path):
+    from stephen_quant.qmt.reliable_panel import load_frozen_days
+
+    _frozen_fixture(tmp_path / "delayed", minute_delayed=True)
+    days, _ = load_frozen_days(tmp_path / "delayed")
+    assert days[0].date == "2022-01-01"
+    assert days[0].features["600000.SH"]["late_30_return"] == pytest.approx(0.31)
+    assert days[1].features["600000.SH"]["late_30_return"] == pytest.approx(0.01)
+
+
+def test_prior_aborted_operations_remain_in_raw_debt(tmp_path):
+    from stephen_quant.integrity.registry import ExperimentRegistry
+    from stephen_quant.workflows.v114_reliable_epoch import historical_debt, write_json
+
+    ExperimentRegistry(tmp_path / "registry.sqlite3").initialize()
+    write_json(tmp_path / "first_read_reservations.json", {"trials": [{"id": 1}, {"id": 2}]})
+    debt, evidence = historical_debt([tmp_path, tmp_path])
+    assert debt == 2772
+    assert evidence[0]["charged_trials"] == 2
 
 
 def test_overlap_does_not_discount_raw_trials():
