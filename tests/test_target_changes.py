@@ -135,3 +135,16 @@ def test_target_timing_still_rejected():
             (target,),
             replace(StatefulExecutionConfig(), rebalance_mode="target_changes"),
         )
+
+
+@pytest.mark.parametrize("recovery_capacity", [10000, 100])
+def test_written_down_exit_is_not_filled_and_retries_recovery(recovery_capacity):
+    # Day20's zero valuation does not mean shares were actually sold.
+    prices = [{"A": 10}] + [{"B": 10}] * 20 + [{"A": 10}] * 2
+    weights = [{"A": .4}] + [{}] * 22
+    r = simulate(prices, weights, caps={(21, "A"): recovery_capacity})
+    assert r.metrics.writeoff_events == 1
+    assert r.metrics.recovery_events == 1
+    assert traded(r, 21) == pytest.approx(min(400, recovery_capacity))
+    assert r.periods[-1].marks == ()
+    assert r.periods[-1].cash == pytest.approx(1000)

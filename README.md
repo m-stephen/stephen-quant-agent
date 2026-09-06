@@ -9,11 +9,17 @@ Fewer tickets help implementation but do not solve the weak-year economic test:
 stable target_changes returns32.95% over reused2023–2024 at82bps;at164bps,
 2023 is−1.22%. **Neither mode passes the full screen;no usable Alpha certificate.**
 
-Full suite843passed,1skipped;15new regression tests;independent12-account SQL,
+Initial experiment suite843passed,1skipped;15new regression tests;independent12-account SQL,
 cash/positions,fees,returns and native no-fit ledger audit pass. Trial debt3334.
 See [中文](docs/V11_13_RESULT.zh.md),[English](docs/V11_13_RESULT.en.md),
 [contract](docs/V11_13_SPEC.md),[summary](docs/V11_13_RESULT.summary.json),
 and[continuation](docs/V11_13_CONTINUATION.md). No2025/2026 access or main merge.
+
+V11.13.1 additionally retains pending disposal through zero-valued writeoffs and
+subsequent recovery(two new synthetic regressions;final845passed,1skipped). All12real accounts have zero
+writeoff/recovery events;the market results remain bound to immutable Git
+commit9bd9eae,not relabeled as a patched-code market rerun.
+See [code revision evidence](docs/V11_13_1_CODE_REVISION.json).
 
 ## V11.12 frozen-account execution evidence / 冻结账户执行证据
 

@@ -22,6 +22,20 @@
   "new_trials": 12,
   "raw_trial_lower_bound": 3334,
   "sealed_rows_read": 0,
+  "post_run_code_revision": {
+    "version": "11.13.1",
+    "targeted_tests_passed": 17,
+    "full_tests_passed": 845,
+    "full_tests_skipped": 1,
+    "full_tests_seconds": 112.30,
+    "runtime_sha256": "0aadc640b304583d47fd793994db125d0672acfe1a347344a109a745ba68071f",
+    "native_report_revision_sha256": "114b598aaf8c480018a095da0fede0ca5584967c0a4ae0fea601b9cb0c5eb1ac",
+    "native_report_revision_schema": "PASS",
+    "market_runtime_commit": "9bd9eaeaa8405272593227cb588ed6968d3d279d",
+    "market_rerun": false,
+    "new_trials": 0,
+    "reason": "Retain pending exit intent through zero valuation and recovery; real twelve accounts have zero writeoff/recovery events. Original source reconstructed from immutable Git matches the market run hash."
+  },
   "validated_alpha": false,
   "audit_development_note": "Initial audit wrongly rejected valid 08:00 same-day inactive cash target; corrected full timestamp comparison before open. Saved evidence reread, no market rerun."
 }

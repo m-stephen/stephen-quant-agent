@@ -390,6 +390,9 @@ def run_stateful_execution(
                 instrument for instrument in pending
                 if abs(original_desired.get(instrument, 0.0)
                        - executed.get(instrument, 0.0)) > 1e-8
+                # A zero valuation is not disposal of the underlying shares.
+                # Keep exit intent until recovery permits actual execution.
+                or (instrument in positions and positions[instrument].written_down)
             }
 
         positions = {

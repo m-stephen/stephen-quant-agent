@@ -50,3 +50,9 @@
 Method reference:[Bailey and López de Prado—Deflated Sharpe Ratio](https://doi.org/10.2139/ssrn.2460551). Evidence:docs/V11_13_RESULT.summary.json;single-use operation;independent audit;Issue184 preregistration5560589655.
 
 Native report schema QA recorded separately;visible/pixel QA deferred under quiet-until-usable instruction.
+
+## V11.13.1 代码复审附注 / Post-run code review
+
+额外合成检查发现：计划退出的持仓在长期缺价并减记为零后，可能丢失待执行退出意图，行情恢复时被误留仓。现已补上“减记不等于已卖出”的状态保留，并增加恢复成交及恢复后容量受限两项回归。原12账户的减记/恢复事件均为0，因此没有触发这条路径；不重跑行情、不新增Trial。
+
+本报告收益仍绑定修复前不可变提交9bd9eaeaa8405272593227cb588ed6968d3d279d。独立从Git重建的源码摘要与原运行摘要一致；当前修复代码另有摘要和测试。不能把原数字改称修复版的实测结果。见V11_13_1_CODE_REVISION.json。

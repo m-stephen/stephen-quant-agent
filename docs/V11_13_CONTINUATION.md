@@ -33,6 +33,20 @@ Reused2023–2024,484sessions,CNY3m,four original fixed cohorts,no2025/2026 read
 
 ## Actual findings — not a new Alpha
 
+Post-run V11.13.1 code fix:an exited missing stock marked tozero could lose
+pendingdisposal andbe retainedwhenquotesreturned. Fixed by retainingpending
+requests whilepositions.written_down istrue;two recovery/capacity synthetic
+regressions. All12realaccounts havezero writeoff/recoveryevents,so this branch
+wasnotexercised. No marketrerun or newTrials. Originalmarket source isimmutable
+Git9bd9eaeaa8405272593227cb588ed6968d3d279d;verified by reconstructing allsrcbytehashes
+fromGit,matching runtimea0924331…102ca. Currentpatchedruntime is
+0aadc640b304583d47fd793994db125d0672acfe1a347344a109a745ba68071f.
+SeeV11_13_1_CODE_REVISION.json andCODE_REVISION_AUDIT.json;never claim theoriginal
+12accounts wereempiricallyrerunwiththepatchedengine. KeepoldmarketRESULTimmutable.
+Finalpatchedsuite845passed1skipped112.30s;17targetedpasses,Ruffpass. Native report
+revision114b598a…eb1ac validated,pixelQAdeferred. OriginalmarketcommitCI34046671703
+passed;checklatestpatchcommitCIbeforemarkingReady.
+
 82bps is6bpscommission eachway+sell10+slippage30eachway;164 truly doubles each
 term. Zero-cost model is diagnostic only. The12accounts are not independent data.
 

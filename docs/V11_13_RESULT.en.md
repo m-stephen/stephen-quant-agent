@@ -50,3 +50,9 @@ Do not tune cost or maintenance thresholds to repair the weak2023 year. Next tes
 Method reference:[Bailey and López de Prado—Deflated Sharpe Ratio](https://doi.org/10.2139/ssrn.2460551). Evidence:docs/V11_13_RESULT.summary.json;single-use operation;independent audit;Issue184 preregistration5560589655.
 
 Native report schema QA recorded separately;visible/pixel QA deferred under quiet-until-usable instruction.
+
+## V11.13.1 Post-run code review
+
+An additional synthetic check exposed lost disposal intent when a missing exited stock was marked tozero and later recovered. Pending intent now survives the writeoff;recovery and capacity-constrained recovery have two added regressions. All12actual accounts have zero writeoff/recovery events,so this branch was not exercised. No market rerun or additional Trial occurred.
+
+Reported returns remain bound to immutable pre-fix commit9bd9eaeaa8405272593227cb588ed6968d3d279d. Independent reconstruction of its Git source matches the original runtime hash;the patched code has a separate hash and tests. These figures are not relabeled as an empirical patched-code market run. SeeV11_13_1_CODE_REVISION.json.
