@@ -112,6 +112,58 @@ def test_exact_replay_rejects_changed_code_before_reading_inputs(tmp_path):
     assert not (tmp_path / "replays").exists()
 
 
+def test_exact_replay_executes_accounts_and_appends_zero_trial_ledger(tmp_path, monkeypatch):
+    import json
+    from dataclasses import asdict
+
+    import stephen_quant.workflows.v114_reliable_epoch as workflow
+    from stephen_quant.integrity.registry import ExperimentRegistry
+
+    source, _, _ = synthetic_days(114, True, periods=25)
+    days = tuple(
+        replace(
+            d,
+            date=d.date.replace("2022", year),
+            bars=tuple(
+                replace(
+                    b,
+                    trade_date=b.trade_date.replace("2022", year),
+                    capacity_available_at=b.capacity_available_at.replace("2022", year),
+                )
+                for b in d.bars
+            ),
+        )
+        for year in ("2023", "2024")
+        for d in source
+    )
+    c = ResearchCandidate("replay", ("ret_20",), horizon=5)
+    record = {"identity": c.identity, "inner": {}, "outer": {}}
+    for stage, year in (("inner", "2023"), ("outer", "2024")):
+        window = tuple(d for d in days if d.date.startswith(year))
+        for cost in (1, 2):
+            account, _, target_hash = run_candidate(window, c, multiplier=cost)
+            base, _, _ = run_candidate(window, c, multiplier=cost, benchmark=True)
+            metrics = metric_bundle(account, base)
+            metrics["targets_sha256"] = target_hash
+            record[stage][str(cost)] = metrics
+    registry = ExperimentRegistry(tmp_path / "registry.sqlite3")
+    registry.initialize()
+    report = {
+        "spec": {"runtime_code_sha256": workflow.runtime_code_hash(), "candidates": [asdict(c)]},
+        "models": {},
+        "candidates": [record],
+    }
+    workflow.write_json(tmp_path / "RESULT.json", report)
+    monkeypatch.setattr(workflow, "load_frozen_days", lambda _: (days, {}))
+    monkeypatch.setattr(workflow, "candidate_pack", lambda: (c,))
+    result = workflow.replay_epoch(tmp_path)
+    assert result["account_windows_compared"] == 4
+    assert result["registry_unchanged"] and result["inferential_trial_delta"] == 0
+    assert len(list((tmp_path / "replays").glob("*/STARTED.json"))) == 1
+    ledger = json.loads(next((tmp_path / "replays").glob("*/RESULT.json")).read_text())
+    assert ledger["pass"]
+
+
 @pytest.mark.parametrize("side", ["high", "low"])
 @pytest.mark.parametrize("direction", [-1, 1])
 def test_gate_eligibility_does_not_reverse(side, direction):
