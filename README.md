@@ -1,5 +1,26 @@
 # Stephen Quant Agent
 
+## V11.9 calendar robustness / 调仓日历稳健性
+
+Issue #184 now includes 72 continuous accounts across fixed phases and a four-cohort
+target policy, followed by 12 frozen-lead stresses. The staggered chip-width lead
+has historical economic value but remains observation-only: extra costs remove its
+2023 profit cushion and statistical/independent-execution evidence is insufficient.
+No validated Alpha, no2025/2026 reads, no lowered Court gates. Trial lower bound3268.
+
+See [中文结果](docs/V11_9_RESULT.zh.md) / [English results](docs/V11_9_RESULT.en.md),
+[中文深挖](docs/V11_9_DEEP.zh.md) / [English deeper challenge](docs/V11_9_DEEP.en.md),
+[frozen observational lead](configs/v11.9-frozen-staggered-lead.json), and
+[continuation contract](docs/V11_9_CONTINUATION.md).
+
+```text
+python -m stephen_quant.workflows.v119_calendar_epoch --config configs/calendar-challenge.local.json
+```
+
+Copy the relative-path example into gitignored local configuration. Existing
+operations are immutable; do not rerun a completed/claimed epoch. The underlying
+research engine still uses adjusted fractional shares, not certified brokerage fills.
+
 ## V11.8 frozen lead challenge / 冻结候选深挖
 
 Issue #184 challenges both V11.7 leads without changing their formulas: higher

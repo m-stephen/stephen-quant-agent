@@ -1,0 +1,23 @@
+{
+  "version": "11.9.0",
+  "issue": 184,
+  "local_full_suite": {"passed": 771, "skipped": 1, "seconds": 88.89, "skip_reason": "Windows symlink permission"},
+  "ruff": "PASS",
+  "targeted_new_tests": 20,
+  "calendar_accounts": 72,
+  "deep_accounts": 12,
+  "independent_sql_and_cash_position_cost_gate_audits": "PASS",
+  "calendar_result_sha256": "9fc73f90b3118caaefb93772a27edaf77e3ec7bf08e68b9ffdb2b5aade70b84a",
+  "calendar_audit_sha256": "0bc9bc00d3dbf8c5edb6ec9bec611c88f0c9ea9abcf4ba24b312d58d37232170",
+  "deep_result_sha256": "a201826b127d02a7f4ab165047131a8fc681d02ec8ae45a18c0163196a19a8ef",
+  "deep_audit_sha256": "f61cc6e23fc1bcd9336521eb6c0b4db249a7227a924909d66c0d985fd7141751",
+  "runtime_code_sha256": "f0993696aefbb13cf039bde919813b43c0ade7000834971509069067d01cb1e4",
+  "deep_driver_sha256": "eb072691fab42e045ffd256ccb3f5c75294f6b76049904d9f32c02e9d8dded23",
+  "raw_global_trial_lower_bound": 3268,
+  "restricted_rows_read": 0,
+  "protected_parent_evidence_unchanged": true,
+  "native_bilingual_report": {"validation": "PASS", "renderer": "accepted", "blocks": 15, "charts": 2, "reviewed_plot_rows": 16, "pixel_qa": "not available through native artifact tools"},
+  "validated_alpha": false,
+  "main_merged": false,
+  "ci_status": "awaiting PR current-head run"
+}
