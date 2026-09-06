@@ -1,5 +1,20 @@
 # Stephen Quant Agent
 
+## V11.16 sparse sequence events / 稀疏次序事件
+
+Eight preregistered shock-confirmation identities and 50 continuous accounts test
+first-hit/cooldown events against entry-date/risk-cell/expiry-matched controls.
+Independent frozen-source SQL, event schedules, target reconstruction, cash/NAV,
+cost/capacity and native NOFIT ledger audits pass. **No identity passes the complete
+two-cost economic screen; no usable Alpha certificate.** Individual sparse events
+still aggregate into near-full portfolios; mean cash is only5.8–10.9% at82bps.
+
+Full924passed,1skipped;39new synthetic regressions;Trial lower bound3506.
+See [中文报告](docs/V11_16_RESULT.zh.md), [English report](docs/V11_16_RESULT.en.md),
+[design](docs/V11_16_DESIGN.md), [verification](docs/V11_16_VERIFICATION.json),
+and [continuation](docs/V11_16_CONTINUATION.md). Frozen V11.11 candidates preserved;
+no2025/26 access, source refresh, broker action or main merge.
+
 ## V11.13 matched stability attribution / 持仓稳定性归因
 
 Twelve preregistered accounts separate membership retention from unnecessary
