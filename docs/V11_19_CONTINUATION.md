@@ -1,5 +1,17 @@
 # V11.19 continuation
 
+## Completed state — supersedes all historical pending instructions
+
+V11.19.1 epoch-002 completed24/24 with independent source/model/target/account audit PASS. Runtime50afdc55acfe28ebb22bc4217bdc70f75833aea2, preregistration5562635689, runtime CI34064183636SUCCESS. No research or audit process remains active. Do not rerun84047 or56412, either epoch, or the exclusive diagnostic.
+
+RESULT SHA319dcb2dd2e85aa208424c70f4e8e2c2160657f44ab1fae480f3c0a1355c7337; AUDIT SHAd35a0c906b28e0704c9c7d43df55e9139f0445ace309a1605a78cef3ec2626f7. Both primary identities fail both costs:linear82/164 total−13.7175%/−28.9923%;quadratic−18.2270%/−32.8899%;both years negative. Coverage/account gates pass. Original stable full_target82 remains32.0603%,but is an old control,not a new discovery or certified Alpha. Do not confuse it with V11.13 target_changes32.9486%.
+
+Debt3648=3600+24aborted+24corrected. All original failed artifacts remain protected. New38 tests/full1020passed1skipped;RuffPASS. Bilingual reports/summary and4 ordinary-Python notebook cells completed. Native schema QA passes;visible/pixel and Jupyter frontend caveats remain explicit. DSR/PBO/placebo NOT_RUN. No2025/26 reads or main merge.
+
+Next bounded development is described in V11_20_PLAN.md: investigate gross-to-net loss on all frozen policies before proposing another learner. This is a diagnostic,not a way to qualify zero-cost returns as usable Alpha. It still requires new runtime code/tests,full preregistration and native reservations before numerical reads; no next-epoch run has started yet. Finish this PR's report-only commit and final-headCI before marking Ready. Retain the existing30-minute quiet heartbeat;do not create another automation/task or invoke agents.
+
+## Historical recovery instructions (not current authorization to rerun)
+
 ## Current correction state
 
 Original runtime2d57e2d / preregistration5562552983 / PR197: epoch-001 is ABORTED,24Trials charged,0accounts,9model artifacts. Do not run its old config again. OPTIMIZER_DIAGNOSTIC.json proves final Armijo cancellation; its SHA891b2db319065f1b6865b0b539f0d29a20dd497d98248d289a8792f710dd08f5. See numerical amendment in DESIGN. V11.19.1 is the same economic plan with only terminal floating-roundoff acceptance, unchanged gradient1e−9.

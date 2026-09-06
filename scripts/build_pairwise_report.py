@@ -171,6 +171,7 @@ def build():
                 lines += gates + [""] + table + [""]
         lines += [
             "[Preregistration / 预登记](https://github.com/m-stephen/stephen-quant-agent/issues/184#issuecomment-5562552983)",
+            "[Numerical correction preregistration / 数值修正预登记](https://github.com/m-stephen/stephen-quant-agent/issues/184#issuecomment-5562635689)",
             "",
             "Evidence: V11_19_RESULT.summary.json and immutable operation hashes. Native schema QA recorded separately; visible/pixel QA deferred under the quiet-until-usable instruction.",
             "",
