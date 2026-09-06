@@ -202,9 +202,9 @@ def build_window_ledger(maximum_data_date_at_freeze: str) -> tuple[WindowUseReco
             "2025-01-01",
             maximum_data_date_at_freeze,
             "SEALED",
-            "data maintenance only",
-            0,
-            False,
+            "V4.8+ historical return research; label_reads is a known minimum, not an exact count",
+            1,
+            True,
             False,
         ),
         WindowUseRecord(
@@ -540,7 +540,7 @@ def run_statistical_contract(
         ContractCheck("noise_does_not_reject_null", noise_null.p_value is not None and noise_null.p_value > 0.05, f"p={noise_null.p_value}"),
         ContractCheck("rank_reversal_is_identifiable", identifiable.status == "IDENTIFIABLE", identifiable.reason),
         ContractCheck("repeated_paths_fail_closed", repeated.status == "NOT_IDENTIFIABLE", repeated.reason),
-        ContractCheck("sealed_label_reads", windows[1].label_reads == 0, "unauthorized reads=0"),
+        ContractCheck("historical_exposure_disclosed", windows[1].state == "SEALED" and windows[1].label_reads > 0 and not windows[1].independent_evidence_eligible, "historical exposure retained; current access restriction does not erase it"),
     )
     taxonomy: Mapping[str, int | str] = {
         "raw_global_trial_count": RAW_GLOBAL_TRIALS_AT_FREEZE,

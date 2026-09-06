@@ -1,0 +1,9 @@
+{
+  "warehouse_root": "data/warehouse",
+  "output_dir": "artifacts/reliable-research/epoch-001",
+  "calibration_dir": "artifacts/reliable-research/calibration-001",
+  "protected_paths": [
+    "configs/v4.8-frozen-candidate.json",
+    "configs/v11-forward-protocol.freeze.json"
+  ]
+}
