@@ -20,6 +20,13 @@ class FitStage:
     prediction_end: str
 
 
+@dataclass(frozen=True)
+class UnsupervisedFitStage(FitStage):
+    """Explicitly predeclared label-free fit; legacy stage serialization is unchanged."""
+
+    fit_kind: str = "unsupervised"
+
+
 FIT_SCHEMA = """
 CREATE TABLE IF NOT EXISTS trial_fit_contracts (
     trial_id TEXT PRIMARY KEY REFERENCES trials(trial_id),
@@ -65,6 +72,8 @@ def contract_json(stages):
         raise ValueError("duplicate fit stage")
     previous_end = ""
     for s in ordered:
+        if isinstance(s, UnsupervisedFitStage) and s.fit_kind != "unsupervised":
+            raise ValueError("invalid unsupervised contract kind")
         if not s.stage_id or not s.stage_id.strip():
             raise ValueError("fit stage identity required")
         if not (
@@ -123,15 +132,30 @@ class FitLineageRegistry:
 
     def record_model_fit(self, trial_id, stage_id, *, model, artifact_path):
         """Bind fit_year's actual sessions and model bytes; no caller-supplied hash."""
-        sessions = model["training_signal_sessions"]
+        unsupervised = model.get("fit_kind") == "unsupervised"
+        if model.get("fit_kind", "supervised") not in ("supervised", "unsupervised"):
+            raise ValueError("unknown fit kind")
+        session_key = (
+            "training_observation_sessions" if unsupervised else "training_signal_sessions"
+        )
+        count_key = "training_observation_dates" if unsupervised else "training_signal_dates"
+        sessions = model[session_key]
         if not sessions or sessions != sorted(set(sessions)):
             raise ValueError("ordered unique actual training signal sessions required")
         for session in sessions:
             daily(session)
-        cutoff, label_end = daily(model["fit_cutoff"]), daily(model["maximum_label_end"])
-        if not sessions[-1] < label_end <= cutoff:
-            raise ValueError("training labels must mature before fit cutoff")
-        if model["training_signal_dates"] != len(sessions):
+        cutoff = daily(model["fit_cutoff"])
+        if unsupervised:
+            if "maximum_label_end" in model or "training_signal_sessions" in model:
+                raise ValueError("label-free model must not invent label evidence")
+            label_end = daily(model["maximum_observation_at"])
+            if not sessions[-1] == label_end <= cutoff:
+                raise ValueError("observations must end before fit cutoff")
+        else:
+            label_end = daily(model["maximum_label_end"])
+            if not sessions[-1] < label_end <= cutoff:
+                raise ValueError("training labels must mature before fit cutoff")
+        if model[count_key] != len(sessions):
             raise ValueError("actual training session count mismatch")
         model_sha = artifact_digest(artifact_path, model)
         with self.connect() as conn:
@@ -148,6 +172,8 @@ class FitLineageRegistry:
             stage = next((s for s in json.loads(row[0]) if s["stage_id"] == stage_id), None)
             if stage is None:
                 raise ValueError("undeclared fit stage")
+            if (stage.get("fit_kind") == "unsupervised") != unsupervised:
+                raise ValueError("model fit kind differs from predeclared contract")
             if (
                 not stage["training_not_before"]
                 <= sessions[0]
@@ -159,10 +185,10 @@ class FitLineageRegistry:
                 raise ValueError("model prediction year mismatch")
             evidence = {
                 "stage": stage,
-                "training_signal_sessions": sessions,
+                session_key: sessions,
                 "training_start": sessions[0],
                 "training_end": cutoff,
-                "maximum_label_end": label_end,
+                "maximum_observation_at" if unsupervised else "maximum_label_end": label_end,
                 "artifact_sha256": model_sha,
                 "model_content_sha256": digest(model),
                 "snapshot_sha256": row[3],
