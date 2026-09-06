@@ -1,0 +1,465 @@
+{
+  "account_windows": 66,
+  "baseline_replay_accounts": 12,
+  "baseline_replay_trial_delta": 0,
+  "continuous": [
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 398084.75798382424,
+      "hash_return": 0.07503864356788736,
+      "increment_vs_lowvol": 0.05323159772802377,
+      "lowvol_return": 0.26213581566315836,
+      "max_drawdown": -0.16724105878759576,
+      "net_return": 0.3153674133911821,
+      "profit_cny": 946102.2401735466,
+      "scenario": "continuous_82",
+      "turnover": 32.4703833825067,
+      "window": "continuous2023-2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 563134.9940525062,
+      "hash_return": 0.10376655293536863,
+      "increment_vs_lowvol": -0.15806106193559422,
+      "lowvol_return": 0.295352249631855,
+      "max_drawdown": -0.2595374362300661,
+      "net_return": 0.1372911876962608,
+      "profit_cny": 411873.5630887826,
+      "scenario": "continuous_82",
+      "turnover": 45.88239240288454,
+      "window": "continuous2023-2024"
+    }
+  ],
+  "decision": "PREREGISTER_NEXT_BOUNDED_MECHANISM_EPOCH",
+  "diagnostics": [
+    {
+      "attribution": {
+        "annualized_intercept": -0.0002676698718058676,
+        "beta_to_lowvol": 0.993957716915631,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.09252130262385151,
+          0.09198596288023977
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.8334054489342693,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "candidate": "blend_concentration_+1_h20",
+      "tail_sensitivity": {
+        "increment_if_top_active_days_equal_control": -0.0321447614603011,
+        "net_return_if_top_active_days_equal_control": -0.0219244835304907,
+        "observations_retained": 242,
+        "positive_active_sum_share": 0.1221418677348189,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          226,
+          90,
+          196,
+          68,
+          205
+        ]
+      },
+      "year": "2023"
+    },
+    {
+      "attribution": {
+        "annualized_intercept": 0.06694407824532811,
+        "beta_to_lowvol": 1.0205529578964365,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.08377713939197637,
+          0.2176652958826326
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.8778228056441298,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "candidate": "blend_concentration_+1_h20",
+      "tail_sensitivity": {
+        "increment_if_top_active_days_equal_control": -0.010194791290594196,
+        "net_return_if_top_active_days_equal_control": 0.24075835082186114,
+        "observations_retained": 242,
+        "positive_active_sum_share": 0.17955966093889003,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          25,
+          44,
+          26,
+          17,
+          43
+        ]
+      },
+      "year": "2024"
+    },
+    {
+      "attribution": {
+        "annualized_intercept": 0.026550483473490524,
+        "beta_to_lowvol": 1.074547052967222,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.09319287467089213,
+          0.14629384161787318
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.78106697939045,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "candidate": "blend_late_30_return_-1_h20",
+      "tail_sensitivity": {
+        "increment_if_top_active_days_equal_control": -0.023440197867608203,
+        "net_return_if_top_active_days_equal_control": -0.013219919937797808,
+        "observations_retained": 242,
+        "positive_active_sum_share": 0.14574192650188636,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          193,
+          82,
+          96,
+          235,
+          114
+        ]
+      },
+      "year": "2023"
+    },
+    {
+      "attribution": {
+        "annualized_intercept": 0.020188472790111496,
+        "beta_to_lowvol": 1.0488957406436574,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.12230283989546313,
+          0.16267978547568612
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.8088626069309582,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "candidate": "blend_late_30_return_-1_h20",
+      "tail_sensitivity": {
+        "increment_if_top_active_days_equal_control": -0.09961452730705456,
+        "net_return_if_top_active_days_equal_control": 0.15133861480540078,
+        "observations_retained": 242,
+        "positive_active_sum_share": 0.23487531716956048,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          25,
+          26,
+          33,
+          211,
+          215
+        ]
+      },
+      "year": "2024"
+    }
+  ],
+  "engineering_pass": true,
+  "issue": 184,
+  "limitations": [
+    "adjusted fractional shares, not brokerage ready",
+    "ADV proxy is not opening liquidity",
+    "postselected historical development",
+    "full historical multiplicity not calibrated",
+    "no market/industry/size attribution yet",
+    "no independent evidence or formal Alpha PASS"
+  ],
+  "max_balance_residual_cny": 4.656612873077393e-10,
+  "new_trials": 30,
+  "protected_unchanged": true,
+  "raw_global_trial_lower_bound": 3088,
+  "restricted_rows_read": 0,
+  "rows": [
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 204751.93515252921,
+      "hash_return": 0.043223976774796835,
+      "increment_vs_lowvol": -0.0011704025001488816,
+      "lowvol_return": 0.010220277929809507,
+      "max_drawdown": -0.12093770807439186,
+      "net_return": 0.009049875429660625,
+      "profit_cny": 27149.62628898211,
+      "scenario": "baseline_82",
+      "turnover": 16.760126763004305,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 208185.6129769075,
+      "hash_return": 0.004846197287885268,
+      "increment_vs_lowvol": 0.08574600815351685,
+      "lowvol_return": 0.25095314211245556,
+      "max_drawdown": -0.12340908627494251,
+      "net_return": 0.3366991502659724,
+      "profit_cny": 1010097.4507979173,
+      "scenario": "baseline_82",
+      "turnover": 17.03914798133488,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 300948.49302408117,
+      "hash_return": 0.029989336459155247,
+      "increment_vs_lowvol": 0.025036701656555138,
+      "lowvol_return": 0.010220277929809507,
+      "max_drawdown": -0.11423731091464318,
+      "net_return": 0.035256979586364645,
+      "profit_cny": 105770.9387590941,
+      "scenario": "baseline_82",
+      "turnover": 24.577074697363333,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 306392.09545437404,
+      "hash_return": 0.05133520916086898,
+      "increment_vs_lowvol": 0.03234369469028331,
+      "lowvol_return": 0.25095314211245556,
+      "max_drawdown": -0.14449112182884782,
+      "net_return": 0.28329683680273887,
+      "profit_cny": 849890.5104082166,
+      "scenario": "baseline_82",
+      "turnover": 25.01942271598754,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 252978.85808816281,
+      "hash_return": 0.04132473168161477,
+      "increment_vs_lowvol": 0.0012690789963332172,
+      "lowvol_return": -0.007783128251813709,
+      "max_drawdown": -0.12718608160806621,
+      "net_return": -0.006514049255480492,
+      "profit_cny": -19542.147766441572,
+      "scenario": "cost_102",
+      "turnover": 16.624337820857434,
+      "whole_scenario_economic_pass": false,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 257217.36613831486,
+      "hash_return": 0.0027607654730936737,
+      "increment_vs_lowvol": 0.08759184175323464,
+      "lowvol_return": 0.22934645781787233,
+      "max_drawdown": -0.1273949578131699,
+      "net_return": 0.316938299571107,
+      "profit_cny": 950814.898713321,
+      "scenario": "cost_102",
+      "turnover": 16.90122597746704,
+      "whole_scenario_economic_pass": false,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 370341.44156699785,
+      "hash_return": 0.028054987654502872,
+      "increment_vs_lowvol": 0.01929147423033095,
+      "lowvol_return": -0.007783128251813709,
+      "max_drawdown": -0.11909627249970922,
+      "net_return": 0.011508345978517243,
+      "profit_cny": 34525.03793555172,
+      "scenario": "cost_102",
+      "turnover": 24.291259532432306,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 376987.92396831914,
+      "hash_return": 0.04898725706460705,
+      "increment_vs_lowvol": 0.02514267511541557,
+      "lowvol_return": 0.22934645781787233,
+      "max_drawdown": -0.15044711798088106,
+      "net_return": 0.2544891329332879,
+      "profit_cny": 763467.3987998636,
+      "scenario": "cost_102",
+      "turnover": 24.725452941590518,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 323850.50097307767,
+      "hash_return": 0.03848720597084743,
+      "increment_vs_lowvol": 0.004780346748044062,
+      "lowvol_return": -0.03416912057217425,
+      "max_drawdown": -0.13694086936519223,
+      "net_return": -0.029388773824130188,
+      "profit_cny": -88166.32147239055,
+      "scenario": "cost_132",
+      "turnover": 16.42366544053491,
+      "whole_scenario_economic_pass": false,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 329274.63258615317,
+      "hash_return": -0.00035360799318318037,
+      "increment_vs_lowvol": 0.09021883234339567,
+      "lowvol_return": 0.1976447832825785,
+      "max_drawdown": -0.13333336603979762,
+      "net_return": 0.2878636156259742,
+      "profit_cny": 863590.8468779228,
+      "scenario": "cost_132",
+      "turnover": 16.697474508578786,
+      "whole_scenario_economic_pass": false,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 471378.6492148819,
+      "hash_return": 0.025165135962072815,
+      "increment_vs_lowvol": 0.01107994511716115,
+      "lowvol_return": -0.03416912057217425,
+      "max_drawdown": -0.12633292588934875,
+      "net_return": -0.0230891754550131,
+      "profit_cny": -69267.5263650394,
+      "scenario": "cost_132",
+      "turnover": 23.87085656011487,
+      "whole_scenario_economic_pass": false,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 479740.9674500557,
+      "hash_return": 0.045481217273127816,
+      "increment_vs_lowvol": 0.014837698935862287,
+      "lowvol_return": 0.1976447832825785,
+      "max_drawdown": -0.1602239314657521,
+      "net_return": 0.2124824822184408,
+      "profit_cny": 637447.4466553223,
+      "scenario": "cost_132",
+      "turnover": 24.292984695269208,
+      "whole_scenario_economic_pass": false,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 188902.4112961201,
+      "hash_return": 0.04080335711130356,
+      "increment_vs_lowvol": -0.011718121697840589,
+      "lowvol_return": 0.022384403570443467,
+      "max_drawdown": -0.11998923416219465,
+      "net_return": 0.010666281872602879,
+      "profit_cny": 31998.845617808867,
+      "scenario": "delay_one",
+      "turnover": 15.47219187727415,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 186770.0836641887,
+      "hash_return": -0.0023294806098758114,
+      "increment_vs_lowvol": 0.06707736437291612,
+      "lowvol_return": 0.2517397842805371,
+      "max_drawdown": -0.12822348997021482,
+      "net_return": 0.31881714865345323,
+      "profit_cny": 956451.4459603596,
+      "scenario": "delay_one",
+      "turnover": 15.29891858718347,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 275566.70394408965,
+      "hash_return": 0.03090141215960629,
+      "increment_vs_lowvol": 0.027153265102729973,
+      "lowvol_return": 0.022384403570443467,
+      "max_drawdown": -0.1105334019652916,
+      "net_return": 0.04953766867317344,
+      "profit_cny": 148613.0060195201,
+      "scenario": "delay_one",
+      "turnover": 22.514546389603055,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 276759.48440123483,
+      "hash_return": 0.05360472266987881,
+      "increment_vs_lowvol": 0.015289265577543176,
+      "lowvol_return": 0.2517397842805371,
+      "max_drawdown": -0.15898977185245478,
+      "net_return": 0.2670290498580803,
+      "profit_cny": 801087.1495742407,
+      "scenario": "delay_one",
+      "turnover": 22.611471923498705,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 204751.93515252921,
+      "hash_return": 0.043223976774796835,
+      "increment_vs_lowvol": -0.0011704025001488816,
+      "lowvol_return": 0.010220277929809507,
+      "max_drawdown": -0.12093770807439186,
+      "net_return": 0.009049875429660625,
+      "profit_cny": 27149.62628898211,
+      "scenario": "quarter_capacity",
+      "turnover": 16.760126763004305,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 208185.6129769075,
+      "hash_return": 0.004846197287885268,
+      "increment_vs_lowvol": 0.08574600815351685,
+      "lowvol_return": 0.25095314211245556,
+      "max_drawdown": -0.12340908627494251,
+      "net_return": 0.3366991502659724,
+      "profit_cny": 1010097.4507979173,
+      "scenario": "quarter_capacity",
+      "turnover": 17.03914798133488,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 300948.49302408117,
+      "hash_return": 0.029989336459155247,
+      "increment_vs_lowvol": 0.025036701656555138,
+      "lowvol_return": 0.010220277929809507,
+      "max_drawdown": -0.11423731091464318,
+      "net_return": 0.035256979586364645,
+      "profit_cny": 105770.9387590941,
+      "scenario": "quarter_capacity",
+      "turnover": 24.577074697363333,
+      "whole_scenario_economic_pass": true,
+      "window": "2023"
+    },
+    {
+      "candidate": "blend_late_30_return_-1_h20",
+      "cost_cny": 306392.09545437404,
+      "hash_return": 0.05133520916086898,
+      "increment_vs_lowvol": 0.03234369469028331,
+      "lowvol_return": 0.25095314211245556,
+      "max_drawdown": -0.14449112182884782,
+      "net_return": 0.28329683680273887,
+      "profit_cny": 849890.5104082166,
+      "scenario": "quarter_capacity",
+      "turnover": 25.01942271598754,
+      "whole_scenario_economic_pass": true,
+      "window": "2024"
+    }
+  ],
+  "runtime_code_sha256": "888a0e09deb994189750a5bf987c979a70cd63df231ea07eec727f4362a58b33",
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "source_result_sha256": "811af6aa3b2318d1d63d1b9f1e22e806b50ca9190f6a596606cff916037e1510",
+  "sql_all_accounts_match": true,
+  "stress_survivors": [],
+  "validated_alpha": false,
+  "validation_assessment": "SHARE_WITH_CAVEATS",
+  "version": "11.8.0"
+}

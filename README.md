@@ -1,5 +1,23 @@
 # Stephen Quant Agent
 
+## V11.8 frozen lead challenge / 冻结候选深挖
+
+Issue #184 challenges both V11.7 leads without changing their formulas: higher
+costs, tighter capacity, delayed execution, and true continuous capital. Thirty
+new policy trials are registered before price reads; twelve annual baseline
+accounts must replay exactly. Historical diagnostics never certify usable Alpha.
+
+See [中文设计](docs/V11_8_SPEC.zh.md) / [English design](docs/V11_8_SPEC.en.md).
+Configure a gitignored `configs/lead-challenge.local.json` from the example:
+
+```text
+stephen-quant lead-challenge --config configs/lead-challenge.local.json
+```
+
+The V11.8 continuation contract retains frozen statistical gates and forwards
+surviving leads to brokerage/style audits, or failures to a new bounded mechanism
+epoch. It never silently opens restricted test data or resets historical trials.
+
 ## V11.7 incremental alpha / 增量因子实验
 
 Issue #182 adds matched Top40 low-volatility and no-signal controls, explicit
