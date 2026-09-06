@@ -30,6 +30,25 @@ def build():
         for r in s["rows"]
         if r["policy"] == "full"
     ]
+    bykey = {r["account_key"]: r for r in s["rows"]}
+    evidence_zh, evidence_en = [], []
+    for basis in ("linear", "quadratic"):
+        full, risk = bykey[basis + "-full-0"], bykey[basis + "-risk-0"]
+        delta = full["net_return"] - risk["net_return"]
+        evidence_zh.append(
+            f"{basis}零费累计{full['net_return']:.4%}，相对同基风险对照{100 * delta:.4f}个百分点"
+        )
+        evidence_en.append(
+            f"{basis}: zero-fee total{full['net_return']:.4%}, {100 * delta:.4f}pp versus same-basis risk"
+        )
+    weak_both_years = all(
+        bykey[b + "-full-0"][y] < bykey[b + "-risk-0"][y]
+        for b in ("linear", "quadratic")
+        for y in ("return2023", "return2024")
+    )
+    s["diagnostic_decision"] = (
+        "GROSS_INCREMENT_WEAKNESS" if weak_both_years else "MIXED_REQUIRES_REGISTERED_FOLLOWUP"
+    )
     sections = [
         (
             "summary",
@@ -37,6 +56,15 @@ def build():
             "Technical summary",
             "已完成12个零费用反事实和24个原付费账户的完整核对。两个原主要身份仍为失败；已认证可用Alpha为0。此诊断解释毛收益与执行摩擦，不进行新的候选晋升。",
             "Twelve zero-fee counterfactuals and24 immutable paid accounts are fully reconciled. Both original primary identities remain failed; certified usable Alpha is zero. This diagnoses gross strength and implementation friction, not candidate promotion.",
+        ),
+        (
+            "diagnosis",
+            "本轮有价值的诊断",
+            "What this diagnostic establishes",
+            "；".join(evidence_zh)
+            + "。两身份在两个年份的毛收益均不如各自风险对照。成本确实放大损失，但不能解释全部失败；优先改变信息表示/机制，而不是只降低成本或提高模型阶数。这是本族在重复开发史上的描述，不证明市场不存在Alpha，也不证明所有供应商数据无效。",
+            "; ".join(evidence_en)
+            + ". Both identities trail their own risk controls in each year before fees. Costs amplify losses but do not explain the whole failure. Prioritize a different information representation/mechanism,not just cheaper execution or higher model degree. This describes this family on reused history;it proves neither absence of market Alpha nor vendor-data uselessness.",
         ),
         (
             "scope",
@@ -206,6 +234,7 @@ def build():
                     "title": title,
                     "sourceId": "audited",
                     "source": source,
+                    "defaultSort": {"field": fields[0], "direction": "asc"},
                     "columns": [{"field": k, "label": k} for k in fields],
                 }
                 for name, title, fields in [
