@@ -72,7 +72,7 @@ def freeze_inputs(root: Path, output: Path, *, start="2021-10-01", end="2024-12-
         extract(
             "minute",
             "SELECT trade_date,instrument,late_30_return,realized_volatility,"
-            "amihud_intraday FROM qd_minute_features_current "
+            "amihud_intraday,available_at FROM qd_minute_features_current "
             "WHERE trade_date BETWEEN ? AND ? AND NOT sealed ORDER BY trade_date,instrument",
             [start, end],
         )
@@ -169,7 +169,7 @@ def load_frozen_days(folder: Path):
       d.volatility_20,f.net_inflow_amount / nullif(d.amount*1000,0),
       (c.chip_cost_85-c.chip_cost_15)/nullif(c.chip_weighted_cost,0),
       m.late_30_return,m.realized_volatility,m.amihud_intraday,a.auction_return,
-      d.available_at,f.available_at,c.available_at,a.available_at
+      d.available_at,f.available_at,c.available_at,a.available_at,m.available_at
     FROM features d LEFT JOIN fund_flow f USING(trade_date,instrument)
       LEFT JOIN chip c USING(trade_date,instrument)
       LEFT JOIN minute m USING(trade_date,instrument)
@@ -256,7 +256,7 @@ def load_frozen_days(folder: Path):
             if adv is None or adv < 10_000_000 or history < 20 or not name or "ST" in name.upper():
                 continue
             cutoff = datetime.fromisoformat(f"{dt}T23:59:59+08:00")
-            times = row[20:24]
+            times = row[20:25]
             available = []
             for timestamp in times:
                 if timestamp is None:
@@ -281,9 +281,9 @@ def load_frozen_days(folder: Path):
                 "liquidity": adv,
                 "net_inflow_ratio": row[14] if available[1] else None,
                 "concentration": row[15] if available[2] else None,
-                "late_30_return": row[16],
-                "realized_volatility": row[17],
-                "amihud_intraday": row[18],
+                "late_30_return": row[16] if available[4] else None,
+                "realized_volatility": row[17] if available[4] else None,
+                "amihud_intraday": row[18] if available[4] else None,
                 "auction_return": row[19] if available[3] else None,
             }
             features[symbol] = {

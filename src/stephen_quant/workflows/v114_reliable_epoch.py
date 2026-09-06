@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -41,14 +42,14 @@ def write_json(path: Path, payload):
 
 def runtime_code_hash():
     root = Path(__file__).resolve().parents[1]
-    files = (
-        "discovery/reliable_research.py",
-        "discovery/reliability_calibration.py",
-        "qmt/reliable_panel.py",
-        "workflows/v114_reliable_epoch.py",
-        "baseline/stateful.py",
+    return sha256_json(
+        {
+            p.relative_to(root).as_posix(): hashlib.sha256(
+                p.read_text(encoding="utf-8").encode()
+            ).hexdigest()
+            for p in sorted(root.rglob("*.py"))
+        }
     )
-    return sha256_json({name: file_sha(root / name) for name in files})
 
 
 def protected_digest(paths):
@@ -65,6 +66,7 @@ def protected_digest(paths):
 
 def calibrate(output: Path):
     output.mkdir(parents=True, exist_ok=False)
+    code_before = runtime_code_hash()
     print(json.dumps({"stage": "calibration", "workers": 8}), flush=True)
     eight = run_calibration(workers=8)
     write_json(output / "eight.json", eight)
@@ -79,8 +81,8 @@ def calibrate(output: Path):
         and len(one["actual_worker_pids"]) == 1
     )
     evidence = {
-        "pass": passed,
-        "code_sha256": runtime_code_hash(),
+        "pass": passed and code_before == runtime_code_hash(),
+        "code_sha256": code_before,
         "one_file_sha256": file_sha(output / "one.json"),
         "eight_file_sha256": file_sha(output / "eight.json"),
         "parity": eight["content_sha256"] == one["content_sha256"],

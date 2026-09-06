@@ -50,7 +50,7 @@ def _frozen_fixture(folder, *, drop_last=False, missing_minute=False):
         )
     tables = {
         "daily": "SELECT * FROM daily",
-        "minute": "SELECT trade_date,instrument,0.01 late_30_return,0.02 realized_volatility,0.001 amihud_intraday FROM daily"
+        "minute": "SELECT trade_date,instrument,available_at,0.01 late_30_return,0.02 realized_volatility,0.001 amihud_intraday FROM daily"
         + (" WHERE false" if missing_minute else ""),
         "fund_flow": "SELECT trade_date,instrument,available_at,1000.0 net_inflow_amount FROM daily",
         "chip": "SELECT trade_date,instrument,available_at,8.0 chip_cost_15,12.0 chip_cost_85,10.0 chip_weighted_cost FROM daily",
