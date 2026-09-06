@@ -1,64 +1,65 @@
 # V11.18 continuation / 恢复点
 
-Issue184;branch codex/v11.18-conditional-risk,stacked on PR195 finalade50a9.
-PR195 final CI34058274198SUCCESS and nowReady;no main merge.
-Root codex/v4-8-sealed-alpha-court still has23 unrelated dirty files;do not touch.
+Issue184;branch codex/v11.18-conditional-risk;PR196 stacked onPR195.
+Runtime0a86643d3114a9dfd83a88a190f3d3cc8df35080. Preregcomment5562202690.
+Root remains codex/v4-8-sealed-alpha-court with23unrelateddirtyfiles;do not touch.
 
-PREMARKET checkpoint: core,exclusive driver,independent source/model/target/native
-auditor and raw-price/cap checks implemented. 30new synthetic cases PASS3.18s.
-Complete982passed1skipped175.58s. RuffPASS. No real V11.18 numerical run or Trial
-reserved at this checkpoint. Read actual operation/claims before any launch;
-this note will be supplemented by later comments/evidence. Never retry/overwrite
-an operation or bypass its parent claim.
+## COMPLETE, not running / 已完成，禁止重跑
 
-Exactly44accounts,debt3556->3600:2bases x2meanrules x4policies x2costs=32;
-4risk-only controls;8original/full-target versus unscaled/target_changes anchors.
-Four primary identities. No new stock selector;frozen lowvol and stable_lowrisk
-target bytes from ORIGINAL V11.11tree. Models predict gross 200-name basket
-five-session open-to-open returns and second moments,not executable basket P&L.
-Daily only;market breadth20/meanret20/meanvol20/dispersion1;30minimum nonoverlap
-train samples. Annual past-prefix fit removes final5sessions and honors full
-label maturity;ridge lambda1,γ10,clipped.25..1,quarter-step exposure.
-Exposure refresh every5sessions,no annual reset. All exact details in DESIGN.
+The sole artifacts/conditional-risk/epoch-001 completed44/44accounts once,
+72native supervisedfitrecords,debt3556->3600,0/4fullsurvivors. No failed or
+empty reservations,no market/auditor retry. Never start another run with the
+sameparent or bypass the claims file. Ignoredrun.local.json remains for provenance.
+RESULT c0451e1b077ee67c8ef99e4dc982fab7c546b433b254d270baa53b3082c9e83f.
+AUDIT 6b4fd781daf309fb87ccddd10b921f49a91043a120d1fd4b692c9ae113c5c910.
+Source snapshot b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51.
 
-Source snapshot remains original V11.4 epoch-002 five-source
-b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51.
-2022train,2023/24reuseddevelopment,no2025/26. Parent V11.17 RESULT
-948ab8dc763fbfc319153ef956c107bc57d7cac111ee7995fa85b2b132276aa5 isCOMPLETE,
-0/6candidates,50trials,debt3556;do NOT rerun V11.17orV11.16.
+Independent rawSQL:726states,19000proxycomponents,95labels,4normal-equation
+models,22targetsets,44cash/NAV/cost/price/capacity paths,72nativefits PASS.
+12protected files and126audited operation hashes unchanged. Original lowvol
+full_target cost anchors replay parentbytes. Statecoverage100%bothyears.
+982passed1skipped174.56s postmarket;30newcases;RuffPASS.
+All44aggregate rows,bilingual reports,4executedplain-Pythonnotebookcells stored.
+Native report-artifact.v2.json schemaPASS;firstnested-cellerror retained and
+fixedonlyinreport. Visible/pixel/JupyterfrontendQA explicitlydeferred/notrun.
+No runtime/driver/auditor changes after operationstart.
 
-Before real values: commit runtime,preregister exact design/budget inIssue184,
-put returned comment ID in ignored artifacts/conditional-risk/run.local.json.
-Run scripts/run_conditional_risk.py --config artifacts/conditional-risk/run.local.json
-with PYTHONPATH=src and modest BLAS threads;clear AlphaPai env only in child.
-Runner reserves all44nativeTrials before values and writes all four models;
-36nonanchor accounts bind2native supervised stages each (72fits total).
-No-fit anchors bind explicit empty stages. Shared fitted predictions are checked
-against actual immutable artifacts before use. All raw sources remain read-only.
+All4identities failtotalincrement;all2023returnsnegativeunder164bps.
+2023directmean/mean_second predictions all241datesat25%floor.2024varies.
+Stable mean_second82bps+17.3168%vsunscaledstable+32.9486%;mean82+16.0817%,
+SR1.0789. Descriptivepositivecurves do not beat controls or earncertification.
+Do not change floors/signs/horizons to repair this known result.
 
-After RESULT completes, run scripts/audit_conditional_risk.py --output
-artifacts/conditional-risk/epoch-001 --inputs [original frozen input directory].
-Check states,all proxy labels/components,normal equations/calibration,actual
-source capacity/current-close marks,22targetsets,44cash/NAV/cost paths and72fits.
-Auditor-only engineering errors may be repaired with evidence/regressions;
-do not rerun market,alter results or edit source runtime/driver after start.
-Build complete bilingual reports,44aggregate rows,native report schema validation
-and executed notebook companion. Renderer/UI QA must respect userquiet;explicitly
-record deferral rather than claiming visible delivery. Check latest headCI before
-PRReady. No automatic mainmerge,trading or raw-source/credential publication.
+## Delivery and safe continuation / 交付及续接
 
-Screens unchanged:both costs,both years positive,SR>=.7,DD>=-.25,>=3pp total
-increment versus EVERY same-base fixed/lag20/shuffle/risk-only/unscaled/original
-control,annual difference>=-5pp,95%statecoverage andallintegrity/accountchecks.
-Fixed exposure is matched on TRAINING mean,not exact future exposure/turnover;
-report realized risk,cash,cost and turnover differences. A volatility/cash benefit
-is not stock-selection Alpha. No one-permutation placebo p-value,DSR/PBO/CourtPASS
-from reuseddevelopment. Preserve all negative evidence.
+Read RESULT.zh/en,VERIFICATION and V11_19_DIRECTION. RuntimeCI34060549124
+SUCCESS;check final evidencehead CI afterpush and updatePR196ReadyonlyonSUCCESS.
+No mainmerge. If latestCI genuinelyfails,repair engineeringwithregressions,
+notmarketresults. PreserveallstackedPRs;PR195finalade50a9andCI34058274198
+SUCCESS/Readyconfirmed. V11.17COMPLETE0/6debt3556 andV11.16COMPLETE0/8debt3506
+mustnotrerun. Currentautomationv10-alpha30minneedscompletecheckpointupdate.
 
-If a full survivor exists, freeze its identity/model/targets and cumulativeTrial
-lineage before further finite predeclared delay/capacity/regime/falsification
-checks. Do not tune finalwindow,lower DSR.95/PBO.05/placebo.05orpath/costlimits.
-Ordinary negative/noncertified results go to reports/GitHub,quietly. The existing
-v10-alpha30minute continuation staysactive;only notify usableAlpha,actionable
-blocker ormajorfault. Any next mechanism requires a new finite preregistration,
-never retrospective sign/threshold/horizon selection on this batch.
+Nextdirectionisnotpreregisteredyet:noV11.19Trialormarketfit.
+Investigate date-balancedpairwiseranking with as-ofriskcellmatchedpairs,
+smallfixedmodel family andpolicymatchedmaturelabels. Read V11_19_DIRECTION
+requirements and originalRankNetobjective;staticdedupagainstexistingridge/
+stump/residual/ranktemplates first. No broad neural/randomhyperparametersweep.
+Preservecasewherefixedfields+differentobjective addsnoeconomicinformation.
+Allpairnormalization,transformfit,labeltiming,pairselectionandnativebinding
+mustbeprotected;numberofpairsisnotindependenttimesamples. Nevercomparearbitrary
+rankscorewithbpscosthurdle. Syntheticplanted/null/prefix/gaptests,fullsuite,
+independentauditor,exactbudget+Issue184prereg+nativefirstreservationbeforevalues.
+Read existing V4overnight_intraday_divergence/gap_fill_pressure:alreadyimplemented,
+notanewfamilyjustbecauseapaperisfound. ThatstaticdedupconsumednoTrials.
+
+Frozen2022train/2023-24reuseddevelopmentonly,no2025/26. Raw5sourcesread-only,
+oldV11.11originalcard/targets/ledgers unchanged. No sourcepurchase,trading,
+credentials/rawdata/absoluteprivatepathpublication. TestsremoveAlphaPaienvinchild,
+neverprintkey. No subagents. Userquietordinaryfailures;archiveandcontinue.
+Completeexploratorysurvivorfirstfreezeidentity/models/targets/trialsanddeeply
+challengewithfinitepreregistereddelay/cost/capacity/regime/placebo. DSR>=.95,
+PBO<=.05,placebo<=.05,path/cost/capacitythresholdsremain;fullhistorytrialstructure,
+purgedCPCV,empiricalmoments,threeplacebos,crediblelots/mincommission/corpactions
+andindependentforwardevidenceareallneededforusableAlpha. Noguaranteeitexists.
+OnlycertifiedusableAlpha/actionableuserblocker/majorfaultnotifies;thenfreeze
+andpausefurthersearchpendinguserdecision,noautomaticliveorders.
