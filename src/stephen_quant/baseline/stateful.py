@@ -82,6 +82,7 @@ class StatefulPeriod:
     recovery_value: float
     marks: tuple[PositionMark, ...]
     orders: tuple[StatefulOrder, ...]
+    traded_notional_cny: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -215,6 +216,7 @@ def run_stateful_execution(
     config: StatefulExecutionConfig,
     *,
     initial_nav: float = 1_000_000.0,
+    retain_details: bool = True,
 ) -> StatefulExecutionReport:
     """Execute sparse daily panels without deleting or silently forward-filling holdings."""
 
@@ -225,6 +227,8 @@ def run_stateful_execution(
     positions: dict[str, _Position] = {}
     previous_nav = float(initial_nav)
     periods: list[StatefulPeriod] = []
+    blocked_orders = 0
+    blocked_notional = 0.0
 
     for bars, target in zip(sessions, targets, strict=True):
         by_instrument = {bar.instrument: bar for bar in bars}
@@ -399,6 +403,11 @@ def run_stateful_execution(
                     reason=reasons[instrument],
                 )
             )
+        blocked_orders += sum(
+            order.blocked_notional > 1e-9 or order.reason not in {"executed", "no_trade"}
+            for order in orders
+        )
+        blocked_notional += sum(order.blocked_notional for order in orders)
         periods.append(
             StatefulPeriod(
                 trade_date=target.trade_date,
@@ -416,8 +425,9 @@ def run_stateful_execution(
                 writeoff_loss=writeoff_loss,
                 recovery_positions=recovery_positions,
                 recovery_value=recovery_value,
-                marks=tuple(marks),
-                orders=tuple(orders),
+                marks=tuple(marks) if retain_details else (),
+                orders=tuple(orders) if retain_details else (),
+                traded_notional_cny=sum(abs(order.executed_notional) for order in orders),
             )
         )
         previous_nav = end_nav
@@ -427,7 +437,6 @@ def run_stateful_execution(
     for period in periods:
         peak = max(peak, period.end_nav)
         max_drawdown = min(max_drawdown, period.end_nav / peak - 1)
-    orders = [order for period in periods for order in period.orders]
     metrics = StatefulMetrics(
         periods=len(periods),
         initial_nav=initial_nav,
@@ -435,12 +444,8 @@ def run_stateful_execution(
         net_total_return=periods[-1].end_nav / initial_nav - 1,
         max_drawdown=max_drawdown,
         total_cost=sum(period.total_cost for period in periods),
-        blocked_orders=sum(
-            order.blocked_notional > 1e-9
-            or order.reason not in {"executed", "no_trade"}
-            for order in orders
-        ),
-        blocked_notional=sum(order.blocked_notional for order in orders),
+        blocked_orders=blocked_orders,
+        blocked_notional=blocked_notional,
         stale_position_days=sum(period.stale_position_days for period in periods),
         writeoff_events=sum(period.writeoff_positions for period in periods),
         writeoff_loss=sum(period.writeoff_loss for period in periods),

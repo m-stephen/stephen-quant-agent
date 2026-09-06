@@ -213,7 +213,6 @@ from .workflows.v112_candidate_nursery import V112_VERSION, run_v112_candidate_n
 from .workflows.v113_search_power_lab import (
     V113_VERSION,
     run_v113_calibration_only,
-    run_v113_search_power_lab,
 )
 from .workflows.warehouse_factor_test import (
     WarehouseFactorTestConfig,
@@ -818,6 +817,9 @@ def build_parser() -> argparse.ArgumentParser:
     v113.add_argument("--spec", default="docs/V11_3_2_SPEC_LOCK.json")
     v113.add_argument("--prior-failed-holdout-state")
     v113.add_argument("--output", default="reports/v11.3-search-power")
+
+    reliable = sub.add_parser("reliable-research")
+    reliable.add_argument("--config", required=True)
 
     v113_calibration = sub.add_parser("v11.3-calibration-audit")
     v113_calibration.add_argument("--state-root", required=True)
@@ -3058,20 +3060,15 @@ def main() -> None:
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return
 
-    if args.command == "v11.3-search-power":
-        report = run_v113_search_power_lab(
-            args.warehouse_root,
-            registry=registry,
-            state_root=args.state_root,
-            output_dir=args.output,
-            code_version=_git_head(),
-            spec_path=args.spec,
-            prior_failed_holdout_state=args.prior_failed_holdout_state,
-        )
-        payload = json.loads(report.to_json())
-        payload["cli_version"] = V113_VERSION
-        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+    if args.command == "reliable-research":
+        from .workflows.v114_reliable_epoch import run_reliable_epoch
+
+        report = run_reliable_epoch(args.config, code_version=_git_head())
+        print(json.dumps({"version": report["version"], "decision": report["decision"]}))
         return
+
+    if args.command == "v11.3-search-power":
+        raise SystemExit("V11.3 is legacy diagnostic-only; use reliable-research after Issue180 repairs")
 
     if args.command == "v11.3-calibration-audit":
         result = run_v113_calibration_only(

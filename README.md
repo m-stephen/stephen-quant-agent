@@ -1,5 +1,26 @@
 # Stephen Quant Agent
 
+## V11.6 reliable research / 可信研究首轮
+
+Version11.6.0 delivers Issue #180's V11.4–V11.6 bounded implementation: shared daily
+execution, causal universe/eligibility masks,24 frozen predictors, prefix-trained small-model
+baselines, actual1/8-worker synthetic audit and immutable exact replay. Historical DSR is
+explicitly a raw-count sensitivity, not calibrated full-history confidence.2025–2026 was
+previously exposed and remains restricted for this run. No deployable Alpha is implied.
+
+See [中文规范](docs/V11_4_6_RELIABLE_RESEARCH.zh.md) and
+[English specification](docs/V11_4_6_RELIABLE_RESEARCH.en.md).
+
+The completed bounded test is recorded in [中文测试报告](docs/V11_6_RESULT.zh.md) /
+[English results](docs/V11_6_RESULT.en.md). Engineering checks pass; no validated Alpha.
+
+```bash
+stephen-quant reliable-research --config configs/reliable-research.local.json
+```
+
+The old V11.3 search command is legacy-diagnostic only and refuses new runs. Existing reports,
+Trial debt and forward protocols are retained unchanged.
+
 ## V11.2 Candidate Nursery and trusted forward clock
 
 V11.2 preserves the V11/V11.1 negative evidence, migrates the exact frozen V10.1/V10.3

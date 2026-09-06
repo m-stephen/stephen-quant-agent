@@ -77,7 +77,10 @@ def test_v11_window_ledger_reclassifies_development_and_seals_labels() -> None:
     assert records[0].state == "DEVELOPMENT_ONLY"
     assert records[0].label_reads == RAW_GLOBAL_TRIALS_AT_FREEZE
     assert records[1].state == "SEALED"
-    assert records[1].label_reads == 0
+    assert records[1].label_reads >= 1
+    assert records[1].influenced_design
+    assert not records[1].independent_evidence_eligible
+    assert "known minimum" in records[1].first_use
     assert records[2].state == "FORWARD_APPEND_ONLY"
 
 
