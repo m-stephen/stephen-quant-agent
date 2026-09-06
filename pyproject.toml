@@ -12,7 +12,8 @@ authors = [{name = "Stephen"}]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "duckdb>=1.1,<2", "pytz>=2024"]
+dev = ["pytest>=8.0", "ruff>=0.6", "duckdb>=1.1,<2", "pytz>=2024", "numpy>=2.0,<3"]
+research = ["numpy>=2.0,<3", "duckdb>=1.1,<2", "pytz>=2024"]
 warehouse = ["duckdb>=1.1,<2", "pytz>=2024"]
 qmt-dat = ["rleveldb==1.0.0"]
 
