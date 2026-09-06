@@ -1,5 +1,26 @@
 # Stephen Quant Agent
 
+## V11.10 residual mechanisms / 训练期残差机制
+
+Issue #184 adds training-only risk residualization, three fixed interactions and
+a cost-aware replacement hurdle. Six yearly fits and15 continuous model accounts
+completed;783 tests pass with1 Windows permission skip. No new Alpha lead.
+Two mechanisms cannot clear the predicted cost hurdle and exactly reproduce the
+stratified hash control; the chip interaction beats that control but not low-vol.
+Keep the earlier frozen observation, with no lowered thresholds or2025/2026 reads.
+Trial lower bound3289 includes all21 new fit/account attempts.
+
+See [中文报告](docs/V11_10_RESULT.zh.md) / [English report](docs/V11_10_RESULT.en.md),
+[machine evidence](docs/V11_10_RESULT.summary.json),
+[设计约束](docs/V11_10_SPEC.zh.md) / [design contract](docs/V11_10_SPEC.en.md), and
+[continuation](docs/V11_10_CONTINUATION.md).
+
+```text
+python -m stephen_quant.workflows.v1110_residual_epoch --config configs/residual-mechanisms.local.json
+```
+
+Use gitignored local configuration; completed operations are not rerunnable.
+
 ## V11.9 calendar robustness / 调仓日历稳健性
 
 Issue #184 now includes 72 continuous accounts across fixed phases and a four-cohort

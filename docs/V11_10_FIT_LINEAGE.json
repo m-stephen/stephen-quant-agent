@@ -1,0 +1,405 @@
+{
+  "bindings": [
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "043bdf627a761cbb572a084f213ed28f9603e67bfb1836fda43e74e6c9663ee0",
+      "policy": "chip_reversal",
+      "trial_id": "trial_477dbd4b7d66c127",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "179482031e92405888a0a6a1840b0d7145cb0821ad46f3fb5b9de6ae6182c9ec",
+      "policy": "flow_reversal",
+      "trial_id": "trial_8cf4f129e9850cd6",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "1b273dd08dd46f42e2ace43c709576ae2a1b7e298c507c21114ef719c4248657",
+      "policy": "lowvol",
+      "trial_id": "trial_f8670d0923b24e6b",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "2d0a94582deb79286534857e0519b1c025d1a7c590c6e7ec66cd12ead1612e8f",
+      "policy": "flow_reversal",
+      "trial_id": "trial_6b364861a9c1c0ab",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "2dea65beaf72dee536d1bf20a2a6983740555df8727a66dd965df7a0583f46dc",
+      "policy": "auction_late_disagreement",
+      "trial_id": "trial_9cd27d33d3dac147",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "35ca43f804fd52c6cb805d86b068888e43bb024824b348ac5a73ded1d93c7ec0",
+      "policy": "chip_reversal",
+      "trial_id": "trial_a1e9db5bfe09627a",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "43d9f6e82d5ef4913d0f8ba3a3a06d7fde51c456248424427503290e80f52e23",
+      "policy": "auction_late_disagreement",
+      "trial_id": "trial_f4b9922029a5a034",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "53fd2f0985f63fcfe0c2b1f77a1f2ffaa0ed2f285b067041fb23b78d13fa28fa",
+      "policy": "chip_reversal",
+      "trial_id": "trial_e1d0783d3cc03bdf",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "62965564c8f2ce60cbae9c09baefe900b5cdd227fd4b1a3c4a99223c668e0ea1",
+      "policy": "flow_reversal",
+      "trial_id": "trial_b2f529796350bb22",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "66d77b323a81323c2b42155a7e37834cbc05cd8b25912394f5dbc494befceed2",
+      "policy": "lowvol",
+      "trial_id": "trial_cb175d160d33a441",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "7821fee9d8f398cacd79fb84d7c052c5937d8a847ef140b80f4e71f4208afe72",
+      "policy": "flow_reversal",
+      "trial_id": "trial_2d0e2708f24a5e40",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "78f5dc77cba102b40aaa1439f8b5cedd7f610bbd4a38f52fa6edf80914b37af4",
+      "policy": "auction_late_disagreement",
+      "trial_id": "trial_cbffbe407b7efd2d",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "acfa5e9b77cdde06b5ce7f923ff91c1ae9e8f6f3ac3d7d7b61261ab06cd27661",
+      "policy": "risk_hash",
+      "trial_id": "trial_b21003f63eb7aacb",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "b64d7e255b2015d86650d1655ae82d76bdc8f17fa1e7972f357e201b6df289f2",
+      "policy": "chip_reversal",
+      "trial_id": "trial_12d7e571fcb9a453",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "bd88a05435c7f31b49f9da0c78f43b8dc9df5be6e21b993c78af1a1ce6ee2756",
+      "policy": "risk_hash",
+      "trial_id": "trial_a3adfa28743c8f93",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "cd4eed380419a099ae5fdc1332596535d9421c204772f322e7fe12927f145000",
+      "policy": "lowvol",
+      "trial_id": "trial_be7c8e7527b4d576",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "d6d3f21c47893a8d4d0bab5f52eb96e99d659da15b3eb4a5269d8f7d8851441a",
+      "policy": "risk_hash",
+      "trial_id": "trial_f63dfe7545e7b594",
+      "uses_fitted_model": false
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "e20a22eae10d41c6e2320b11ce6fd2f62872a025e278a32168b0a1a8084ce4f9",
+      "policy": "chip_reversal",
+      "trial_id": "trial_38879c99372caacf",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "e6155cf73f9a8d6b5d584c1e4fc8c1d61ea60ebfa06ed4ab40abc04c57531b54",
+      "policy": "auction_late_disagreement",
+      "trial_id": "trial_643b77c30526e7e7",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2023",
+          "fit_cutoff": "2022-12-23",
+          "maximum_label_end": "2022-12-23",
+          "model_artifact_sha256": "e40e59cc79a2b5890cec44bbe4dff7499a64d875f511e673449ae962bdcb6f35",
+          "training_start": "2022-01-01"
+        },
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "account",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "ee48d17e46dd76ee73e06e008e15a9ebfbb12cce50f0d1bfe170af40d4c017e2",
+      "policy": "auction_late_disagreement",
+      "trial_id": "trial_30f9be0a01394eb5",
+      "uses_fitted_model": true
+    },
+    {
+      "actual_fit_components": [
+        {
+          "deployment_year": "2024",
+          "fit_cutoff": "2023-12-22",
+          "maximum_label_end": "2023-12-20",
+          "model_artifact_sha256": "450883ea20422219e743cf269565baa968f78e40a7578dae3c60da791c3f89d4",
+          "training_start": "2022-01-01"
+        }
+      ],
+      "kind": "fit",
+      "legacy_train_end": "2022-12-31",
+      "legacy_train_start": "2022-01-01",
+      "plan_identity": "fb08f6e0436775b0b3c6040d254c9b0d63dab4b26d29a5b43ab588bfefb5ba38",
+      "policy": "flow_reversal",
+      "trial_id": "trial_6d6a2580c3a9f25e",
+      "uses_fitted_model": true
+    }
+  ],
+  "bindings_sha256": "6a949f8242ae61771d6204630a81e4192d3dc28011cf3164c454b2fb42a2b860",
+  "financial_results_unchanged": true,
+  "limitation": "legacy static2022 training columns do not represent2024 expanding fit;use these artifact-bound components,not scalar registry columns,for fit-lineage audits",
+  "raw_registry_unchanged": true,
+  "source_registry_sha256": "f6d874b23027cfd358c9ec924fb588eff21d58ffe0ed64bc3f2b876e5f11bebe",
+  "source_result_sha256": "6559581264e706f932df02c7ec1cc41e15980501cf6313f80a438337a622e2b2",
+  "status": "APPEND_ONLY_LINEAGE_CLARIFICATION",
+  "trial_delta": 0
+}
