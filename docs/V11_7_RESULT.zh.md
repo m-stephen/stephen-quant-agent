@@ -72,6 +72,9 @@ Quarterly double-cost returns (quarters compound; not summed):
 
 ## 统计与工程核验
 
+- 完整本地测试：726 passed、1 skipped；Ruff通过。跳过项是Windows符号链接创建权限；测试子进程隔离维护凭据，不修改安全门禁。
+- 独立新进程重放主线索及两类控制，共18个账户；所有指标和逐日账户证据哈希一致，Trial增量0、原账本未变。详见`V11_7_VERIFICATION.json`。
+- DuckDB另行从逐日账户聚合192行年度结果；96个候选账户的收益、利润、成本和回撤与Python结果一致。
 - Independently reconciled 192 accounts; max residual CNY0.0000000005.
 - Trials: reserved 192, completed 96, raw lower bound 3058.
 - All accounts retain costs/cash/orders/positions. Protected candidate files unchanged; no2025/2026 data reads.
@@ -80,6 +83,12 @@ Quarterly double-cost returns (quarters compound; not summed):
 统计表的赢家由最大日均主动收益选择，与历史财富增量赢家可能不同；不得移用它的DSR给其他候选背书。
 
 ## 局限与下一步
+
+筹码字段实际是`(85%成本分位-15%成本分位)/加权成本`，数值大表示成本分布更宽，不是“筹码更集中”。主公式为`-0.7*rank(20日波动率)+0.3*rank(筹码宽度)`；尾盘公式将后项替换为`-0.3*rank(尾盘30分钟收益)`。分钟字段仍按实际可见时间连接，未提前到当日。
+
+主线索2023只比匹配低波动基线少0.12个百分点，2024多8.57个百分点；其增量明显集中于2024。尾盘组合分别多2.50和3.23个百分点，跨年度表现更均衡。两者都不能据此证明有独立、持久的Alpha。
+
+本轮第一批已达到冻结的历史线索停止条件，因此第二批未运行；不是遗漏了第二批，也没有将“疑似”提升成“已验证”。
 
 复权分数股、固定费率、前ADV容量、20会话缺数减记均是近似。尚未证明整手/最低佣金/开盘真实容量可执行性。低波动控制只排除了部分风格解释，未完整回归行业/规模/贝塔暴露。
 缺少全历史同频Sharpe矩阵，DSR仅为敏感性；CPCV及placebo仅为历史诊断。自动生成是有界机制语法，不是外部LLM调用。

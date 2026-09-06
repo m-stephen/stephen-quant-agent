@@ -72,6 +72,9 @@ Quarterly double-cost returns (quarters compound; not summed):
 
 ## Statistical and engineering checks
 
+- Full local suite:726 passed,1 skipped; Ruff passed. The skip is Windows symlink creation permission. Test subprocesses exclude maintenance credentials without weakening safety guards.
+- Independent-process replay compared18 lead/control accounts, including every metric and daily-account content hash; zero trial delta and unchanged registry. See`V11_7_VERIFICATION.json`.
+- Independent DuckDB aggregation produced192 annual rows and matched Python return/profit/cost/drawdown for all96 candidate windows.
 - Independently reconciled 192 accounts; max residual CNY0.0000000005.
 - Trials: reserved 192, completed 96, raw lower bound 3058.
 - All accounts retain costs/cash/orders/positions. Protected candidate files unchanged; no2025/2026 data reads.
@@ -80,6 +83,12 @@ Quarterly double-cost returns (quarters compound; not summed):
 The statistical selector maximizes mean daily active return and may differ from the historical-wealth winner; its DSR must not certify another candidate.
 
 ## Limits and next steps
+
+The chip field is `(85th cost percentile-15th cost percentile)/weighted cost`: higher means a wider cost distribution, not greater concentration. Primary formula:`-0.7*rank(20-day volatility)+0.3*rank(chip width)`. The late-day variant replaces the second term with`-0.3*rank(last30-minute return)`. Existing minute-availability timing remains unchanged.
+
+The primary lead lags matched low-vol by0.12pp in2023 and beats it by8.57pp in2024; incremental performance concentrates in2024. The late-day lead adds2.50pp and3.23pp respectively, a more balanced annual pattern. Neither establishes persistent independent Alpha.
+
+Batch1 met the predeclared historical-lead stop rule, so Batch2 was intentionally not run. This is not an omitted required test or a promotion to validated Alpha.
 
 Adjusted fractional shares, fixed fees, lagged ADV capacity and20-session stale write-downs are approximations. Board lots/minimum fees/actual opening volume are not established. Low-vol control excludes only part of style explanations; industry/size/beta exposures are not fully regressed.
 Missing aligned historical Sharpe matrix makes DSR sensitivity-only; CPCV/placebo are historical diagnostics. Generation uses bounded mechanism grammar, not external LLM calls.

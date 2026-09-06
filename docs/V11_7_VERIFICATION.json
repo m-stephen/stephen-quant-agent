@@ -1,0 +1,22 @@
+{
+  "all_18_lead_and_control_accounts_exact": true,
+  "full_suite": {
+    "environment": "maintenance credentials removed only in test subprocess",
+    "passed": 726,
+    "skip": "Windows symlink creation permission",
+    "skipped": 1
+  },
+  "replay_receipt": {
+    "account_windows": 18,
+    "candidate": "6aef857e541e9787432cf5a9b888fbf9b67866e4e46fc86495f6781f3ddf1f60",
+    "original_result_sha256": "e10b06647b6b00e40bc4b898f00916ab120b2932bf1d839ccfd2cc4e11c40731",
+    "pass": true,
+    "registry_unchanged": true,
+    "trial_delta": 0
+  },
+  "replay_receipt_sha256": "4e7bbf3c97c442d79fbf1739e7cd90e32f44077297106abd12bdb3c809f117dc",
+  "ruff": "passed",
+  "sql_annual_rows": 192,
+  "sql_audit_sha256": "10224b30bc7252a041077fbc307fc4c2250f530707b88c7f981296aaa785f5a4",
+  "sql_candidate_windows_compared": 96
+}
