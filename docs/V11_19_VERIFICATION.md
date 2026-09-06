@@ -1,5 +1,7 @@
 # V11.19 verification / 验证记录
 
+V11.19.1 correction suite: **1020 passed,1 skipped in179.19s**, RuffPASS. Two new regression tests cover terminal reduction roundoff, unchanged stationarity tolerance, rejection of nonstationary/materially higher/nonfinite loss and an end-to-end synthetic strictly convex optimizer. The original frozen epoch aborted before account evaluation; see V11_19_ABORTED.md. Corrected market execution remains pending separate preregistration and24additional native reservations. Initial runtime CI34063439437 wasSUCCESS, which did not guarantee real-matrix numerical robustness.
+
 Premarket full suite: **1018 passed, 1 skipped in181.68s**. Thirty-six new synthetic tests cover planted interaction recovery, style-only explanation, heldout noise, temporal gaps, pair membership before outcomes, mature labels, equal-date weighting, analytic gradients/Hessians, native24-trial/32-fit contracts, artifact tampering, independent raw-source SQL, rank/target reconstruction and exclusive evidence writes. Ruff and git diff whitespace checks pass. An unused test import was removed after the full suite; no economic implementation changed.
 
 Synthetic calendars are artificial daily fixtures, not real exchange sessions. Successful algorithm tests do not demonstrate market predictability or Alpha Court power. Training pairs overlap in time.

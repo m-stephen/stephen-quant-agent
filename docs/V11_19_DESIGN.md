@@ -1,5 +1,15 @@
 # V11.19 — Date-balanced within-cell pairwise ranking
 
+## V11.19.1 numerical amendment (supersedes budget/runtime only)
+
+The original epoch-001 aborted during quadratic/full2024 fitting, before any account return was produced. All24 native reservations and nine fitted artifacts remain immutable; debt is3624. Diagnostic replay uses the exact saved training matrix and unchanged objective, not a new signal/hyperparameter experiment. At the last step, gradient1.6723e−9, full Newton next gradient1.3661e−17; floating loss difference2.2204e−16 exceeds the true requested decrease3.6920e−21. The old Armijo test rejects a stationary optimum because the reduction is below floating-point resolution.
+
+Correction: retain L2=.01,40steps,32backoffs and gradient tolerance1e−9. In addition to ordinary Armijo acceptance, accept a terminal step only when its loss differs by at most8ulp(max(1,abs(loss))), its next gradient meets the unchanged1e−9 stationarity threshold, and gradient strictly decreases. This is a numerical terminal certificate, not an economic threshold relaxation. Independent convex stationarity still checks the final model.
+
+A separately preregistered exclusive epoch-002 redoes the identical24-account economic plan, charges24 more Trials and binds **all** aborted artifacts in its protected manifest:3600+24failed+24corrected=3648. New claim key is the aborted outcome SHA-2563c254b86990b1bc801e58ace3bd8da30a079c162d9ee7bb718e67cf9409bb034, not a bypass of the old claim. No pair,feature,sign,label,horizon,cost,capital,control or economic gate changes. The original design below remains archived as originally registered.
+
+中文：首轮在二次模型数值求解阶段中止，0个账户收益，24次全部记账。原因是约2.22e−16的浮点求和误差大于要求的3.69e−21下降量，而下一步梯度已达到1.37e−17。仅补充“损失差在8ulp内且下一梯度满足原1e−9并严格下降”的终止判定，不降低收敛或经济门槛。另登记epoch-002，新增24次，累计3648；首轮所有文件纳入只读保护，不覆盖重试。
+
 ## 中文：问题、范围与停止条件
 
 上一轮条件风险配置没有产生超越冻结组合的完整增量。本轮只改变学习目标：在当时风险/流动性相近的股票之间学习相对排序，并检验非线性跨源交互。不是扩大参数遍历，不把旧因子换名当新机制。

@@ -11,6 +11,7 @@ from stephen_quant.baseline.stateful import StatefulBar
 from stephen_quant.discovery.pairwise_ranking import (
     BASES,
     KINDS,
+    acceptable_step,
     basis_vector,
     design_matrix,
     fit_model,
@@ -356,3 +357,25 @@ def test_all_registered_objectives_converge():
             assert m["optimizer"]["gradient_max"] <= 1e-9
             trace = m["optimizer"]["loss_trace"]
             assert all(b <= a + 1e-14 for a, b in pairwise(trace))
+
+
+def test_roundoff_only_accepts_unchanged_stationarity_tolerance():
+    loss = 0.6909613328778278
+    assert acceptable_step(loss, loss + 2.22e-16, 3.69e-17, 1.67e-9, 1.37e-17)
+    assert not acceptable_step(loss, loss + 2.22e-16, 3.69e-17, 1.67e-9, 1.01e-9)
+    assert not acceptable_step(loss, loss + 1e-10, 3.69e-17, 1.67e-9, 1.37e-17)
+    assert not acceptable_step(loss, float("nan"), 3.69e-17, 1.67e-9, 1.37e-17)
+
+
+def test_terminal_roundoff_in_optimizer_synthetic_objective(monkeypatch):
+    import stephen_quant.discovery.pairwise_ranking as module
+
+    def synthetic(beta, x, y, w, regression=False):
+        gradient = 0.01 * beta - 1.67e-9
+        # Simulate final reduction noise at a true strictly convex optimum.
+        loss = 0.69 + (2.22e-16 if abs(beta[0]) > 0 else 0)
+        return loss, gradient, np.eye(1) * 0.01
+
+    monkeypatch.setattr(module, "objective", synthetic)
+    _, receipt = module.optimize(np.ones((1, 1)), np.ones(1), np.ones(1))
+    assert receipt["gradient_max"] <= 1e-9

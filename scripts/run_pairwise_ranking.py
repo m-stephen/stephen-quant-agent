@@ -3,6 +3,7 @@
 import argparse
 import gzip
 import json
+import sqlite3
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,6 +43,7 @@ from stephen_quant.workflows.v114_reliable_epoch import (
 from stephen_quant.workflows.v117_incremental_epoch import save_account
 
 PARENT_SHA = "c0451e1b077ee67c8ef99e4dc982fab7c546b433b254d270baa53b3082c9e83f"
+ABORTED_SHA = "3c254b86990b1bc801e58ace3bd8da30a079c162d9ee7bb718e67cf9409bb034"
 CLAIMS = Path(__file__).resolve().parents[1] / "artifacts/pairwise-ranking/claims"
 
 
@@ -107,13 +109,24 @@ def run(config):
     parent, original, inputs, output = [
         Path(cfg[k]).resolve() for k in ("parent_dir", "original_tree", "input_dir", "output_dir")
     ]
+    aborted = Path(cfg["aborted_dir"]).resolve()
     if type(cfg.get("preregistration_comment")) is not int or cfg["preregistration_comment"] <= 0:
         raise ValueError("preregistration required")
     if output.exists() or any(
         output == p or output in p.parents or p in output.parents
-        for p in (parent, original, inputs)
+        for p in (parent, original, inputs, aborted)
     ):
         raise ValueError("new independent output required; never retry")
+    if (
+        file_sha(aborted / "ABORTED.json") != ABORTED_SHA
+        or read(aborted / "ABORTED.json")["raw_trial_debt"] != 3624
+    ):
+        raise ValueError("aborted operation and its debt must be preserved")
+    with sqlite3.connect(
+        f"file:{(aborted / 'registry.sqlite3').as_posix()}?mode=ro", uri=True
+    ) as db:
+        if db.execute("SELECT count(*) FROM trials").fetchone()[0] != 24:
+            raise ValueError("aborted native reservations incomplete")
     card_path = original / "configs/v11.11-frozen-stability-observation.json"
     targets_paths = {
         b: original / f"artifacts/temporal-increments/epoch-001/targets/{b}.json"
@@ -150,12 +163,14 @@ def run(config):
         *targets_paths.values(),
         inputs / "manifest.json",
         *sources,
+        *sorted(p for p in aborted.rglob("*") if p.is_file()),
     ]
     before, _ = protected_digest(protected)
     spec = {
         "contract": contract(),
         "plans": plans(),
         "parent_sha256": PARENT_SHA,
+        "aborted_sha256": ABORTED_SHA,
         "snapshot_sha256": SNAPSHOT_SHA,
         "runtime_code_sha256": runtime_code_hash(),
         "driver_sha256": file_sha(Path(__file__)),
@@ -167,7 +182,7 @@ def run(config):
         "original_target_files": {b: str(p) for b, p in targets_paths.items()},
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    write_json(CLAIMS / f"{PARENT_SHA}.json", {"reserved": 24, "spec_sha256": sha256_json(spec)})
+    write_json(CLAIMS / f"{ABORTED_SHA}.json", {"reserved": 24, "spec_sha256": sha256_json(spec)})
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "frozen_spec.json", spec)
     write_json(
@@ -335,7 +350,7 @@ def run(config):
             "engineering_pass": all(r["audit"]["pass"] for r in records.values()),
             "completed_trials": len(records),
             "reserved_trials": 24,
-            "raw_global_trial_lower_bound": 3624,
+            "raw_global_trial_lower_bound": 3648,
             "training_pairs": len(pairs),
             "rank_dates": len(cache),
             "protected_unchanged": True,
@@ -350,7 +365,7 @@ def run(config):
         }
         write_json(output / "RESULT.json", result)
         print(
-            json.dumps({"completed": 24, "survivors": result["screen_survived"], "debt": 3624}),
+            json.dumps({"completed": 24, "survivors": result["screen_survived"], "debt": 3648}),
             flush=True,
         )
         return result
@@ -361,7 +376,7 @@ def run(config):
                 "error_type": type(exc).__name__,
                 "completed": len(records),
                 "reservations_preserved": True,
-                "raw_trial_debt": 3624,
+                "raw_trial_debt": 3648,
             },
         )
         raise

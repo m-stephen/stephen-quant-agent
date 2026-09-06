@@ -556,7 +556,7 @@ def audit(output, inputs):
     if (
         read(output / "first_read_reservations.json")
         != {"trials": spec["plans"], "spec_sha256": sha256_json(spec)}
-        or result["raw_global_trial_lower_bound"] != 3624
+        or result["raw_global_trial_lower_bound"] != 3648
         or result["completed_trials"] != 24
         or result["validated_alpha"]
     ):
@@ -568,7 +568,7 @@ def audit(output, inputs):
         "screen_survived": result["screen_survived"],
         "source_result_sha256": file_sha(output / "RESULT.json"),
         "snapshot_sha256": spec["snapshot_sha256"],
-        "raw_trial_lower_bound": 3624,
+        "raw_trial_lower_bound": 3648,
         "new_trials": 24,
         "models": 16,
         "native_fits": 32,

@@ -19,7 +19,7 @@ from .risk_stratified import screen as economic_screen
 from .search_power_dsl import sha256_json
 from .temporal_increments import MECHANISMS, RISK_FIELDS
 
-VERSION = "11.19.0"
+VERSION = "11.19.1"
 FIELDS = RISK_FIELDS + MECHANISMS
 BASES = ("linear", "quadratic")
 KINDS = ("full", "risk", "shuffle", "regression")
@@ -60,7 +60,7 @@ def contract():
     return {
         "version": VERSION,
         "budget": 24,
-        "prior_debt": 3600,
+        "prior_debt": 3624,
         "fields": FIELDS,
         "basis": BASES,
         "kinds": KINDS,
@@ -78,6 +78,7 @@ def contract():
             "max_newton_steps": MAX_STEPS,
             "gradient_tolerance": GRADIENT_TOL,
             "armijo_backtracking_steps": 32,
+            "terminal_roundoff": "<=8ulp(max(1,abs(loss))) loss change only if next gradient meets unchanged1e-9 tolerance",
         },
         "shuffle": "within each training date/cell rotate accepted leg returns floor(Nlegs/3);no cross-date movement",
         "allocation": "2stocks/cell,top3 incumbent buffer,20cells,4phases0/5/10/15;no score-to-bps hurdle",
@@ -281,6 +282,19 @@ def objective(beta, x, y, weights, regression=False):
     return loss + L2 * float(beta @ beta) / 2, grad, hessian
 
 
+def acceptable_step(loss, new_loss, decrease, gradient_max, next_gradient_max):
+    """A stationary solution may differ by reduction-roundoff, not by economic tolerance."""
+    if not all(
+        math.isfinite(v) for v in (loss, new_loss, decrease, gradient_max, next_gradient_max)
+    ):
+        return False
+    return new_loss <= loss - 1e-4 * decrease or (
+        abs(new_loss - loss) <= 8 * math.ulp(max(1.0, abs(loss)))
+        and next_gradient_max <= GRADIENT_TOL
+        and next_gradient_max < gradient_max
+    )
+
+
 def optimize(x, y, weights, regression=False):
     if x.ndim != 2 or len(y) != len(x) or len(weights) != len(x) or not len(x):
         raise ValueError("aligned nonempty training matrix required")
@@ -303,8 +317,14 @@ def optimize(x, y, weights, regression=False):
         for backoff in range(32):
             scale = 0.5**backoff
             proposal = beta - scale * step
-            new_loss = objective(proposal, x, y, weights, regression)[0]
-            if new_loss <= loss - 1e-4 * scale * float(grad @ step):
+            new_loss, new_grad, _ = objective(proposal, x, y, weights, regression)
+            if acceptable_step(
+                loss,
+                new_loss,
+                scale * float(grad @ step),
+                float(max(abs(grad))),
+                float(max(abs(new_grad))),
+            ):
                 beta = proposal
                 break
         else:
