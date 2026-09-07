@@ -7,6 +7,7 @@ from dataclasses import asdict
 import pytest
 from test_flow_response_history import frozen_sources
 from test_flow_response_protocol import spec
+from test_portfolio_construction_runtime import synthetic_spec as construction_spec
 
 from stephen_quant.baseline.stateful import TargetAllocation
 from stephen_quant.discovery.flow_response_protocol import reserve_trials
@@ -40,6 +41,134 @@ def synthetic_anchors(root, calendar):
     path = root / "configs/v11.11-frozen-stability-observation.json"
     path.write_text(json.dumps(card), encoding="utf-8")
     return file_sha(path)
+
+
+@pytest.fixture(scope="module")
+def construction_epoch(epoch):
+    from stephen_quant.discovery import portfolio_construction_runtime as runtime
+    from stephen_quant.discovery.portfolio_construction_audit import audit_complete_accounts
+
+    root, old, old_tids, _, _ = epoch
+    output = root / "construction"
+    plan = construction_spec(root / "operation")
+    plan["history"].update(
+        registry_sha256=file_sha(old.db_path),
+        history_sha256=file_sha(root / "operation/history/history.json"),
+        consumer=old_tids["lowvol-82"],
+    )
+    reg, tids = runtime.reserve_accounts(output, plan)
+
+    def forbidden(*a, **kw):
+        raise AssertionError("no new production fit, source rebuild, or model search")
+
+    with pytest.MonkeyPatch.context() as patch:
+        for name in (
+            "flow_response_history.fit_history_predictor",
+            "flow_response_history.build_history_from_frozen",
+            "flow_response_predictor.fit_predictor",
+        ):
+            patch.setattr("stephen_quant.discovery." + name, forbidden)
+        result = runtime.execute_accounts(reg, tids, plan, output=output)
+    # Producer released its one decoded cache before independent source/account audit.
+    gc.collect()
+    with pytest.MonkeyPatch.context() as patch:
+        for name in (
+            "portfolio_construction_runtime.construction_targets",
+            "portfolio_construction_runtime.select_global",
+            "portfolio_construction_runtime.execute_response_account",
+            "portfolio_construction_runtime.combine_sleeves",
+        ):
+            patch.setattr("stephen_quant.discovery." + name, forbidden)
+        audit = audit_complete_accounts(operation=output, input_folder=root / "inputs")
+    return root, reg, tids, plan, result, audit
+
+
+def test_construction_complete_four_accounts_source_target_account_audit(construction_epoch):
+    root, reg, _tids, plan, result, audit = construction_epoch
+    assert reg.global_trial_count() == result["reserved_trials"] == 4
+    assert result["raw_global_trial_lower_bound"] == audit["raw_global_trial_lower_bound"] == 3733
+    assert result["new_fits"] == audit["new_fits"] == 0
+    assert audit["pipeline_audit_pass"] and audit["source_audit"]["source_history_audit_pass"]
+    assert not result["validated_alpha"] and not audit["validated_alpha"]
+    assert result["statistics"]["DSR"] is None
+    assert len(result["records"]) == len(audit["accounts"]) == 4
+    for policy in ("global_lowvol", "global_hash"):
+        standard, doubled = (result["records"][f"{policy}-{c}"] for c in (82, 164))
+        assert standard["target_sha256"] == doubled["target_sha256"]
+        assert standard["dates"] == doubled["dates"]
+        assert set(standard["years"]) == {"2023", "2024"}
+        assert audit["accounts"][f"{policy}-82"]["pass"]
+    assert file_sha(root / "operation/registry.sqlite3") == plan["history"]["registry_sha256"]
+
+
+def test_construction_audit_native_forgery_rejected_before_history(construction_epoch, monkeypatch):
+    from stephen_quant.discovery import portfolio_construction_runtime as runtime
+
+    root, reg, tids, plan, result, _ = construction_epoch
+    bad = copy.deepcopy(result)
+    bad["records"]["global_lowvol-82"]["profit_cny"] += 1
+    with pytest.raises(ValueError, match="native account"):
+        runtime.check_native(reg, root / "construction", plan, tids, bad)
+    monkeypatch.setattr(runtime, "open_history", lambda *a: pytest.fail("completed replay read"))
+    with pytest.raises(ValueError):
+        runtime.execute_accounts(reg, tids, plan, output=root / "construction")
+
+
+def test_construction_launcher_complete_real_synthetic_chain(
+    construction_epoch, tmp_path, monkeypatch
+):
+    from pathlib import Path
+
+    from stephen_quant.discovery import portfolio_construction_launch as launch
+
+    source, _, _, spec, _, _ = construction_epoch
+    plan = {
+        "version": launch.VERSION,
+        "claim_key": launch.CLAIM_KEY,
+        "paths": {
+            "worktree": str(tmp_path),
+            "claim": str(tmp_path / "common/once.json"),
+            "inputs": str(source / "inputs"),
+        },
+        "spec": spec,
+        "prior_debt": 3729,
+        "budget": 4,
+        "validated_alpha": False,
+    }
+    monkeypatch.setattr(launch, "prepare_plan", lambda _: copy.deepcopy(plan))
+    monkeypatch.setattr(
+        launch, "fetch_preregistration", lambda i, d, _: {"id": i, "plan_sha256": d}
+    )
+    monkeypatch.setattr(
+        launch, "_resource_preflight", lambda: {"physical_available_bytes": 8 * 1024**3}
+    )
+    stages = []
+
+    def child(command, **kw):
+        stage = command[2]
+        stages.append(stage)
+        # Only OS resource monitoring is stubbed. Real backend and independent
+        # source/target/account audit execute on native synthetic fixtures.
+        launch.run_stage(stage, operation=command[-1], worktree=tmp_path)
+        receipt = {"outcome": "COMPLETED", "exit_code": 0, "samples": 1}
+        launch.write(Path(kw["output"]) / "SUPERVISOR.json", receipt)
+        return receipt
+
+    monkeypatch.setattr(launch, "supervise", child)
+    path = tmp_path / "plan.json"
+    launch.write(path, plan)
+    terminal = launch.launch(path, comment_id=1, worktree=tmp_path)
+    assert terminal["outcome"] == "COMPLETE_DIAGNOSTIC_AUDITED"
+    assert stages == ["backend", "audit"]
+    assert terminal["native_reserved"] == 4 and terminal["raw_global_trial_lower_bound"] == 3733
+    root = launch.operation_path(plan, sha256_json(plan))
+    audit = launch.read(root / "AUDIT.json")
+    assert audit["pipeline_audit_pass"] and not audit["validated_alpha"]
+    with pytest.raises(FileExistsError):
+        launch.launch(path, comment_id=1, worktree=tmp_path)
+    for stage in ("backend", "audit"):
+        with pytest.raises(ValueError, match="active shared"):
+            launch.run_stage(stage, operation=root, worktree=tmp_path)
 
 
 @pytest.fixture(scope="module")
