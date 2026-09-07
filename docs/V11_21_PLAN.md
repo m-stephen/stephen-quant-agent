@@ -1,5 +1,9 @@
 # V11.21 next bounded research stage / 下一轮有限研究
 
+## Latest B5b status / 最新源级校准
+
+Source-file-level paired recovery is now complete: fixedseed184021/160stocks/782synthetic weekdays,planted andnull both independently audited. Plantedinteraction passes the complete exploratoryscreen;null has no survivor. All predeclared recovery checks PASS,with0empiricalTrials/debt3660 and noAlpha certification. Fullprocess peaks610.02/625.89MiB include model/account/audit,not justhistorycache;they do not certify fullmarketscale. See PHASE_B5b reports and latestVERIFICATION/CONTINUATION. Older B5b-pending wording below is historical. Next B6 specifically addresses remaining market-scale headroom/materialization and globally exclusive parent/source/code/auditor/preregistration-bound launch. No realnumericread or23empiricalreservations until those gates are complete;no seed search or rerun of completed calibration.
+
 ## Evidence-led decision / 依据
 
 V11.20 conclusively rejects the narrow explanation that transaction fees alone caused the V11.19 full models to fail. Before fees,linear/quadratic full returns4.5677%/−1.2020% trail same-basis risk controls by17.1321pp/14.8577pp,with deficits in both years. This says nothing definitive about absence of market Alpha. Preserve all failed candidates,old stable observation and debt3660. Stop raising polynomial degree on the same six compressed inputs.

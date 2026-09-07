@@ -1,6 +1,26 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: B5 independent audit and resources / 最新检查点
+## Latest checkpoint: B5b paired source-level recoverability
+
+Full regression **1317 passed, 1 skipped in483.04s**; JUnit1318total/0failures/0errors/1skip,time483.003s. Session75063 completed exit0. Ruff src/tests/scripts and format of4new Python files PASS. FullJUnit `artifacts/flow-response/phase-b5b-regression-20260907.xml`, SHA256 `9fd33df91e50c04d1a45d14c1912734b07dd0e582e3a880e1237f6da410bf8d2`.
+
+One fixed paired source calibration completed successfully, session83045 exit0; childplanted6832 andnull35256 ended.160stocks×782synthetic weekdays;2sourcefiles×125120rows each;522account periods;23synthetic native reservations/14annualmodels/28bindings/22accounts percase. Total46synthetic reservations,0empirical trials,debt3660. Actual source→history→model→target→account independent audits PASS on both cases. No market numerical reads or Alpha certification.
+
+Predeclared planted checks: positive interaction coefficients both years and positive net increments over risk/shuffle at82/164bps PASS. Pairednull: neither primary survives the complete audited exploratoryscreen PASS. As additional descriptive evidence,theplantedinteraction passescompleteexploratoryscreen,butthisisnotstatisticalpowerorCourt. No threshold/seed/strength tuning. See bilingual PHASE_B5b reports for definitions,all four candidate account summaries,resources and limitations.
+
+Planted full413.118128s/peakRSS639655936bytes/peakprivatecommit753876992bytes;null full415.527840s/peakRSS656289792bytes/peakprivatecommit769900544bytes. Sequentialprocesses,notadditiveRSS;doesnotcertifyfullmarketresourcebounds. Actual two-phase source/backend/audit results never overwritten.
+
+- Plan SHA-256: `f7d5e608401f2cef9413c119d8dac6c5c75ba92d90fa3c0804af9c08f1562dba`.
+- Calibration RESULT SHA-256: `7c91a31af1187dad13adc3e10893b7092d9844f27f941cd39da58e7b30dcf498`.
+- Planted account RESULT: `ed235ee38ada643a7985b72e4423ac9d6e2bc1bda287df1536d0313a5e325169`; AUDIT: `905f4182fd420b570b672c991c482577fb4fd4935f5528ff7a2edac0edf5c076`.
+- Null account RESULT: `f6561da19865a0805c189f2df6307c3572e62e495d4ed21791af5899242d388d`; AUDIT: `27442ed0c05cded8bed7414b2f0f3ba40e60d2cac0729720aee576cf1cb501a7`.
+- Driver/unit11 JUnit: `da1bd1f719ff6078e276a0123d8ef200dd36194bf7d8741ed9b3d8d75a499719`.
+
+All evidence above is ignored under artifacts/flow-response; originalfailed1/5sourceunitJUnit and corrected6pass/1.00s remain. Targeted11passed2.37s adds5orchestration guards and is a subset of finalfullsuite,not additive. B5headf8d58f1cb814ddddac0646317694c6d8a798afbe/CI34080278086 nowverifiedSUCCESS;newheadneedsitsowncheck.
+
+Next: B6market-scaleheadroom/memorywork andfullglobalexclusiveparent/preregistrationlauncher;not another B5b seed search. Noempiricalreservationsuntilready. Keep all frozen gates and original source/targets. Do not reruncompleted sourceexperimentorfulltests merely onheartbeat wake.
+
+## Historical checkpoint: B5 independent audit and resources
 
 **Final full regression: 1306 passed,1 skipped in417.96s.** JUnit1307total/0failures/0errors/1skip,time417.890s. Ruff src/tests/scripts,format of14changed Python files and Git whitespace pass. This includes all final source/model/target/intent/account-summary additions. Session75139completed exit0. B4head3889d1ccb94affbcb1810edc08019624b65af993/CI34077310076 verified SUCCESS; the new B5 head requires its own CI check.
 

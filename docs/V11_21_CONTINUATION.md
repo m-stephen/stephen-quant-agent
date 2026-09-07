@@ -1,6 +1,20 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: B5 numerical audit and synthetic resources
+## Current checkpoint: B5b paired source-level recovery complete
+
+B5 head f8d58f1cb814ddddac0646317694c6d8a798afbe / CI34080278086 was verified SUCCESS. Read PHASE_B5b.zh.md/.en.md and latest VERIFICATION first. Same branch/PR199Draft; no empirical market numerical reads, new empirical Trials0, debt3660. Do not restart completed source calibration.
+
+New flow_response_synthetic.py and run_response_source_power.py implement one predeclared causal paired source experiment: seed184021,160stocks,782synthetic weekdays2022-01-03..2024-12-31,each source125120rows,522continuous2023/24account periods. Planted adds fixed0.06 prior20signal carry;null removes it with identical exogenous shocks. Generator imports no production response/predictor/selector math;oracle digests never enter inputs. Code/equations/checks saved before generation. Each child reserves23synthetic native Trials,14models/28bindings/22accounts,then completes independent audit.46synthetic reservations are not empirical debt.
+
+Session83045 and both children6832/35256 DONE exit0. Immutable operation artifacts/flow-response/source-power/b5b-paired-001: CALIBRATION_PLAN SHAf7d5e608401f2cef9413c119d8dac6c5c75ba92d90fa3c0804af9c08f1562dba; CALIBRATION_RESULT SHA7c91a31af1187dad13adc3e10893b7092d9844f27f941cd39da58e7b30dcf498. All3 predeclared checks PASS. Planted interaction coefficients+.0618128825/+.0643590777;net incremental returns vs risk+135.6790pp/+116.6839pp andshuffle+162.9287pp/+141.2177pp at82/164. Complete audited exploratoryscreen:planted interactiontrue/respondfalse;null bothfalse. Null coefficients also smallpositive and net increments+.36–.80pp,but actual net−10.3045%/−21.2095%;do not use sign or weak-control advantage as Alpha.
+
+Planted backend331.94s/full413.12s,peakRSS639655936bytes(610.02MiB),peakcommit753876992bytes(718.95MiB). Null backend334.32s/full415.53s,peakRSS656289792bytes(625.89MiB),peakcommit769900544bytes(734.23MiB). Sources/history/model/account/audit measured,not justhistorycache;both sequential,fullregression began after they ended. Source/history/cache still materialized;160stock peak is not a fullmarket bound. HistoryJSON77290723/77279852bytes. Single strong paired seed is not calibrated power or FPR;allresults validated_alphafalse/CourtNOT_RUN.
+
+Final full1317passed1skipped483.04s;JUnit1318/0failure/0error/1skip,time483.003s;SHA9fd33df91e50c04d1a45d14c1912734b07dd0e582e3a880e1237f6da410bf8d2. Session75063 DONE exit0. Ruff src/tests/scripts,4fileformat andwhitespacePASS. Targeted11passed2.37s includes6source+5driver safeguards. Initialsource1failed5passed(test expected wrong readerreturn) retained;corrected6passed1.00s. No seed or economic parameter adjustment after outcome. New unit/driver files are the only extra tests; source-power pair runs separately,not inside the full pytest suite. No Python child remains running.
+
+Next B6: first establish market-scale resource headroom/necessary memory reduction without real numeric reads. Review duplicate dictionary/JSON/cache materialization before authorizing a large operation; no assumption that smallfixture peak scales safely. Then implement/test global cross-operation exclusive empirical launcher binding fixedV11.20RESULT/AUDIT/nativeledger/source/card/originaltargets/code/auditor hashes and actualIssue184 fullpreregistration. Use only original frozenV11.4daily/fundflow;never load_frozen_days/all5sources,2021numericwarmup,2025/26ornewwarehouse. Only after these gates reserve empirical23andcarry3660→3683. Preserve separate immutableAUDIT/ASSESSMENT;no source-power rerun just onwake. Keep complete original controls/82/164bps/300万/allCourtgates,root23dirtyfiles,nomerge/newtask/subagent/newautomation/purchase/trade. Existing30minheartbeatcontinuesquietly.
+
+## Historical checkpoint: B5 numerical audit and synthetic resources
 
 Read PHASE_B5.zh.md/.en.md and latest VERIFICATION first. B4head3889d1ccb94affbcb1810edc08019624b65af993/CI34077310076 was verified SUCCESS. Samebranch/PR199Draft;newempiricalTrials0/debt3660. B5 is a partial engineering checkpoint,not authorization for a real epoch or Alpha.
 
