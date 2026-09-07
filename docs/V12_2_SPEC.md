@@ -6,16 +6,22 @@ This document does not authorize an empirical launch or a main merge.
 ## Engineering checkpoint / 工程进度
 
 Core allocation, four-native-account backend and independent source/score/target/
-saved-account audit components are implemented.38 targeted synthetic tests pass,
-including real native model/cache bindings and independent target reconstruction.
-This does not yet constitute an empirical run or a complete launcher/E2E acceptance.
-The full regression, once-only launcher, complete four-account backend-to-audit
-synthetic end-to-end test, frozen launch plan and reviewer launch approval remain required.
+saved-account audit components are implemented. Component commit423edce passed
+the full regression (1,765 passed,2 skipped) and GitHub CI34162422776.
+The subsequent complete synthetic backend-to-audit suite passed5 tests in140.23s:
+726 fictional weekday sessions,23 inherited native identities,14 actual model
+files,28 cost bindings,and4 new accounts. No numerical guard was replaced by a
+mock PASS. The first run's test-only uppercase DSR key failure is preserved;
+the corrected test uses the existing lowercase statistical keys,not new thresholds.
+The once-only launcher,final integrated regression/CI,frozen launch plan and
+reviewer launch approval remain required. This is not an empirical Alpha result.
 
 已完成纯分配、四账户原生预留/后端及独立来源/评分/目标/已存账户审计构件，
-38项针对性合成测试通过。原生模型与缓存不是模拟的校验函数；独立参考不调用
-生产预测器。完整回归、一次性启动器、完整四账户端到端合成验收、冻结计划和
-审查Agent启动批准仍待完成。未运行市场账户，真实尝试下界仍3733。
+构件提交423edce完整回归1,765通过、2跳过，CI34162422776通过。新增完整四账户
+端到端合成测试5项通过（140.23秒），实际经过726个虚构工作日、23个继承原生身份、
+14份模型、28个成本绑定及独立来源/评分/目标/完整账户审计。首轮测试字段名大小写
+错误已保留记录并修正，未改生产统计或门槛。一次性启动器、最终集成回归/CI、
+冻结计划和审查Agent启动批准仍待完成。未运行市场账户，真实尝试下界仍3733。
 
 ## 中文
 
