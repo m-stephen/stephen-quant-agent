@@ -7,6 +7,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from .feature_sources import FEATURE_SOURCE_SCHEMA, FeatureSourceRegistry
+from .fit_lineage import FIT_SCHEMA, FitLineageRegistry
 from .models import ExperimentSpec, TrialSpec, utc_now_iso
 from .snapshot import SnapshotManifest
 
@@ -150,7 +152,7 @@ END;
 """
 
 
-class ExperimentRegistry:
+class ExperimentRegistry(FeatureSourceRegistry, FitLineageRegistry):
     def __init__(self, db_path: str | Path = "artifacts/registry.sqlite3") -> None:
         self.db_path = Path(db_path)
 
@@ -168,7 +170,7 @@ class ExperimentRegistry:
 
     def initialize(self) -> None:
         with self.connect() as conn:
-            conn.executescript(SCHEMA)
+            conn.executescript(SCHEMA + FIT_SCHEMA + FEATURE_SOURCE_SCHEMA)
 
     def register_snapshot(
         self,
@@ -284,6 +286,7 @@ class ExperimentRegistry:
                     spec.test_end,
                 ),
             )
+            self._declare_fit_contract(conn, trial_id, spec.fit_stages)
         return trial_id, trial_number
 
     def create_trial_deterministic(self, spec: TrialSpec, identity: str) -> tuple[str, int]:
@@ -314,6 +317,7 @@ class ExperimentRegistry:
             if existing is not None:
                 if tuple(existing)[1:] != values:
                     raise ValueError("deterministic trial identity collision")
+                self._replay_fit_contract(conn, trial_id, spec.fit_stages)
                 return trial_id, int(existing[0])
             current = int(
                 conn.execute(
@@ -328,6 +332,7 @@ class ExperimentRegistry:
                 "test_start,test_end) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (trial_id, number, utc_now_iso(), *values),
             )
+            self._declare_fit_contract(conn, trial_id, spec.fit_stages)
         return trial_id, number
 
     def counts(self) -> dict[str, int]:
@@ -527,6 +532,8 @@ class ExperimentRegistry:
 
         self.initialize()
         with self.connect() as conn:
+            self._complete_fits(conn, trial_id)
+            self._complete_feature_sources(conn, trial_id)
             updated = conn.execute(
                 "UPDATE trials SET result_json = ? WHERE trial_id = ? AND result_json IS NULL",
                 (result_json, trial_id),

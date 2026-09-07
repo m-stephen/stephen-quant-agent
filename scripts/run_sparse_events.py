@@ -1,0 +1,336 @@
+"""Exclusive fifty-account ordered-event epoch. Never overwrite/retry an operation."""
+
+import argparse
+import csv
+import gzip
+import json
+from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+from stephen_quant.baseline.stateful import (
+    StatefulExecutionConfig,
+    TargetAllocation,
+    run_stateful_execution,
+)
+from stephen_quant.discovery.calendar_robustness import account_summary
+from stephen_quant.discovery.incremental_alpha import audit_account
+from stephen_quant.discovery.search_power_dsl import sha256_json
+from stephen_quant.discovery.sparse_events import (
+    POLICIES,
+    VERSION,
+    catalog,
+    contract,
+    innovation_days,
+    plans,
+    require_contract,
+    schedules,
+    screen,
+)
+from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
+from stephen_quant.integrity.registry import ExperimentRegistry
+from stephen_quant.integrity.snapshot import build_composite_snapshot_manifest
+from stephen_quant.qmt.reliable_panel import file_sha, load_frozen_days
+from stephen_quant.workflows.v114_reliable_epoch import (
+    protected_digest,
+    runtime_code_hash,
+    write_json,
+)
+from stephen_quant.workflows.v117_incremental_epoch import save_account
+
+PARENT_SHA = "1d083d7f0fb7dd2cd00047ccf254184c485c5a884504db2584de9c380a1b4176"
+ANCHOR_RESULT_SHA = "c364e7c720f38e4cb5d621af2ef988834a5e47cd392afc62ca8fa169b3b790d0"
+SNAPSHOT_SHA = "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51"
+CARD_SHA = "c854fad704e08902051a3c4f2f25fdaeb8c9e7d32cda6b69bb76bf3fc6302134"
+CLAIMS = Path(__file__).resolve().parents[1] / "artifacts/sparse-events/claims"
+
+
+def read(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+class Evidence:
+    def __init__(self, path):
+        self.path, self.stream, self.writer = path, None, None
+        self.rows = 0
+
+    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.stream = gzip.open(self.path, "xt", encoding="utf-8", newline="")
+        return self
+
+    def __call__(self, row):
+        if self.writer is None:
+            self.writer = csv.DictWriter(self.stream, list(row))
+            self.writer.writeheader()
+        self.writer.writerow(row)
+        self.rows += 1
+
+    def __exit__(self, *args):
+        self.stream.close()
+
+
+def run(config):
+    cfg = read(config)
+    parent, anchor_dir, original, inputs, output = [
+        Path(cfg[k]).resolve()
+        for k in (
+            "parent_dir",
+            "anchor_dir",
+            "original_tree",
+            "input_dir",
+            "output_dir",
+        )
+    ]
+    if type(cfg.get("preregistration_comment")) is not int or cfg["preregistration_comment"] <= 0:
+        raise ValueError("preregistration required")
+    if output.exists() or any(
+        output == p or output in p.parents or p in output.parents
+        for p in (parent, anchor_dir, original, inputs)
+    ):
+        raise ValueError("new independent output required; never rerun")
+    card_path = original / "configs/v11.11-frozen-stability-observation.json"
+    target_path = original / "artifacts/temporal-increments/epoch-001/targets/lowvol.json"
+    if (
+        file_sha(parent / "RESULT.json") != PARENT_SHA
+        or read(parent / "RESULT.json")["raw_global_trial_lower_bound"] != 3456
+        or not read(parent / "INDEPENDENT_AUDIT.json")["pass"]
+        or file_sha(anchor_dir / "RESULT.json") != ANCHOR_RESULT_SHA
+        or not read(anchor_dir / "INDEPENDENT_AUDIT.json")["pass"]
+        or file_sha(card_path) != CARD_SHA
+    ):
+        raise ValueError("parent/debt/anchor/card integrity mismatch")
+    card, anchor_result = read(card_path), read(anchor_dir / "RESULT.json")
+    if file_sha(target_path) != card["targets_file_sha256"]["lowvol"]:
+        raise ValueError("original targets changed")
+    manifest = read(inputs / "manifest.json")
+    if (
+        sha256_json(manifest["sources"]) != SNAPSHOT_SHA
+        or manifest["snapshot_sha256"] != SNAPSHOT_SHA
+    ):
+        raise ValueError("snapshot mismatch")
+    sources = []
+    for s in manifest["sources"]:
+        source = (inputs / s["file"]).resolve()
+        if (
+            source.parent != inputs
+            or s["max_date"] >= "2025-01-01"
+            or file_sha(source) != s["sha256"]
+        ):
+            raise ValueError("source bounds/hash mismatch")
+        sources.append(source)
+    protected = [
+        parent / "RESULT.json",
+        parent / "registry.sqlite3",
+        card_path,
+        target_path,
+        inputs / "manifest.json",
+        *sources,
+        anchor_dir / "RESULT.json",
+        anchor_dir / "registry.sqlite3",
+        original / "artifacts/temporal-increments/epoch-001/targets/stable_lowrisk.json",
+    ]
+    before, _ = protected_digest(protected)
+    planned = plans()
+    spec = {
+        "contract": contract(),
+        "catalog": catalog(),
+        "plans": planned,
+        "parent_sha256": PARENT_SHA,
+        "snapshot_sha256": SNAPSHOT_SHA,
+        "runtime_code_sha256": runtime_code_hash(),
+        "driver_sha256": file_sha(Path(__file__)),
+        "preregistration_comment": cfg["preregistration_comment"],
+        "protected_before": before,
+        "protected_files": {str(p): file_sha(p) for p in protected},
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    write_json(CLAIMS / f"{PARENT_SHA}.json", {"reserved": 50, "spec_sha256": sha256_json(spec)})
+    output.mkdir(parents=True, exist_ok=False)
+    write_json(output / "frozen_spec.json", spec)
+    write_json(
+        output / "first_read_reservations.json",
+        {"trials": planned, "spec_sha256": sha256_json(spec)},
+    )
+    records = {}
+    try:
+        registry = ExperimentRegistry(output / "registry.sqlite3")
+        sid = registry.register_snapshot(
+            build_composite_snapshot_manifest({"inputs": SNAPSHOT_SHA}), vendor_version=VERSION
+        )
+        eid = registry.create_experiment_deterministic(
+            ExperimentSpec(
+                "sparse_events",
+                "ordered shocks and confirmation versus matched sparse controls",
+                sid,
+                spec["runtime_code_sha256"],
+                json.dumps(spec),
+            ),
+            sha256_json(spec),
+        )
+        tids = {
+            p["key"]: registry.create_trial_deterministic(
+                TrialSpec(
+                    eid,
+                    p["key"],
+                    sha256_json(p),
+                    json.dumps(p),
+                    184,
+                    "unused",
+                    "unused",
+                    "2023-01-01",
+                    "2024-12-31",
+                    "unused",
+                    "unused",
+                    fit_stages=(),
+                ),
+                sha256_json(p),
+            )[0]
+            for p in planned
+        }
+        require_contract(registry, tids)
+        print(json.dumps({"reserved": 50, "stage": "before_numerical_read"}), flush=True)
+        raw_targets = read(target_path)
+        if sha256_json(raw_targets) != card["targets_canonical_sha256"]["lowvol"]:
+            raise ValueError("anchor semantics changed")
+        anchor = tuple(
+            TargetAllocation(**{**t, "forced_exits": tuple(t["forced_exits"])}) for t in raw_targets
+        )
+        days, quality = load_frozen_days(inputs)
+        write_json(output / "DATA_PREFLIGHT.json", quality)
+        print(json.dumps({"stage": "loaded_frozen_panel", "sessions": len(days)}), flush=True)
+        with Evidence(output / "innovation_inputs.csv.gz") as evidence:
+            panel = innovation_days(days, evidence)
+        del days
+        window = tuple(d for d in panel if d.date >= "2023-01-01")
+        if [d.date for d in window] != [t.trade_date for t in anchor]:
+            raise ValueError("continuous calendar mismatch")
+        write_json(output / "calendar.json", [d.date for d in panel])
+        target_sets, diagnostics, hashes = {"anchor-lowvol": anchor}, {}, {}
+        for ast in catalog():
+            identity = ast["identity"]
+            with Evidence(output / "triggers" / f"{identity}.csv.gz") as events:
+                chosen, admissions, counts = schedules(panel, ast, events)
+            for p in POLICIES:
+                target_sets[f"{identity}-{p}"] = chosen[p]
+            diagnostics[identity] = counts
+            write_json(output / "admissions" / f"{identity}.json", admissions)
+            print(json.dumps({"stage": "targets", "identity": identity}), flush=True)
+        write_json(output / "selection_diagnostics.json", diagnostics)
+        sessions = tuple(d.bars for d in window)
+        for p in planned:
+            key, target_key = p["key"], p["identity"] + "-" + p["policy"]
+            if target_key not in hashes:
+                rows = [asdict(t) for t in target_sets[target_key]]
+                hashes[target_key] = sha256_json(rows)
+                write_json(output / "targets" / f"{target_key}.json", rows)
+            report = run_stateful_execution(
+                sessions,
+                target_sets[target_key],
+                StatefulExecutionConfig(
+                    maximum_position_weight=0.025,
+                    commission_bps=6 * p["scale"],
+                    sell_tax_bps=10 * p["scale"],
+                    slippage_bps=30 * p["scale"],
+                    rebalance_mode="full_target" if p["identity"] == "anchor" else "target_changes",
+                ),
+                initial_nav=3_000_000,
+            )
+            row = {
+                **account_summary(report),
+                **p,
+                "audit": audit_account(report),
+                "account_sha256": save_account(output, key, report),
+                "target_sha256": hashes[target_key],
+                "fit_lineage_sha256": registry.fit_lineage(tids[key])["sha256"],
+            }
+            row["execution"] = {
+                "executed_tickets": sum(
+                    abs(o.executed_notional) > 1e-8 for d in report.periods for o in d.orders
+                ),
+                "traded_cny": sum(d.traded_notional_cny for d in report.periods),
+                "mean_cash_fraction": sum(d.cash / d.end_nav for d in report.periods)
+                / len(report.periods),
+                "max_close_weight": max(
+                    (m.market_value / d.end_nav for d in report.periods for m in d.marks), default=0
+                ),
+                "max_actual_positions": max(len(d.marks) for d in report.periods),
+                "end_positions": len(report.periods[-1].marks),
+            }
+            if (
+                p["identity"] == "anchor"
+                and row["account_sha256"] != anchor_result["records"][key]["account_sha256"]
+            ):
+                raise ValueError("original anchor replay mismatch")
+            records[key] = row
+            registry.record_trial_result(tids[key], json.dumps(row, sort_keys=True))
+            write_json(output / "records" / f"{key}.json", row)
+            print(
+                json.dumps({"completed": len(records), "key": key, "audit": row["audit"]["pass"]}),
+                flush=True,
+            )
+        checks = {
+            a["identity"]: {
+                str(c): screen(
+                    records[f"{a['identity']}-event-{c}"],
+                    [records[f"{a['identity']}-{p}-{c}"] for p in POLICIES[1:]]
+                    + [records[f"anchor-lowvol-{c}"]],
+                    diagnostics[a["identity"]],
+                )
+                for c in (82, 164)
+            }
+            for a in catalog()
+        }
+        if (
+            protected_digest(protected)[0] != before
+            or runtime_code_hash() != spec["runtime_code_sha256"]
+            or file_sha(Path(__file__)) != spec["driver_sha256"]
+        ):
+            raise ValueError("protected evidence or runtime changed")
+        result = {
+            "version": VERSION,
+            "spec": spec,
+            "records": records,
+            "checks": checks,
+            "screen_survived": {
+                k: all(all(x.values()) for x in v.values()) for k, v in checks.items()
+            },
+            "targets_sha256": hashes,
+            "engineering_pass": all(r["audit"]["pass"] for r in records.values()),
+            "completed_trials": len(records),
+            "reserved_trials": 50,
+            "raw_global_trial_lower_bound": 3506,
+            "innovation_rows": evidence.rows,
+            "protected_unchanged": True,
+            "restricted_rows_read": 0,
+            "validated_alpha": False,
+            "statistics": {
+                "status": "EXPLORATORY_REUSED_HISTORY_NOT_COURT",
+                "DSR": None,
+                "PBO": None,
+                "placebo": None,
+            },
+        }
+        write_json(output / "RESULT.json", result)
+        print(
+            json.dumps({"completed": 50, "survivors": result["screen_survived"], "debt": 3506}),
+            flush=True,
+        )
+        return result
+    except Exception as exc:
+        write_json(
+            output / "ABORTED.json",
+            {
+                "error_type": type(exc).__name__,
+                "completed": len(records),
+                "reservations_preserved": True,
+                "raw_trial_debt": 3506,
+            },
+        )
+        raise
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    run(parser.parse_args().config)

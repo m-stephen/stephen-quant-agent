@@ -1,0 +1,347 @@
+{
+  "attribution": {
+    "0": {
+      "interaction": 0.0007014757277772343,
+      "maintenance_increment": {
+        "lowvol": 0.0011722509721383556,
+        "stable_lowrisk": 0.00187372669991559
+      },
+      "membership_increment": {
+        "full_target": 0.0635231969283574,
+        "target_changes": 0.06422467265613463
+      }
+    },
+    "164": {
+      "interaction": 0.006451383201477645,
+      "maintenance_increment": {
+        "lowvol": 0.004459282607604642,
+        "stable_lowrisk": 0.010910665809082287
+      },
+      "membership_increment": {
+        "full_target": 0.17425093198630748,
+        "target_changes": 0.18070231518778512
+      }
+    },
+    "82": {
+      "interaction": 0.001788615152821471,
+      "maintenance_increment": {
+        "lowvol": 0.0070942671132177,
+        "stable_lowrisk": 0.008882882266039172
+      },
+      "membership_increment": {
+        "full_target": 0.12599753002391,
+        "target_changes": 0.12778614517673148
+      }
+    },
+    "cost_path_drag": {
+      "lowvol-full_target-164": 0.34364688980293834,
+      "lowvol-full_target-82": 0.18412737111068367,
+      "lowvol-target_changes-164": 0.34035985816747205,
+      "lowvol-target_changes-82": 0.17820535496960432,
+      "stable_lowrisk-full_target-164": 0.23291915474498825,
+      "stable_lowrisk-full_target-82": 0.12165303801513105,
+      "stable_lowrisk-target_changes-164": 0.22388221563582156,
+      "stable_lowrisk-target_changes-82": 0.11464388244900747
+    }
+  },
+  "checks": {
+    "full_target": {
+      "164": {
+        "accounts": true,
+        "annual_increment": true,
+        "both_years_positive": false,
+        "drawdown": true,
+        "sharpe": true,
+        "total_increment": true
+      },
+      "82": {
+        "accounts": true,
+        "annual_increment": true,
+        "both_years_positive": true,
+        "drawdown": true,
+        "sharpe": true,
+        "total_increment": true
+      }
+    },
+    "target_changes": {
+      "164": {
+        "accounts": true,
+        "annual_increment": true,
+        "both_years_positive": false,
+        "drawdown": true,
+        "sharpe": true,
+        "total_increment": true
+      },
+      "82": {
+        "accounts": true,
+        "annual_increment": true,
+        "both_years_positive": true,
+        "drawdown": true,
+        "sharpe": true,
+        "total_increment": true
+      }
+    }
+  },
+  "independent_account_sql_ledger_pass": true,
+  "maximum_balance_residual_cny": 4.656612873077393e-10,
+  "new_trials": 12,
+  "raw_trial_lower_bound": 3334,
+  "restricted_rows_read": 0,
+  "rows": [
+    {
+      "account_key": "lowvol-full_target-0",
+      "close_position_days_above_2_5pct": 2634,
+      "cost_cny": 0.0,
+      "executed_tickets": 9415,
+      "final_nav": 4136198.874277901,
+      "max_close_weight": 0.03046153458086731,
+      "max_drawdown": -0.10420630210332815,
+      "mean_cash_fraction": 0.017522257491117955,
+      "mode": "full_target",
+      "net_return": 0.37873295809263374,
+      "policy": "lowvol",
+      "profit_cny": 1136198.874277901,
+      "return2023": 0.07078057073419575,
+      "return2024": 0.28759616654912556,
+      "roundtrip_bps": 0,
+      "sessions": 484,
+      "sharpe": 1.2348462054678235,
+      "traded_cny": 118266290.54287262
+    },
+    {
+      "account_key": "lowvol-full_target-164",
+      "close_position_days_above_2_5pct": 3014,
+      "cost_cny": 836499.1097998547,
+      "executed_tickets": 9415,
+      "final_nav": 3105258.2048690864,
+      "max_close_weight": 0.030549124636267883,
+      "max_drawdown": -0.23160391060078267,
+      "mean_cash_fraction": 0.01749211433040079,
+      "mode": "full_target",
+      "net_return": 0.035086068289695405,
+      "policy": "lowvol",
+      "profit_cny": 105258.20486908639,
+      "return2023": -0.07229317829759985,
+      "return2024": 0.1157469623757299,
+      "roundtrip_bps": 164,
+      "sessions": 484,
+      "sharpe": 0.1954064597519398,
+      "traded_cny": 102275928.13293347
+    },
+    {
+      "account_key": "lowvol-full_target-82",
+      "close_position_days_above_2_5pct": 2819,
+      "cost_cny": 449182.38656438247,
+      "executed_tickets": 9415,
+      "final_nav": 3583816.7609458505,
+      "max_close_weight": 0.030505296398091308,
+      "max_drawdown": -0.15407849079596436,
+      "mean_cash_fraction": 0.017506172654564105,
+      "mode": "full_target",
+      "net_return": 0.19460558698195007,
+      "policy": "lowvol",
+      "profit_cny": 583816.7609458505,
+      "return2023": -0.0033182751248741482,
+      "return2024": 0.19858281452047688,
+      "roundtrip_bps": 82,
+      "sessions": 484,
+      "sharpe": 0.7111904709534662,
+      "traded_cny": 109867754.96856098
+    },
+    {
+      "account_key": "lowvol-target_changes-0",
+      "close_position_days_above_2_5pct": 1764,
+      "cost_cny": 0.0,
+      "executed_tickets": 6099,
+      "final_nav": 4139715.627194316,
+      "max_close_weight": 0.030459933378548205,
+      "max_drawdown": -0.10339941978763656,
+      "mean_cash_fraction": 0.02067967544606543,
+      "mode": "target_changes",
+      "net_return": 0.3799052090647721,
+      "policy": "lowvol",
+      "profit_cny": 1139715.6271943161,
+      "return2023": 0.06967683063030283,
+      "return2024": 0.29002065815678635,
+      "roundtrip_bps": 0,
+      "sessions": 484,
+      "sharpe": 1.2409003045948763,
+      "traded_cny": 115753595.52616882
+    },
+    {
+      "account_key": "lowvol-target_changes-164",
+      "close_position_days_above_2_5pct": 2395,
+      "cost_cny": 830401.6797090753,
+      "executed_tickets": 7743,
+      "final_nav": 3118636.0526919,
+      "max_close_weight": 0.030548324113807084,
+      "max_drawdown": -0.23073593215056976,
+      "mean_cash_fraction": 0.01760964454107861,
+      "mode": "target_changes",
+      "net_return": 0.03954535089730005,
+      "policy": "lowvol",
+      "profit_cny": 118636.05269190017,
+      "return2023": -0.07187090154301778,
+      "return2024": 0.12004391697830319,
+      "roundtrip_bps": 164,
+      "sessions": 484,
+      "sharpe": 0.21069834314487915,
+      "traded_cny": 101533082.68650813
+    },
+    {
+      "account_key": "lowvol-target_changes-82",
+      "close_position_days_above_2_5pct": 2010,
+      "cost_cny": 442402.0176940779,
+      "executed_tickets": 6500,
+      "final_nav": 3605099.5622855034,
+      "max_close_weight": 0.030503015227780764,
+      "max_drawdown": -0.1533513872880371,
+      "mean_cash_fraction": 0.01889345458442222,
+      "mode": "target_changes",
+      "net_return": 0.20169985409516777,
+      "policy": "lowvol",
+      "profit_cny": 605099.5622855034,
+      "return2023": -0.003130224299905393,
+      "return2024": 0.20547325577327502,
+      "roundtrip_bps": 82,
+      "sessions": 484,
+      "sharpe": 0.7330205574364338,
+      "traded_cny": 108214833.33786118
+    },
+    {
+      "account_key": "stable_lowrisk-full_target-0",
+      "close_position_days_above_2_5pct": 3665,
+      "cost_cny": 0.0,
+      "executed_tickets": 8001,
+      "final_nav": 4326768.465062973,
+      "max_close_weight": 0.0312581745642449,
+      "max_drawdown": -0.10564549367594844,
+      "mean_cash_fraction": 0.017522458268234953,
+      "mode": "full_target",
+      "net_return": 0.44225615502099114,
+      "policy": "stable_lowrisk",
+      "profit_cny": 1326768.465062973,
+      "return2023": 0.08697388543220796,
+      "return2024": 0.32685446665309503,
+      "roundtrip_bps": 0,
+      "sessions": 484,
+      "sharpe": 1.4034005743930762,
+      "traded_cny": 74797785.19447966
+    },
+    {
+      "account_key": "stable_lowrisk-full_target-164",
+      "close_position_days_above_2_5pct": 4038,
+      "cost_cny": 556656.3338948757,
+      "executed_tickets": 8001,
+      "final_nav": 3628011.0008280086,
+      "max_close_weight": 0.03132567519464754,
+      "max_drawdown": -0.1482763801505359,
+      "mean_cash_fraction": 0.01749211433040079,
+      "mode": "full_target",
+      "net_return": 0.20933700027600288,
+      "policy": "stable_lowrisk",
+      "profit_cny": 628011.0008280086,
+      "return2023": -0.014452148692327693,
+      "return2024": 0.22707081007928487,
+      "roundtrip_bps": 164,
+      "sessions": 484,
+      "sharpe": 0.7559553364173934,
+      "traded_cny": 68182887.50743672
+    },
+    {
+      "account_key": "stable_lowrisk-full_target-82",
+      "close_position_days_above_2_5pct": 3858,
+      "cost_cny": 291282.726799262,
+      "executed_tickets": 8001,
+      "final_nav": 3961809.3510175804,
+      "max_close_weight": 0.03129163964565683,
+      "max_drawdown": -0.12692688538292218,
+      "mean_cash_fraction": 0.017506172654564105,
+      "mode": "full_target",
+      "net_return": 0.3206031170058601,
+      "policy": "stable_lowrisk",
+      "profit_cny": 961809.3510175804,
+      "return2023": 0.034999865492590265,
+      "return2024": 0.27594520640574394,
+      "roundtrip_bps": 82,
+      "sessions": 484,
+      "sharpe": 1.0786021189255897,
+      "traded_cny": 71374898.88679567
+    },
+    {
+      "account_key": "stable_lowrisk-target_changes-0",
+      "close_position_days_above_2_5pct": 1842,
+      "cost_cny": 0.0,
+      "executed_tickets": 3753,
+      "final_nav": 4332389.64516272,
+      "max_close_weight": 0.03081730740361855,
+      "max_drawdown": -0.10494085594883829,
+      "mean_cash_fraction": 0.028184196959935168,
+      "mode": "target_changes",
+      "net_return": 0.4441298817209067,
+      "policy": "stable_lowrisk",
+      "profit_cny": 1332389.6451627202,
+      "return2023": 0.08677218751182192,
+      "return2024": 0.3288248432518819,
+      "roundtrip_bps": 0,
+      "sessions": 484,
+      "sharpe": 1.4202932436530473,
+      "traded_cny": 71463743.16804108
+    },
+    {
+      "account_key": "stable_lowrisk-target_changes-164",
+      "close_position_days_above_2_5pct": 2335,
+      "cost_cny": 538702.597587482,
+      "executed_tickets": 4122,
+      "final_nav": 3660742.9982552556,
+      "max_close_weight": 0.03095457274650288,
+      "max_drawdown": -0.14694304716379936,
+      "mean_cash_fraction": 0.022915810921430788,
+      "mode": "target_changes",
+      "net_return": 0.22024766608508517,
+      "policy": "stable_lowrisk",
+      "profit_cny": 660742.9982552556,
+      "return2023": -0.01216976741058129,
+      "return2024": 0.2352807454439081,
+      "roundtrip_bps": 164,
+      "sessions": 484,
+      "sharpe": 0.7909924029704605,
+      "traded_cny": 65994341.82905498
+    },
+    {
+      "account_key": "stable_lowrisk-target_changes-82",
+      "close_position_days_above_2_5pct": 2018,
+      "cost_cny": 279863.14797164913,
+      "executed_tickets": 3783,
+      "final_nav": 3988457.997815698,
+      "max_close_weight": 0.030835823848444046,
+      "max_drawdown": -0.12587892759383623,
+      "mean_cash_fraction": 0.0257066839843285,
+      "mode": "target_changes",
+      "net_return": 0.32948599927189925,
+      "policy": "stable_lowrisk",
+      "profit_cny": 988457.9978156979,
+      "return2023": 0.036284311449865436,
+      "return2024": 0.28293556563817557,
+      "roundtrip_bps": 82,
+      "sessions": 484,
+      "sharpe": 1.1098443264568554,
+      "traded_cny": 68587565.99601391
+    }
+  ],
+  "screen_survived": {
+    "full_target": false,
+    "target_changes": false
+  },
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "source_result_sha256": "5f66f5d5c1b77dff2763df7d69f14c45e3273474a809329b49c9193d8daf3093",
+  "statistics": {
+    "DSR": null,
+    "PBO": null,
+    "placebo": null,
+    "reason": "post-selected allocation on reused history; no full-family independent Court",
+    "status": "NOT_INDEPENDENT"
+  },
+  "validated_alpha": false,
+  "version": "11.13.0"
+}

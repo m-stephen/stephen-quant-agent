@@ -821,6 +821,12 @@ def build_parser() -> argparse.ArgumentParser:
     reliable = sub.add_parser("reliable-research")
     reliable.add_argument("--config", required=True)
 
+    incremental = sub.add_parser("incremental-alpha")
+    incremental.add_argument("--config", required=True)
+
+    lead_challenge = sub.add_parser("lead-challenge")
+    lead_challenge.add_argument("--config", required=True)
+
     v113_calibration = sub.add_parser("v11.3-calibration-audit")
     v113_calibration.add_argument("--state-root", required=True)
     v113_calibration.add_argument("--spec", default="docs/V11_3_2_SPEC_LOCK.json")
@@ -3058,6 +3064,20 @@ def main() -> None:
         payload["run_envelope"] = report.run_envelope
         payload["cli_version"] = V112_VERSION
         print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return
+
+    if args.command == "lead-challenge":
+        from .workflows.v118_lead_challenge import run_challenge
+
+        report = run_challenge(args.config)
+        print(json.dumps({"version": report["version"], "decision": report["decision"]}))
+        return
+
+    if args.command == "incremental-alpha":
+        from .workflows.v117_incremental_epoch import run_incremental_epoch
+
+        report = run_incremental_epoch(args.config)
+        print(json.dumps({"version": report["version"], "decision": report["decision"]}))
         return
 
     if args.command == "reliable-research":

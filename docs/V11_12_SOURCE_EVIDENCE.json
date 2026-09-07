@@ -1,0 +1,22 @@
+{
+  "audit_kind": "schema_and_catalog_metadata_only",
+  "checked_at_utc_date": "2026-09-06",
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "frozen_schema_query": "DESCRIBE SELECT * FROM read_parquet(?)",
+  "frozen_source_fields": {
+    "daily": ["trade_date", "instrument", "name", "open", "close", "amount", "volume", "adjustment_factor", "available_at"],
+    "minute": ["trade_date", "instrument", "late_30_return", "realized_volatility", "amihud_intraday", "available_at"],
+    "fund_flow": ["trade_date", "instrument", "available_at", "net_inflow_amount"],
+    "chip": ["trade_date", "instrument", "available_at", "chip_cost_15", "chip_cost_85", "chip_weighted_cost"],
+    "auction": ["trade_date", "instrument", "available_at", "auction_return"]
+  },
+  "catalog_query": "SELECT table_name FROM information_schema.tables WHERE table_name ILIKE '%corporate%' OR table_name ILIKE '%action%' OR table_name ILIKE '%sw_l2%' OR table_name ILIKE '%industry%'",
+  "catalog_connection_mode": "read_only",
+  "catalog_matches": ["sw_l2_batches", "sw_l2_changes", "sw_l2_remote_state", "sw_l2_snapshots", "sw_l2_year_quality", "qd_sw_l2_membership_current", "qd_sw_l2_membership_revisions"],
+  "corporate_or_action_named_catalog_tables": 0,
+  "all_staging_locations_exhaustively_checked": false,
+  "interpretation": "No corporate-action source in the frozen snapshot or matching catalog names. This is not proof that no older local staging exists. Minute snapshot contains features, not opening prints.",
+  "issue93_current_state": "open",
+  "issue93_old_branch_reference_comment": 5509562406,
+  "restricted_market_rows_read": 0
+}

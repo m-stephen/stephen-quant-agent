@@ -1,0 +1,8 @@
+{
+  "parent_operation_dir": "artifacts/previous-incremental-operation",
+  "frozen_leads_file": "configs/v11.7-frozen-leads.json",
+  "residual_parent_dir": "artifacts/previous-residual-operation",
+  "output_dir": "artifacts/temporal-increments/epoch-001",
+  "preregistration_comment": 0,
+  "protected_paths": ["configs/v4.8-frozen-candidate.json", "configs/v11-forward-protocol.freeze.json", "configs/v11.1-candidate-evidence.freeze.json", "configs/v11.9-frozen-staggered-lead.json"]
+}

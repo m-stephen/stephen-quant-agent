@@ -1,0 +1,7 @@
+{
+  "preregistration_comment": 5560589655,
+  "parent_dir": "PATH_TO_ORIGINAL_V11_12_OPERATION",
+  "original_tree": "PATH_TO_ORIGINAL_V11_11_TREE",
+  "input_dir": "PATH_TO_FROZEN_2022_2024_INPUTS",
+  "output_dir": "artifacts/stability-attribution/NEW_OPERATION"
+}

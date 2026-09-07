@@ -1,5 +1,215 @@
 # Stephen Quant Agent
 
+## Current checkpoint: V11.22 complete; search paused / 当前：诊断完成，搜索暂停
+
+V11.7–V11.22 code and evidence form one cumulative development chain. V11.22
+completed all four diagnostic accounts and the independent audit; no validated
+Alpha was produced. The user paused automated search on 8 September 2026.
+Do not execute historical continuation instructions or replay consumed epochs.
+The research checkpoint is V11.22; package metadata remains 11.20.0 and no new
+release tag is implied. Earlier sections below are historical evidence, not current
+launch authority or current Trial totals.
+
+See [中文完成报告](docs/V11_22_RESULT.zh.md),
+[English completion report](docs/V11_22_RESULT.en.md), and
+[Issue #200 discussion](https://github.com/m-stephen/stephen-quant-agent/issues/200).
+Raw-attempt lower bound: 3,733; formal Court: NOT_RUN_DIAGNOSTIC; no new search
+is authorized by this integration or the discussion.
+
+## V11.17 statistical peers / 跨股统计关联
+
+Train-only return-correlation graphs test two peer-gap signals across three risk
+strata, with own/common-information, topology-shuffled and stable-hash controls.
+All50 continuous CNY3m accounts and independent source/graph/target/native-fit
+audits complete. **0/6 identities pass the two-cost economic screen; no certified
+usable Alpha.** Both-year common receiver coverage exceeds92%; failure is not
+missing graph support. Historical Trial lower bound3556;2025/26 remain sealed.
+
+See [中文报告](docs/V11_17_RESULT.zh.md), [English report](docs/V11_17_RESULT.en.md),
+[all accounts](docs/V11_17_RESULT.summary.json), [design](docs/V11_17_DESIGN.md),
+[audit companion](notebooks/V11_17_AUDIT.ipynb), and
+[recovery](docs/V11_17_CONTINUATION.md). Research dependencies: `pip install -e ".[research]"`.
+The notebook's four plain-Python cells execute; Jupyter frontend QA is not claimed.
+No main merge, broker action, raw source or credential publication.
+
+## V11.16 sparse sequence events / 稀疏次序事件
+
+Eight preregistered shock-confirmation identities and 50 continuous accounts test
+first-hit/cooldown events against entry-date/risk-cell/expiry-matched controls.
+Independent frozen-source SQL, event schedules, target reconstruction, cash/NAV,
+cost/capacity and native NOFIT ledger audits pass. **No identity passes the complete
+two-cost economic screen; no usable Alpha certificate.** Individual sparse events
+still aggregate into near-full portfolios; mean cash is only5.8–10.9% at82bps.
+
+Full924passed,1skipped;39new synthetic regressions;Trial lower bound3506.
+See [中文报告](docs/V11_16_RESULT.zh.md), [English report](docs/V11_16_RESULT.en.md),
+[design](docs/V11_16_DESIGN.md), [verification](docs/V11_16_VERIFICATION.json),
+and [continuation](docs/V11_16_CONTINUATION.md). Frozen V11.11 candidates preserved;
+no2025/26 access, source refresh, broker action or main merge.
+
+## V11.13 matched stability attribution / 持仓稳定性归因
+
+Twelve preregistered accounts separate membership retention from unnecessary
+weight maintenance, including zero-cost counterfactuals and genuine82/164bps
+costs. Frozen targets are unchanged and both82bps legacy accounts replay exactly.
+Fewer tickets help implementation but do not solve the weak-year economic test:
+stable target_changes returns32.95% over reused2023–2024 at82bps;at164bps,
+2023 is−1.22%. **Neither mode passes the full screen;no usable Alpha certificate.**
+
+Initial experiment suite843passed,1skipped;15new regression tests;independent12-account SQL,
+cash/positions,fees,returns and native no-fit ledger audit pass. Trial debt3334.
+See [中文](docs/V11_13_RESULT.zh.md),[English](docs/V11_13_RESULT.en.md),
+[contract](docs/V11_13_SPEC.md),[summary](docs/V11_13_RESULT.summary.json),
+and[continuation](docs/V11_13_CONTINUATION.md). No2025/2026 access or main merge.
+
+V11.13.1 additionally retains pending disposal through zero-valued writeoffs and
+subsequent recovery(two new synthetic regressions;final845passed,1skipped). All12real accounts have zero
+writeoff/recovery events;the market results remain bound to immutable Git
+commit9bd9eae,not relabeled as a patched-code market rerun.
+See [code revision evidence](docs/V11_13_1_CODE_REVISION.json).
+
+## V11.12 frozen-account execution evidence / 冻结账户执行证据
+
+Issue #184 now distinguishes historical adjusted-fractional returns from raw-share
+executability. Two registered diagnostics inspect 10,311 frozen buy tickets without
+changing targets or simulating new accounts. Of 4,827 stable-allocation buys,2,111
+are below the raw-price minimum quantity; cumulative ticket rounding is4.76% of
+buy notional,NOT a return loss. A private512-key event/price worklist narrows the
+execution-evidence gap. The candidate is preserved;usable Alpha remains unproven.
+
+Full suite828passed,1skipped;Ruff passes;raw Trial lower bound3322. No2025/2026
+market reads,no new fits/accounts,and no changes to the original frozen card.
+See [中文报告](docs/V11_12_RESULT.zh.md),[English report](docs/V11_12_RESULT.en.md),
+[中文契约](docs/V11_12_SPEC.zh.md),[English contract](docs/V11_12_SPEC.en.md),
+[source evidence](docs/V11_12_SOURCE_EVIDENCE.json),
+[aggregate notebook](notebooks/V11_12_execution_evidence.ipynb),
+[verification](docs/V11_12_VERIFICATION.json),and[continuation](docs/V11_12_CONTINUATION.md).
+
+## V11.11 temporal mechanisms and frozen allocation / 时间机制与稳定配置
+
+Issue #184 now has three gap-aware temporal mechanisms and native yearly fit
+lineage. All three add zero versus the matched stable-lowrisk allocation:
+six fits + fifteen accounts are independently audited, not promoted to Alpha.
+The stable allocation itself is frozen as a post-selected historical observation.
+Its ten matched stress accounts survive82/102/132bps,quarter ADV capacity and an
+extra execution-day delay. It is NOT independently validated or brokerage-ready.
+Full suite:811 passed,1 skipped; historical Trial lower bound3320,including31new
+fit/account reservations. No2025/2026 access or changes to previous frozen leads.
+
+See [中文机制报告](docs/V11_11_RESULT.zh.md) / [English mechanism report](docs/V11_11_RESULT.en.md),
+[中文深挖报告](docs/V11_11_DEEP.zh.md) / [English stress report](docs/V11_11_DEEP.en.md),
+[frozen observation](configs/v11.11-frozen-stability-observation.json),
+[verification](docs/V11_11_VERIFICATION.json) and [continuation](docs/V11_11_CONTINUATION.md).
+
+Completed operations are single-use and cannot be replayed. For code review only:
+
+```text
+python -m stephen_quant.workflows.v1111_temporal_epoch --config configs/temporal-increments.local.json
+python scripts/audit_temporal_epoch.py --operation artifacts/temporal-increments/epoch-001
+python scripts/build_temporal_report.py
+python scripts/finalize_temporal_artifact.py
+python scripts/run_stability_challenge.py --config configs/temporal-increments.local.json --parent artifacts/temporal-increments/epoch-001 --output artifacts/stability-challenge/epoch-001 --preregistration 5560193208
+python scripts/audit_stability_challenge.py
+python scripts/build_stability_report.py
+```
+
+The native report payloads are archived locally and schema-validated; ordinary
+non-certified results are not proactively surfaced. See verification for delivery
+and visual-QA limits. Runtime evidence, raw data and local paths are gitignored.
+
+## V11.10.1 native fit lineage / 分阶段拟合血缘
+
+Engineering-only continuation of Issue #184. New Trials can declare their model
+stages atomically before fitting; actual training sessions, mature label dates,
+snapshot/code identity and model bytes are bound append-only. The guarded residual
+execution entry rejects missing or replaced models before target calculation.
+Synthetic planted/null and blocked-fill accounts test the complete execution path.
+No new market experiment, no Alpha promotion, historical Trial lower bound stays3289.
+Existing V11.10 evidence is immutable; its closed runner is not the new research entry.
+
+See [中文测试报告](docs/V11_10_1_RESULT.zh.md),
+[English engineering report](docs/V11_10_1_RESULT.en.md), and
+[continuation](docs/V11_10_1_CONTINUATION.md).
+
+## V11.10 residual mechanisms / 训练期残差机制
+
+Issue #184 adds training-only risk residualization, three fixed interactions and
+a cost-aware replacement hurdle. Six yearly fits and15 continuous model accounts
+completed;783 tests pass with1 Windows permission skip. No new Alpha lead.
+Two mechanisms cannot clear the predicted cost hurdle and exactly reproduce the
+stratified hash control; the chip interaction beats that control but not low-vol.
+Keep the earlier frozen observation, with no lowered thresholds or2025/2026 reads.
+Trial lower bound3289 includes all21 new fit/account attempts.
+
+See [中文报告](docs/V11_10_RESULT.zh.md) / [English report](docs/V11_10_RESULT.en.md),
+[machine evidence](docs/V11_10_RESULT.summary.json),
+[设计约束](docs/V11_10_SPEC.zh.md) / [design contract](docs/V11_10_SPEC.en.md), and
+[continuation](docs/V11_10_CONTINUATION.md).
+
+```text
+python -m stephen_quant.workflows.v1110_residual_epoch --config configs/residual-mechanisms.local.json
+```
+
+Historical command only. Use its frozen branch for source review, not a new market
+run. Completed operations are not rerunnable; a new experiment needs a new identity,
+full cumulative Trial debt and native fit contracts.
+
+## V11.9 calendar robustness / 调仓日历稳健性
+
+Issue #184 now includes 72 continuous accounts across fixed phases and a four-cohort
+target policy, followed by 12 frozen-lead stresses. The staggered chip-width lead
+has historical economic value but remains observation-only: extra costs remove its
+2023 profit cushion and statistical/independent-execution evidence is insufficient.
+No validated Alpha, no2025/2026 reads, no lowered Court gates. Trial lower bound3268.
+
+See [中文结果](docs/V11_9_RESULT.zh.md) / [English results](docs/V11_9_RESULT.en.md),
+[中文深挖](docs/V11_9_DEEP.zh.md) / [English deeper challenge](docs/V11_9_DEEP.en.md),
+[frozen observational lead](configs/v11.9-frozen-staggered-lead.json), and
+[continuation contract](docs/V11_9_CONTINUATION.md).
+
+```text
+python -m stephen_quant.workflows.v119_calendar_epoch --config configs/calendar-challenge.local.json
+```
+
+Copy the relative-path example into gitignored local configuration. Existing
+operations are immutable; do not rerun a completed/claimed epoch. The underlying
+research engine still uses adjusted fractional shares, not certified brokerage fills.
+
+## V11.8 frozen lead challenge / 冻结候选深挖
+
+Issue #184 challenges both V11.7 leads without changing their formulas: higher
+costs, tighter capacity, delayed execution, and true continuous capital. Thirty
+new policy trials are registered before price reads; twelve annual baseline
+accounts must replay exactly. Historical diagnostics never certify usable Alpha.
+
+See [中文设计](docs/V11_8_SPEC.zh.md) / [English design](docs/V11_8_SPEC.en.md).
+Configure a gitignored `configs/lead-challenge.local.json` from the example:
+
+```text
+stephen-quant lead-challenge --config configs/lead-challenge.local.json
+```
+
+The V11.8 continuation contract retains frozen statistical gates and forwards
+surviving leads to brokerage/style audits, or failures to a new bounded mechanism
+epoch. It never silently opens restricted test data or resets historical trials.
+
+## V11.7 incremental alpha / 增量因子实验
+
+Issue #182 adds matched Top40 low-volatility and no-signal controls, explicit
+zero/standard/double costs, bounded mechanism generation and an automatic
+successor batch only when the first batch finds no historical lead. All192
+candidate/control/cost reservations precede source reads; previous trial debt
+is retained. Historical-lead status never grants Alpha Court or trading approval.
+
+See [中文设计](docs/V11_7_SPEC.zh.md) / [English design](docs/V11_7_SPEC.en.md).
+Configure a gitignored local copy of `configs/incremental-alpha.example.json`:
+
+```text
+stephen-quant incremental-alpha --config configs/incremental-alpha.local.json
+```
+
+The command uses immutable existing input snapshots and does not reopen2025–2026.
+
 ## V11.6 reliable research / 可信研究首轮
 
 Version11.6.0 delivers Issue #180's V11.4–V11.6 bounded implementation: shared daily

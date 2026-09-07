@@ -42,6 +42,7 @@ class StatefulExecutionConfig:
     sell_tax_bps: float = 5.0
     slippage_bps: float = 5.0
     stale_writeoff_sessions: int = 20
+    rebalance_mode: str = "full_target"
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,8 @@ def _validate(
         raise BaselineError("maximum_position_weight must be in (0, 1]")
     if config.stale_writeoff_sessions < 1:
         raise BaselineError("stale_writeoff_sessions must be positive")
+    if config.rebalance_mode not in {"full_target", "target_changes"}:
+        raise BaselineError("unknown rebalance mode")
     if any(value < 0 for value in (config.commission_bps, config.sell_tax_bps, config.slippage_bps)):
         raise BaselineError("execution costs cannot be negative")
     previous_date = ""
@@ -229,6 +232,8 @@ def run_stateful_execution(
     periods: list[StatefulPeriod] = []
     blocked_orders = 0
     blocked_notional = 0.0
+    previous_declared: dict[str, float] = {}
+    pending: set[str] = set()
 
     for bars, target in zip(sessions, targets, strict=True):
         by_instrument = {bar.instrument: bar for bar in bars}
@@ -274,6 +279,25 @@ def run_stateful_execution(
                 if open_nav > 0
             }
         )
+        if config.rebalance_mode == "target_changes" and target.rebalance:
+            # A distinct, registered policy: do not restore completed unchanged
+            # weights merely because another cohort refreshed. Retry constrained
+            # requests on refreshes; never inspect the current close for sizing.
+            pending.update(
+                instrument for instrument in set(previous_declared) | set(target.weights)
+                if abs(previous_declared.get(instrument, 0.0)
+                       - target.weights.get(instrument, 0.0)) > 1e-12
+            )
+            desired_weights = {
+                instrument: min(
+                    position.shares * open_marks[instrument] / open_nav,
+                    config.maximum_position_weight,
+                )
+                for instrument, position in positions.items() if open_nav > 0
+            }
+            for instrument in pending:
+                desired_weights[instrument] = target.weights.get(instrument, 0.0)
+            previous_declared = dict(target.weights)
         for instrument in target.forced_exits:
             desired_weights.pop(instrument, None)
         for instrument, bar in by_instrument.items():
@@ -358,6 +382,18 @@ def run_stateful_execution(
         if cash < -1e-7:
             raise BaselineError("stateful execution created negative cash")
         cash = max(cash, 0.0)
+
+        if config.rebalance_mode == "target_changes" and target.rebalance:
+            # Cash scaling and capacity limits leave requests pending. Machine
+            # epsilon is not an economically tunable no-trade band.
+            pending = {
+                instrument for instrument in pending
+                if abs(original_desired.get(instrument, 0.0)
+                       - executed.get(instrument, 0.0)) > 1e-8
+                # A zero valuation is not disposal of the underlying shares.
+                # Keep exit intent until recovery permits actual execution.
+                or (instrument in positions and positions[instrument].written_down)
+            }
 
         positions = {
             instrument: position
@@ -453,7 +489,8 @@ def run_stateful_execution(
         recovery_value=sum(period.recovery_value for period in periods),
     )
     return StatefulExecutionReport(
-        method_version=STATEFUL_EXECUTION_VERSION,
+        method_version=(STATEFUL_EXECUTION_VERSION if config.rebalance_mode == "full_target"
+                        else "stateful-target-changes-1.0.0"),
         config=config,
         metrics=metrics,
         periods=tuple(periods),

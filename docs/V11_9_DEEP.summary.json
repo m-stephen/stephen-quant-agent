@@ -1,0 +1,282 @@
+{
+  "account_windows": 12,
+  "assessments": {},
+  "decision": "COST_FRAGILE_OBSERVATION_ONLY_CONTINUE_MECHANISMS",
+  "decomposition": {},
+  "diagnostics": {
+    "cost_102": {
+      "lowvol_attribution": {
+        "annualized_intercept": 0.024107559882331417,
+        "beta_to_lowvol": 1.0447561009749358,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.04751969492552301,
+          0.09573481469018584
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.9136628224374744,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "tail": {
+        "increment_if_top_active_days_equal_control": -0.019071873535446926,
+        "net_return_if_top_active_days_equal_control": 0.14044642205143032,
+        "observations_retained": 484,
+        "positive_active_sum_share": 0.12428199718095963,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          286,
+          267,
+          259,
+          285,
+          268
+        ]
+      }
+    },
+    "cost_132": {
+      "lowvol_attribution": {
+        "annualized_intercept": 0.029896166429865957,
+        "beta_to_lowvol": 1.0431649148355775,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.041341657550941366,
+          0.10113399041067328
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.9137144035229345,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "tail": {
+        "increment_if_top_active_days_equal_control": -0.008872100756221135,
+        "net_return_if_top_active_days_equal_control": 0.09124954069849012,
+        "observations_retained": 484,
+        "positive_active_sum_share": 0.12332341567434395,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          286,
+          267,
+          259,
+          285,
+          268
+        ]
+      }
+    },
+    "delay_one": {
+      "lowvol_attribution": {
+        "annualized_intercept": 0.02828957396210066,
+        "beta_to_lowvol": 1.0474255550796916,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.04423722627740395,
+          0.10081637420160527
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.9130575261363543,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "tail": {
+        "increment_if_top_active_days_equal_control": -0.009832078124903276,
+        "net_return_if_top_active_days_equal_control": 0.169516976556759,
+        "observations_retained": 484,
+        "positive_active_sum_share": 0.12585144137549759,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          286,
+          267,
+          259,
+          285,
+          268
+        ]
+      }
+    },
+    "quarter_capacity": {
+      "lowvol_attribution": {
+        "annualized_intercept": 0.020212222294713922,
+        "beta_to_lowvol": 1.04569346625676,
+        "causal_alpha": false,
+        "hac95_annualized_intercept_interval": [
+          -0.05169172325635968,
+          0.09211616784578752
+        ],
+        "hac_lag": 20,
+        "market_industry_size_controls": "NOT_TESTED",
+        "r_squared": 0.9136270730157157,
+        "status": "DESCRIPTIVE_NOT_SELECTION_ADJUSTED"
+      },
+      "tail": {
+        "increment_if_top_active_days_equal_control": -0.026412496676140318,
+        "net_return_if_top_active_days_equal_control": 0.17448499895470815,
+        "observations_retained": 484,
+        "positive_active_sum_share": 0.12489355551889401,
+        "status": "NONTRADABLE_POSTHOC_DIAGNOSTIC",
+        "top_positive_active_days": [
+          286,
+          267,
+          259,
+          285,
+          268
+        ]
+      }
+    }
+  },
+  "independent_sql_and_gate_pass": true,
+  "issue": 184,
+  "max_balance_residual_cny": 4.656612873077393e-10,
+  "new_trials": 12,
+  "placebo": {
+    "block_sessions": 20,
+    "exchangeability": "assumption_not_independent_confirmation",
+    "null": "common_block_sign_symmetry_of_active_returns",
+    "p_value": 0.655,
+    "repetitions": 199,
+    "winner": "blend_concentration_+1_h20:phase_5"
+  },
+  "protected_unchanged": true,
+  "raw_global_trial_lower_bound": 3268,
+  "restricted_rows_read": 0,
+  "rows": [
+    {
+      "calendar": "cost_102",
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 476491.08465440624,
+      "cost_multiplier": 2,
+      "end": "2024-12-31",
+      "hash_return": 0.05196523005817455,
+      "increment": 0.05935274184656314,
+      "lowvol2023": -0.020992831016774294,
+      "lowvol2024": 0.18438182305766682,
+      "lowvol_return": 0.15951829558687725,
+      "max_drawdown": -0.15970181804192085,
+      "net_return": 0.21887103743344039,
+      "observations": 484,
+      "profit_cny": 656613.112300321,
+      "return2023": -0.0025484744249879565,
+      "return2024": 0.2219852355539622,
+      "roundtrip_bps": 102,
+      "sharpe": 0.7280377965488748,
+      "start": "2023-01-03"
+    },
+    {
+      "calendar": "cost_132",
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 603373.4663202852,
+      "cost_multiplier": 2,
+      "end": "2024-12-31",
+      "hash_return": 0.04509066750115576,
+      "increment": 0.06633890652084995,
+      "lowvol2023": -0.046493460548285404,
+      "lowvol2024": 0.1537641284424769,
+      "lowvol_return": 0.10012164145471125,
+      "max_drawdown": -0.16943630955176692,
+      "net_return": 0.1664605479755612,
+      "observations": 484,
+      "profit_cny": 499381.6439266838,
+      "return2023": -0.025202664364980643,
+      "return2024": 0.19661852298322602,
+      "roundtrip_bps": 132,
+      "sharpe": 0.5827460836328114,
+      "start": "2023-01-03"
+    },
+    {
+      "calendar": "delay_one",
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 388484.97581279004,
+      "cost_multiplier": 2,
+      "end": "2024-12-31",
+      "hash_return": 0.0586554224274527,
+      "increment": 0.07182437813635967,
+      "lowvol2023": -2.7834471469256883e-05,
+      "lowvol2024": 0.17938188215301287,
+      "lowvol_return": 0.17934905468166296,
+      "max_drawdown": -0.15485440071339984,
+      "net_return": 0.2511734328180226,
+      "observations": 484,
+      "profit_cny": 753520.2984540677,
+      "return2023": 0.0136972802127453,
+      "return2024": 0.2342673273774969,
+      "roundtrip_bps": 82,
+      "sharpe": 0.8186422450395678,
+      "start": "2023-01-03"
+    },
+    {
+      "calendar": "quarter_capacity",
+      "candidate": "blend_concentration_+1_h20",
+      "cost_cny": 388593.63414264814,
+      "cost_multiplier": 2,
+      "end": "2024-12-31",
+      "hash_return": 0.056583280971119754,
+      "increment": 0.05423126853454008,
+      "lowvol2023": -0.003611502797410626,
+      "lowvol2024": 0.2052502603175672,
+      "lowvol_return": 0.20089749563084847,
+      "max_drawdown": -0.1531462718578923,
+      "net_return": 0.25512876416538854,
+      "observations": 484,
+      "profit_cny": 765386.2924961657,
+      "return2023": 0.012853652304807284,
+      "return2024": 0.2392005116526672,
+      "roundtrip_bps": 82,
+      "sharpe": 0.8252480573570873,
+      "start": "2023-01-03"
+    }
+  ],
+  "runtime_code_sha256": "f0993696aefbb13cf039bde919813b43c0ade7000834971509069067d01cb1e4",
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "source_result_sha256": "a201826b127d02a7f4ab165047131a8fc681d02ec8ae45a18c0163196a19a8ef",
+  "statistical_scope": "parent12-calendar family at3256 trials;NOT a certificate or recomputed expanded-family test",
+  "statistics": {
+    "daily_observations": 484,
+    "dsr": 0.005495067943694143,
+    "dsr_assumption": "current-family Sharpe dispersion extrapolated to all raw trials; not a calibrated full-history DSR",
+    "dsr_benchmark_daily_sharpe": 0.17843780273064344,
+    "dsr_raw_trial_count": 3256,
+    "dsr_status": "RAW_COUNT_SENSITIVITY_HISTORICAL_SHARPE_MATRIX_UNAVAILABLE",
+    "dsr_trial_sharpe_estimates": 12,
+    "effective_observations": 400,
+    "empirical_excess_kurtosis": 4.655639102632203,
+    "empirical_skewness": 0.8140773141550596,
+    "pbo": 0.65,
+    "pbo_status": "DIAGNOSTIC",
+    "selector": "mean daily net active return, lower daily volatility, canonical ID",
+    "winner": "blend_concentration_+1_h20:phase_5"
+  },
+  "stress_checks": {
+    "cost_102": {
+      "annual_increment": true,
+      "continuous_drawdown": true,
+      "hash_increment": true,
+      "lowvol_increment": true,
+      "positive_both_years": false,
+      "sharpe": true
+    },
+    "cost_132": {
+      "annual_increment": true,
+      "continuous_drawdown": true,
+      "hash_increment": true,
+      "lowvol_increment": true,
+      "positive_both_years": false,
+      "sharpe": false
+    },
+    "delay_one": {
+      "annual_increment": true,
+      "continuous_drawdown": true,
+      "hash_increment": true,
+      "lowvol_increment": true,
+      "positive_both_years": true,
+      "sharpe": true
+    },
+    "quarter_capacity": {
+      "annual_increment": true,
+      "continuous_drawdown": true,
+      "hash_increment": true,
+      "lowvol_increment": true,
+      "positive_both_years": true,
+      "sharpe": true
+    }
+  },
+  "survivors": [],
+  "validated_alpha": false,
+  "version": "11.9.0-deep"
+}

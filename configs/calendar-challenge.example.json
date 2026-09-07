@@ -1,0 +1,8 @@
+{
+  "parent_operation_dir": "artifacts/incremental-alpha/epoch-001",
+  "frozen_leads_file": "configs/v11.7-frozen-leads.json",
+  "challenge_dir": "artifacts/lead-challenge/epoch-001",
+  "successor_dir": "artifacts/lead-successor/epoch-001",
+  "output_dir": "artifacts/calendar-challenge/epoch-001",
+  "protected_paths": ["configs/v4.8-frozen-candidate.json", "configs/v11-forward-protocol.freeze.json", "configs/v11.1-candidate-evidence.freeze.json"]
+}

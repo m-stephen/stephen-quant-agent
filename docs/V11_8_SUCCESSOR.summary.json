@@ -1,0 +1,3371 @@
+{
+  "account_windows": 192,
+  "candidates": [
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.014956542201058909,
+        "compound_increment_vs_lowvol": -0.3053576445208086,
+        "compound_return_reset_accounts": 0.08754392484324347,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.29797844084707026,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "ret_20",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "7755645598b4db0d793ea1270606ed910f8b748a6a7ee527d380dc332e95ff0a",
+      "name": "conditional_ret_20_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.11377698950159565,
+            "account_sha256": "15c542920b80ec2ef345c79d5e38c5624910d8bde70955b724eabc13ec21e4f9",
+            "active_sharpe": -0.052468559481029665,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 13194.98161676844,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.018541801006728198,
+            "final_nav": 3341330.968504787,
+            "gross_traded_notional": 29685699.72802837,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.10572242645026164,
+            "profit_cny": 341330.96850478696,
+            "quarterly_returns": {
+              "1": 0.12223765557311506,
+              "2": -0.0282192120616358,
+              "3": 0.04951044537352156,
+              "4": -0.026898078534220105
+            },
+            "relative_wealth_return": -0.016375071368730287,
+            "stale_position_days": 18,
+            "targets_sha256": "c886542ed8e811d1da02cdc6ed6715e851d17e2960a7ba3bd03f3e075283a743",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.09380054877003974,
+            "account_sha256": "56497668679d94de944fe63e31b4e3b5cd289fc67b4347546f31c1f5f8a4d1a6",
+            "active_sharpe": -0.08421853853203597,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 72499.51511711076,
+            "cost_cny": 59570.282696695176,
+            "excess_percentage_points": -0.023039411989837166,
+            "final_nav": 3281401.646310119,
+            "gross_traded_notional": 29417263.4761078,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.11302434737537626,
+            "profit_cny": 281401.64631011896,
+            "quarterly_returns": {
+              "1": 0.12022125730995525,
+              "2": -0.03219295826740065,
+              "3": 0.04104451405462095,
+              "4": -0.03088291561777745
+            },
+            "relative_wealth_return": -0.02062910783937355,
+            "stale_position_days": 18,
+            "targets_sha256": "c886542ed8e811d1da02cdc6ed6715e851d17e2960a7ba3bd03f3e075283a743",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.07417707347831048,
+            "account_sha256": "7a66c373fcdd232d6001eccc70c442fd672a9555caab48be9fde1240a5f2aee7",
+            "active_sharpe": -0.11583122802314744,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 130746.96086499051,
+            "cost_cny": 118082.52437558662,
+            "excess_percentage_points": -0.02740808775290504,
+            "final_nav": 3222531.2204349316,
+            "gross_traded_notional": 29152069.052048504,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.12027057950716658,
+            "profit_cny": 222531.22043493157,
+            "quarterly_returns": {
+              "1": 0.11821209204176464,
+              "2": -0.03615275209723945,
+              "3": 0.0326430442515524,
+              "4": -0.034853458273875315
+            },
+            "relative_wealth_return": -0.024880589097870276,
+            "stale_position_days": 18,
+            "targets_sha256": "c886542ed8e811d1da02cdc6ed6715e851d17e2960a7ba3bd03f3e075283a743",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.04965347170740153,
+            "account_sha256": "6f005edd69992cf5108301c266f07d6be5c89a9d3c673ae407edb53ce4946b83",
+            "active_sharpe": -0.9092865113874421,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 81949.77763266112,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2535367421645298,
+            "final_nav": 3148960.4151222045,
+            "gross_traded_notional": 25975054.213878278,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.017532581380398576,
+            "max_drawdown": -0.28990454651551123,
+            "profit_cny": 148960.41512220446,
+            "quarterly_returns": {
+              "1": -0.09142577423727538,
+              "2": -0.07133162053571429,
+              "3": 0.15659589571081511,
+              "4": 0.07558126447473423
+            },
+            "relative_wealth_return": -0.19455083338236745,
+            "stale_position_days": 11,
+            "targets_sha256": "e9cd2db0488c01b9d0f37ac8e9d39dc14cf9c8a720125e7031753b0c560767f0",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.03090038103045889,
+            "account_sha256": "98e6603c7a6078bc0ead116d8549408ca826be0fc378b64f373784abf3ce432d",
+            "active_sharpe": -0.9225458970485023,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 120055.62014204111,
+            "cost_cny": 52070.61949339733,
+            "excess_percentage_points": -0.2527889344290246,
+            "final_nav": 3092701.143091377,
+            "gross_traded_notional": 25759805.774889708,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.017532581380398576,
+            "max_drawdown": -0.296857659576676,
+            "profit_cny": 92701.14309137687,
+            "quarterly_returns": {
+              "1": -0.0930582693524401,
+              "2": -0.07504328531864402,
+              "3": 0.15193337510845106,
+              "4": 0.06681360113955814
+            },
+            "relative_wealth_return": -0.1969237660426747,
+            "stale_position_days": 11,
+            "targets_sha256": "e9cd2db0488c01b9d0f37ac8e9d39dc14cf9c8a720125e7031753b0c560767f0",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.012443806235455712,
+            "account_sha256": "a006c6f38b906152eaafbdb19ed4c3d4e310c9c1a9c6bc4da0ca16452a10f623",
+            "active_sharpe": -0.9356929948023301,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 157579.6038930455,
+            "cost_cny": 103293.6772407875,
+            "excess_percentage_points": -0.2520082020025993,
+            "final_nav": 3037331.4187063673,
+            "gross_traded_notional": 25546836.683455408,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.017532581380398576,
+            "max_drawdown": -0.30374284820092945,
+            "profit_cny": 37331.41870636726,
+            "quarterly_returns": {
+              "1": -0.0946849085664373,
+              "2": -0.0787416360389791,
+              "3": 0.14728756566449186,
+              "4": 0.058077397960763166
+            },
+            "relative_wealth_return": -0.19930230673899507,
+            "stale_position_days": 11,
+            "targets_sha256": "e9cd2db0488c01b9d0f37ac8e9d39dc14cf9c8a720125e7031753b0c560767f0",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": false,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": -0.12625833769079242,
+        "compound_increment_vs_lowvol": -0.44657252441265993,
+        "compound_return_reset_accounts": -0.05367095504860786,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": -0.05136902033143932,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "ret_20",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "849cc0c9548e841ea04519222906c424127fa2a0451859bb3d0b3f4a2816a4cd",
+      "name": "conditional_ret_20_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": -0.014698839490471682,
+            "account_sha256": "153a246e96d857175b2e855c68eac14bfdf078538f4dc6f147c6396dbfed8f13",
+            "active_sharpe": -1.0617427148038643,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 75000.00000000343,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.14701762999879553,
+            "final_nav": 2955903.481528585,
+            "gross_traded_notional": 26557250.312196136,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.11037340837764975,
+            "profit_cny": -44096.518471415155,
+            "quarterly_returns": {
+              "1": 0.036522682127307915,
+              "2": -0.011187335803476972,
+              "3": -0.027873979262978077,
+              "4": -0.011097223642024145
+            },
+            "relative_wealth_return": -0.12983766694606913,
+            "stale_position_days": 4,
+            "targets_sha256": "5d5b309280ea31a1a285eef1d5d7222a5929c622f1a9e5211fa2e44e117f6fba",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.0319979615401903,
+            "account_sha256": "580c6ed90c6d7a0200b5e286c6d93ca0af6bc271ac887710fc0f8f224aec1746",
+            "active_sharpe": -1.0946404443746005,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 122987.28023541,
+            "cost_cny": 53252.280235408194,
+            "excess_percentage_points": -0.1488379223000672,
+            "final_nav": 2904006.115379429,
+            "gross_traded_notional": 26336081.54407284,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.11400614922428753,
+            "profit_cny": -95993.88462057104,
+            "quarterly_returns": {
+              "1": 0.0347676821273073,
+              "2": -0.015053627787361745,
+              "3": -0.03572184924405186,
+              "4": -0.015040203187344336
+            },
+            "relative_wealth_return": -0.13326701007259867,
+            "stale_position_days": 4,
+            "targets_sha256": "5d5b309280ea31a1a285eef1d5d7222a5929c622f1a9e5211fa2e44e117f6fba",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.04900964144254916,
+            "account_sha256": "0d2499827508b3e180b12d810c14603fdf01507711719f74bb2c182c00bb30aa",
+            "active_sharpe": -1.1272669291360184,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 170103.9104259864,
+            "cost_cny": 105633.91042598514,
+            "excess_percentage_points": -0.15059480267376468,
+            "final_nav": 2852971.0756723527,
+            "gross_traded_notional": 26117339.87092004,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.0,
+            "max_drawdown": -0.12112385264044245,
+            "profit_cny": -147028.9243276473,
+            "quarterly_returns": {
+              "1": 0.03301268212730801,
+              "2": -0.018913523214647232,
+              "3": -0.04350994834705879,
+              "4": -0.018969038919436354
+            },
+            "relative_wealth_return": -0.13670736314698395,
+            "stale_position_days": 4,
+            "targets_sha256": "5d5b309280ea31a1a285eef1d5d7222a5929c622f1a9e5211fa2e44e117f6fba",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.027648308880238837,
+            "account_sha256": "bf3ce9801f306069f4dcde03ddfa928167465b14ca2bfbddbbce50cfdfea723d",
+            "active_sharpe": -1.4430696221339305,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 1573963.0803505182,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2755419049916925,
+            "final_nav": 3082944.9266407164,
+            "gross_traded_notional": 24785017.028358217,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.00975236749174456,
+            "max_drawdown": -0.268179666996629,
+            "profit_cny": 82944.92664071638,
+            "quarterly_returns": {
+              "1": 0.12788036774327272,
+              "2": -0.14316628060245007,
+              "3": -0.001259546978037429,
+              "4": 0.06471233264943388
+            },
+            "relative_wealth_return": -0.2114364442417237,
+            "stale_position_days": 14,
+            "targets_sha256": "138c9c0d054dc6731af32d022f038ac9be442b147b15ad58bcce039a9ed811c2",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.011250821540750078,
+            "account_sha256": "995b9303d9d6844653e75bd65b35c3a87423405f35b619f7859d062590215bac",
+            "active_sharpe": -1.4459081791640638,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 1598174.5428143463,
+            "cost_cny": 49688.63700814609,
+            "excess_percentage_points": -0.2724384939187334,
+            "final_nav": 3033752.4646222503,
+            "gross_traded_notional": 24598153.58482637,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.00962801052091456,
+            "max_drawdown": -0.2740848326719837,
+            "profit_cny": 33752.46462225029,
+            "quarterly_returns": {
+              "1": 0.12585383084774726,
+              "2": -0.14667298678085994,
+              "3": -0.005246003353503004,
+              "4": 0.05814623453093626
+            },
+            "relative_wealth_return": -0.21223086508375033,
+            "stale_position_days": 14,
+            "targets_sha256": "138c9c0d054dc6731af32d022f038ac9be442b147b15ad58bcce039a9ed811c2",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.004901536134529705,
+            "account_sha256": "4f5e33f51e7c46b3e6261e2061463d515c1475fd822f38d77368610c1a79e3f8",
+            "active_sharpe": -1.4484690797343642,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 1622000.498570691,
+            "cost_cny": 98643.3192033218,
+            "excess_percentage_points": -0.26935354437258474,
+            "final_nav": 2985295.391596411,
+            "gross_traded_notional": 24413170.132614665,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.00938862335206681,
+            "max_drawdown": -0.27994502676906263,
+            "profit_cny": -14704.60840358911,
+            "quarterly_returns": {
+              "1": 0.12383456331533726,
+              "2": -0.15016711410091732,
+              "3": -0.009218159965166062,
+              "4": 0.05160368782481406
+            },
+            "relative_wealth_return": -0.2130199822671911,
+            "stale_position_days": 14,
+            "targets_sha256": "138c9c0d054dc6731af32d022f038ac9be442b147b15ad58bcce039a9ed811c2",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.12516948756867308,
+        "compound_increment_vs_lowvol": -0.19514469915319443,
+        "compound_return_reset_accounts": 0.19775687021085764,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.4688838142850552,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "liquidity",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "91022792021d3d0b420bdabf3d88ff38fa9b556edfa233bb0d3836df70cb8923",
+      "name": "conditional_liquidity_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.24755927456678428,
+            "account_sha256": "83a7f23f8c2ff76dcc6ff09525d4f0a7d213868524433f8621ce38995e5e5aea",
+            "active_sharpe": 0.8257311726212744,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 13194.98161676816,
+            "cost_cny": 0.0,
+            "excess_percentage_points": 0.11524048405846044,
+            "final_nav": 3742677.8237003526,
+            "gross_traded_notional": 25692636.94336439,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.015923910114781486,
+            "max_drawdown": -0.09462353274980861,
+            "profit_cny": 742677.8237003526,
+            "quarterly_returns": {
+              "1": 0.10506549892785122,
+              "2": 0.05741087429876135,
+              "3": 0.038553550251142044,
+              "4": 0.028017486569333228
+            },
+            "relative_wealth_return": 0.10177388649244823,
+            "stale_position_days": 1,
+            "targets_sha256": "8b8115d0dc5785468b3ed576448d67ea6a32cf81a1431878571c8b20b7be4175",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.22890880554073623,
+            "account_sha256": "87df236c5816140c86c6e8eec7adf71fdf613c36e1ffcd02c7986f548c1ad575",
+            "active_sharpe": 0.814833257823595,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 64436.06116646118,
+            "cost_cny": 51506.82874604845,
+            "excess_percentage_points": 0.11206884478085932,
+            "final_nav": 3686726.4166222084,
+            "gross_traded_notional": 25484854.65310339,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.015799553143951484,
+            "max_drawdown": -0.09778981756159599,
+            "profit_cny": 686726.4166222084,
+            "quarterly_returns": {
+              "1": 0.1030799550088346,
+              "2": 0.05366037271111734,
+              "3": 0.03153084124944128,
+              "4": 0.025014004766634734
+            },
+            "relative_wealth_return": 0.1003445871551818,
+            "stale_position_days": 1,
+            "targets_sha256": "8b8115d0dc5785468b3ed576448d67ea6a32cf81a1431878571c8b20b7be4175",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.21054454154499824,
+            "account_sha256": "3ffd0295ba91a635ece11f5c63dca41b79464c92135a365af4656b774999977d",
+            "active_sharpe": 0.8039206636169642,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 114860.94028832379,
+            "cost_cny": 102196.50379891973,
+            "excess_percentage_points": 0.10895938031378272,
+            "final_nav": 3631633.6246349947,
+            "gross_traded_notional": 25279367.206590317,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.015847069788978502,
+            "max_drawdown": -0.10094472986597991,
+            "profit_cny": 631633.6246349947,
+            "quarterly_returns": {
+              "1": 0.10110153340758354,
+              "2": 0.049922999203400265,
+              "3": 0.02455627547530992,
+              "4": 0.022021752379064008
+            },
+            "relative_wealth_return": 0.09891144520501838,
+            "stale_position_days": 1,
+            "targets_sha256": "8b8115d0dc5785468b3ed576448d67ea6a32cf81a1431878571c8b20b7be4175",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.020803936263412925,
+            "account_sha256": "bf0e9933111af2660725040229d0aa77934429742e506c450c36570fc70858a4",
+            "active_sharpe": -0.6976523222862714,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 389064.2695218131,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2823862776085184,
+            "final_nav": 3062411.8087902386,
+            "gross_traded_notional": 21270297.35677077,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.013975889307302859,
+            "max_drawdown": -0.37646106403683843,
+            "profit_cny": 62411.808790238574,
+            "quarterly_returns": {
+              "1": -0.19174270364899537,
+              "2": -0.08729039213736678,
+              "3": 0.1919936054232252,
+              "4": 0.16087685998317314
+            },
+            "relative_wealth_return": -0.21668845775745638,
+            "stale_position_days": 3,
+            "targets_sha256": "c17fc149128aec1b7e38fa06d5b541a8247c387a4a38bc637a97f9b36f7d2fb4",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.005008212061737405,
+            "account_sha256": "59cdaccd8d2557077a610c4150d8f64550d593f1216e40875b0fae1b4c198587",
+            "active_sharpe": -0.6999312410062497,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 417787.52310641506,
+            "cost_cny": 42540.1329042366,
+            "excess_percentage_points": -0.2786811033977461,
+            "final_nav": 3015024.636185212,
+            "gross_traded_notional": 21111950.180980742,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.013975889307302859,
+            "max_drawdown": -0.37758141748536467,
+            "profit_cny": 15024.63618521206,
+            "quarterly_returns": {
+              "1": -0.19319495273407306,
+              "2": -0.09013647776351352,
+              "3": 0.18780096441290417,
+              "4": 0.15260653229721233
+            },
+            "relative_wealth_return": -0.21709388715913336,
+            "stale_position_days": 3,
+            "targets_sha256": "c17fc149128aec1b7e38fa06d5b541a8247c387a4a38bc637a97f9b36f7d2fb4",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.010563569447696541,
+            "account_sha256": "67767037683ff943f0b9ead233d0da62253167973c36538c009a4bf0ac9fabdf",
+            "active_sharpe": -0.7021888158606087,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 446094.592124363,
+            "cost_cny": 84458.44518186219,
+            "excess_percentage_points": -0.2750155776857516,
+            "final_nav": 2968309.2916569104,
+            "gross_traded_notional": 20955174.62421248,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.013975889307302859,
+            "max_drawdown": -0.37869775212917334,
+            "profit_cny": -31690.70834308956,
+            "quarterly_returns": {
+              "1": -0.19464199247607983,
+              "2": -0.09297235423436478,
+              "3": 0.18362369627048158,
+              "4": 0.1443654572782178
+            },
+            "relative_wealth_return": -0.2174978377146719,
+            "stale_position_days": 3,
+            "targets_sha256": "c17fc149128aec1b7e38fa06d5b541a8247c387a4a38bc637a97f9b36f7d2fb4",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.12251850802654629,
+        "compound_increment_vs_lowvol": -0.19779567869532122,
+        "compound_return_reset_accounts": 0.19510589066873085,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.6535802690982083,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "liquidity",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "4348f241445c4b1054046948d2bac580f1bbec4165cb7149717ec2b91a2e05c4",
+      "name": "conditional_liquidity_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": -0.049731208484975364,
+            "account_sha256": "90afe94210403271eb1ecdad73fda30bb0b563af68a69049975f6c211d1c7dbb",
+            "active_sharpe": -1.9589963453427617,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 75008.06844355141,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.1820499989932992,
+            "final_nav": 2850806.374545074,
+            "gross_traded_notional": 15421111.643632252,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.022424670764919725,
+            "max_drawdown": -0.16514641931370844,
+            "profit_cny": -149193.62545492593,
+            "quarterly_returns": {
+              "1": 0.05200653323721749,
+              "2": -0.051404578827941916,
+              "3": -0.0018148058541818113,
+              "4": -0.04602744231411682
+            },
+            "relative_wealth_return": -0.16077627653920035,
+            "stale_position_days": 0,
+            "targets_sha256": "01c172b35c3600f0127e57b1e1aed35097778b2bb55429556faece30c9b19a14",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.059355323091819234,
+            "account_sha256": "9fcbc20b5c24b5ff4769e06b9fa12ef9e80565533daa4619e75842dcbf07e37b",
+            "active_sharpe": -1.9164010574755193,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 99450.85176003023,
+            "cost_cny": 30707.1967465255,
+            "excess_percentage_points": -0.17619528385169614,
+            "final_nav": 2821934.030724542,
+            "gross_traded_notional": 15341229.24260433,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.02234386496952808,
+            "max_drawdown": -0.16867889402717517,
+            "profit_cny": -178065.96927545778,
+            "quarterly_returns": {
+              "1": 0.05011632385428144,
+              "2": -0.053461139298583205,
+              "3": -0.005945073356746655,
+              "4": -0.04799470989917898
+            },
+            "relative_wealth_return": -0.15776233842117915,
+            "stale_position_days": 0,
+            "targets_sha256": "01c172b35c3600f0127e57b1e1aed35097778b2bb55429556faece30c9b19a14",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.0688808594161312,
+            "account_sha256": "1a5764747ef85397358d941addbf0e40bfbf9782c9e5a00e17debe3128dede71",
+            "active_sharpe": -1.8733019919524532,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 123655.50396578514,
+            "cost_cny": 61104.603942976624,
+            "excess_percentage_points": -0.17046602064734673,
+            "final_nav": 2793357.4217516063,
+            "gross_traded_notional": 15261963.8148793,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.02230337219044609,
+            "max_drawdown": -0.17219912243971836,
+            "profit_cny": -206642.57824839372,
+            "quarterly_returns": {
+              "1": 0.04823289481588189,
+              "2": -0.055510322708945514,
+              "3": -0.010060724868624082,
+              "4": -0.04996041901227044
+            },
+            "relative_wealth_return": -0.15474611191822973,
+            "stale_position_days": 0,
+            "targets_sha256": "01c172b35c3600f0127e57b1e1aed35097778b2bb55429556faece30c9b19a14",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.3076435334220613,
+            "account_sha256": "c66624cab3934ad8ff384257624e8b8f380e0692420a0be7594832f29717fc17",
+            "active_sharpe": 0.023131763614652707,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 709117.6032816698,
+            "cost_cny": 0.0,
+            "excess_percentage_points": 0.004453319550129953,
+            "final_nav": 3922930.6002661837,
+            "gross_traded_notional": 16811621.419870175,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.0404548669132511,
+            "max_drawdown": -0.10206382704179195,
+            "profit_cny": 922930.6002661837,
+            "quarterly_returns": {
+              "1": 0.07964051301473685,
+              "2": 0.017368047502026362,
+              "3": 0.18939606979035695,
+              "4": 0.000934375976416435
+            },
+            "relative_wealth_return": 0.003417244468785885,
+            "stale_position_days": 0,
+            "targets_sha256": "a7036190e14b9bd255bfd83ce6e06e4f0141dd1fbdeb72340f2500d76ffee0dc",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.2955198047919163,
+            "account_sha256": "c509c1dc0f115db704528134dd3489ddf0a8fbf8aadfb8a635a6591e76ea1fec",
+            "active_sharpe": 0.07419012670699578,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 730648.174129257,
+            "cost_cny": 33540.29691305233,
+            "excess_percentage_points": 0.011830489332432803,
+            "final_nav": 3886559.414375749,
+            "gross_traded_notional": 16722883.823816616,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.040236478618863675,
+            "max_drawdown": -0.10203415780867708,
+            "profit_cny": 886559.414375749,
+            "quarterly_returns": {
+              "1": 0.07770065184142161,
+              "2": 0.016060825962523007,
+              "3": 0.1875075859794444,
+              "4": -0.0037007330721592346
+            },
+            "relative_wealth_return": 0.009216006700342616,
+            "stale_position_days": 0,
+            "targets_sha256": "a7036190e14b9bd255bfd83ce6e06e4f0141dd1fbdeb72340f2500d76ffee0dc",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.28351554444399696,
+            "account_sha256": "e0e1712d91ae01f9af2e447bcb39149555a02ba0f5d9051d5aaec6f41b2ea98a",
+            "active_sharpe": 0.12480199200386356,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 751943.0058274891,
+            "cost_cny": 66736.18315908703,
+            "excess_percentage_points": 0.019063536205941922,
+            "final_nav": 3850546.633331991,
+            "gross_traded_notional": 16634832.943294508,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.03961448664117798,
+            "max_drawdown": -0.1020045576939056,
+            "profit_cny": 850546.6333319908,
+            "quarterly_returns": {
+              "1": 0.07576774911791162,
+              "2": 0.014758293539741674,
+              "3": 0.18562595105307045,
+              "4": -0.008318283230967283
+            },
+            "relative_wealth_return": 0.015076520169797547,
+            "stale_position_days": 0,
+            "targets_sha256": "a7036190e14b9bd255bfd83ce6e06e4f0141dd1fbdeb72340f2500d76ffee0dc",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.13690633564681343,
+        "compound_increment_vs_lowvol": -0.280137855319899,
+        "compound_return_reset_accounts": 0.11276371404415308,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.3772861111503831,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "net_inflow_ratio",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "4a827b50accac29d4b5f0064e72352545de6a7906746b8a3356d623b404eafa4",
+      "name": "conditional_net_inflow_ratio_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.04382193605665141,
+            "account_sha256": "29fd18824ba2a7e5dcc8b3fb1e6a87f84a75b7098e913abb7c6f9933ec5f2fbe",
+            "active_sharpe": -0.8891927666316545,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 2.993147063534707e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.08849685445167244,
+            "final_nav": 3131465.808169954,
+            "gross_traded_notional": 27047358.03643197,
+            "hash_control_return": -0.00021622896210693465,
+            "holdings_jaccard_vs_lowvol": 0.03237862814189523,
+            "max_drawdown": -0.1082621268425551,
+            "profit_cny": 131465.808169954,
+            "quarterly_returns": {
+              "1": 0.055824739145206914,
+              "2": -0.007234437068154076,
+              "3": 0.021735664217314543,
+              "4": -0.02534856011066433
+            },
+            "relative_wealth_return": -0.0781554233608931,
+            "stale_position_days": 3,
+            "targets_sha256": "a2606c8d3cde20f24dff64c72142ab85dae5a1a9ee65713023624b4d62f25ca6",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.025790948694520255,
+            "account_sha256": "4963ea93b353b6391fafe886dcee533a318b4da24ac3971d8c7e8ef85e90189a",
+            "active_sharpe": -0.9316165611796623,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 54225.62000532743,
+            "cost_cny": 54225.620005326804,
+            "excess_percentage_points": -0.09104901206535665,
+            "final_nav": 3077372.8460835605,
+            "gross_traded_notional": 26810762.731866058,
+            "hash_control_return": -0.003007645092926947,
+            "holdings_jaccard_vs_lowvol": 0.03220845544496997,
+            "max_drawdown": -0.11174347286618036,
+            "profit_cny": 77372.8460835605,
+            "quarterly_returns": {
+              "1": 0.053927669340393836,
+              "2": -0.01129746243052232,
+              "3": 0.013770402041412888,
+              "4": -0.028947300392949127
+            },
+            "relative_wealth_return": -0.08152377714297465,
+            "stale_position_days": 3,
+            "targets_sha256": "a2606c8d3cde20f24dff64c72142ab85dae5a1a9ee65713023624b4d62f25ca6",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.008069581494434042,
+            "account_sha256": "3a481518e7fecd04e25941ea65bd3dac01c849e0a5653fd92f4944b05f161d30",
+            "active_sharpe": -0.9735042924207314,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 107519.31348433618,
+            "cost_cny": 107519.31348433527,
+            "excess_percentage_points": -0.09351557973678148,
+            "final_nav": 3024208.744483302,
+            "gross_traded_notional": 26576964.34819344,
+            "hash_control_return": -0.0057856778394071995,
+            "holdings_jaccard_vs_lowvol": 0.03213924097304748,
+            "max_drawdown": -0.11521236213005082,
+            "profit_cny": 24208.74448330188,
+            "quarterly_returns": {
+              "1": 0.05203740448904526,
+              "2": -0.015345913369511521,
+              "3": 0.005864679459902211,
+              "4": -0.032533172367117835
+            },
+            "relative_wealth_return": -0.08489182954521779,
+            "stale_position_days": 3,
+            "targets_sha256": "a2606c8d3cde20f24dff64c72142ab85dae5a1a9ee65713023624b4d62f25ca6",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.14198379259304383,
+            "account_sha256": "3adecf7dcc101fc9c4bfed57a109abc605edb55ba9356a87be39b79033d185f7",
+            "active_sharpe": -0.9024801548737202,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 584967.8082854603,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.1612064212788875,
+            "final_nav": 3425951.3777791313,
+            "gross_traded_notional": 25715106.391249366,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.014082283604568525,
+            "max_drawdown": -0.17867752594433406,
+            "profit_cny": 425951.3777791313,
+            "quarterly_returns": {
+              "1": -0.05842143536236699,
+              "2": -0.09140128153984273,
+              "3": 0.20819335464506272,
+              "4": 0.10482836238689619
+            },
+            "relative_wealth_return": -0.1237013749511856,
+            "stale_position_days": 14,
+            "targets_sha256": "9e9dbe2ac2d7e5767d4c06ad4e0495938ea58c5e21087f41ca9ac3c899be7a31",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.12277411698360874,
+            "account_sha256": "202282b673c0abfab4d55bd230664007d423e07d37ee16119fce88a151367700",
+            "active_sharpe": -0.9171399094177078,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 618265.2512471415,
+            "cost_cny": 51555.41349673849,
+            "excess_percentage_points": -0.16091519847587477,
+            "final_nav": 3368322.350950826,
+            "gross_traded_notional": 25508548.606519166,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.01711841355093023,
+            "max_drawdown": -0.18188569029514023,
+            "profit_cny": 368322.35095082596,
+            "quarterly_returns": {
+              "1": -0.0601132315455849,
+              "2": -0.09475772690887674,
+              "3": 0.20346152595298062,
+              "4": 0.09652823632815433
+            },
+            "relative_wealth_return": -0.12535369465023316,
+            "stale_position_days": 14,
+            "targets_sha256": "9e9dbe2ac2d7e5767d4c06ad4e0495938ea58c5e21087f41ca9ac3c899be7a31",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.1038560576289913,
+            "account_sha256": "064cd953cfee2b9e0ead367457ca45d23660f45f1ba584fb5ae8e60480a7c777",
+            "active_sharpe": -0.9316297645069276,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 651041.6445433876,
+            "cost_cny": 102298.08865555737,
+            "excess_percentage_points": -0.16059595060906373,
+            "final_nav": 3311568.1728869737,
+            "gross_traded_notional": 25304131.612495016,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.017081833672058403,
+            "max_drawdown": -0.18682826548096132,
+            "profit_cny": 311568.1728869737,
+            "quarterly_returns": {
+              "1": -0.06179895910957278,
+              "2": -0.09810213241807753,
+              "3": 0.19874650002826577,
+              "4": 0.08825788505687471
+            },
+            "relative_wealth_return": -0.12700834002616312,
+            "stale_position_days": 14,
+            "targets_sha256": "9e9dbe2ac2d7e5767d4c06ad4e0495938ea58c5e21087f41ca9ac3c899be7a31",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.14986957258451605,
+        "compound_increment_vs_lowvol": -0.26717461838219636,
+        "compound_return_reset_accounts": 0.1257269509818557,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.44033270727895274,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "net_inflow_ratio",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "8c352a34c2d77d09bb5501095b8fe1b15c0c2eae190f80e8a217c1683eeb42ff",
+      "name": "conditional_net_inflow_ratio_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.09212555311075166,
+            "account_sha256": "9d289fea8afb47c757194e640d88e1f92c11951731ae50b58137bef273f9464b",
+            "active_sharpe": -0.3827151614899226,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 1.178705133497715e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.04019323739757219,
+            "final_nav": 3276376.659332255,
+            "gross_traded_notional": 28378661.139268994,
+            "hash_control_return": -0.00021622896210693465,
+            "holdings_jaccard_vs_lowvol": 0.04297817181321625,
+            "max_drawdown": -0.12680753954390378,
+            "profit_cny": 276376.6593322549,
+            "quarterly_returns": {
+              "1": 0.10362024926780111,
+              "2": 0.02948390214818719,
+              "3": 0.01410648281920679,
+              "4": -0.052127793010315004
+            },
+            "relative_wealth_return": -0.03549639706988217,
+            "stale_position_days": 17,
+            "targets_sha256": "351fe545889acaf5d5e34a485986ab4591017ca443a6b76187cfad70ae90dcb3",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.07339033354163704,
+            "account_sha256": "8ba36b13cd20774625d0b5aca8db4862c5e95f727739448f8b3eeaf6bc9b72e6",
+            "active_sharpe": -0.4257474385395463,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 56930.04967286599,
+            "cost_cny": 56930.04967286066,
+            "excess_percentage_points": -0.04344962721823986,
+            "final_nav": 3220171.000624911,
+            "gross_traded_notional": 28129666.9075329,
+            "hash_control_return": -0.003007645092926947,
+            "holdings_jaccard_vs_lowvol": 0.04297817181321625,
+            "max_drawdown": -0.13281990116196762,
+            "profit_cny": 220171.00062491093,
+            "quarterly_returns": {
+              "1": 0.10163730212397759,
+              "2": 0.025549966626535747,
+              "3": 0.0060391541519466685,
+              "4": -0.05561878737275361
+            },
+            "relative_wealth_return": -0.0389040764521692,
+            "stale_position_days": 17,
+            "targets_sha256": "351fe545889acaf5d5e34a485986ab4591017ca443a6b76187cfad70ae90dcb3",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.0549751467766848,
+            "account_sha256": "b6ad9c5883898d85c328e72c53469b8feffc341df2ecf38fc9c1a143595348d0",
+            "active_sharpe": -0.4684104436992671,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 112879.22514827349,
+            "cost_cny": 112879.22514826876,
+            "excess_percentage_points": -0.046610014454530724,
+            "final_nav": 3164925.4403300546,
+            "gross_traded_notional": 27883606.228218205,
+            "hash_control_return": -0.0057856778394071995,
+            "holdings_jaccard_vs_lowvol": 0.04268973664367546,
+            "max_drawdown": -0.1397135365577752,
+            "profit_cny": 164925.4403300546,
+            "quarterly_returns": {
+              "1": 0.09966146798306275,
+              "2": 0.021630142471838143,
+              "3": -0.001967193709703774,
+              "4": -0.05909731963645237
+            },
+            "relative_wealth_return": -0.04231176680197457,
+            "stale_position_days": 17,
+            "targets_sha256": "351fe545889acaf5d5e34a485986ab4591017ca443a6b76187cfad70ae90dcb3",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.10168561303204804,
+            "account_sha256": "da4b71371f87978c9defa931a6fd744abffcb7574ff996b5f92282904d0a76c9",
+            "active_sharpe": -1.6508824662116919,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 1497354.4516534049,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2015046008398833,
+            "final_nav": 3305056.8390961443,
+            "gross_traded_notional": 24772900.991221245,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.029348463286004232,
+            "max_drawdown": -0.1634804147449629,
+            "profit_cny": 305056.8390961443,
+            "quarterly_returns": {
+              "1": -0.005993603100839406,
+              "2": -0.033318720487072184,
+              "3": 0.112664881668048,
+              "4": 0.030435493357336973
+            },
+            "relative_wealth_return": -0.15462408994093757,
+            "stale_position_days": 13,
+            "targets_sha256": "f64df0b2ee77093c0aa71729b7d02ccc760016c91ae9f9781b9318f771301ad2",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.08424699152827642,
+            "account_sha256": "b3af8eb4ff9ace5f4be6905cc0d1562a78cb3f978f21e5d0405de0aaddf181df",
+            "active_sharpe": -1.6575819792209818,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 1521419.3207285882,
+            "cost_cny": 49658.371667106905,
+            "excess_percentage_points": -0.1994423239312071,
+            "final_nav": 3252740.974584829,
+            "gross_traded_notional": 24583393.69472688,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.029267657490612588,
+            "max_drawdown": -0.16687632345577752,
+            "profit_cny": 252740.97458482906,
+            "quarterly_returns": {
+              "1": -0.007779599821161498,
+              "2": -0.03665564166021407,
+              "3": 0.10810570622088234,
+              "4": 0.023663749708338955
+            },
+            "relative_wealth_return": -0.15536650615481584,
+            "stale_position_days": 13,
+            "targets_sha256": "f64df0b2ee77093c0aa71729b7d02ccc760016c91ae9f9781b9318f771301ad2",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.0670649014067699,
+            "account_sha256": "21943e078bac424e09d380795aa7a18f2a8d7d71f3accfd1ef834d539cbc4a2a",
+            "active_sharpe": -1.6637674162978187,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 1545088.7638041591,
+            "cost_cny": 98572.04389442771,
+            "excess_percentage_points": -0.19738710683128513,
+            "final_nav": 3201194.70422031,
+            "gross_traded_notional": 24395794.60304403,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.02903499272660715,
+            "max_drawdown": -0.17026008428028505,
+            "profit_cny": 201194.70422030985,
+            "quarterly_returns": {
+              "1": -0.009559190016778074,
+              "2": -0.03998059300850232,
+              "3": 0.10356289194841573,
+              "4": 0.016916296889490257
+            },
+            "relative_wealth_return": -0.15610486245842825,
+            "stale_position_days": 13,
+            "targets_sha256": "f64df0b2ee77093c0aa71729b7d02ccc760016c91ae9f9781b9318f771301ad2",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": false,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": -0.024549904710192916,
+        "compound_increment_vs_lowvol": -0.3979395202183815,
+        "compound_return_reset_accounts": -0.005037950854329454,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.1053465047545845,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "concentration",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "6afcd973f10b171c79fe8ddddda190382230510c47d5cadc96fc6add8b87bd76",
+      "name": "conditional_concentration_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.12754942757276,
+            "account_sha256": "cd3e08c9b0ca2d78a895ef1c600f320ffbc9a5c11882d3e648bfd48493ac7873",
+            "active_sharpe": 0.022118852287409417,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 2.9824178682247293e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.004769362935563848,
+            "final_nav": 3382648.28271828,
+            "gross_traded_notional": 25646069.542056777,
+            "hash_control_return": 0.04439276338586917,
+            "holdings_jaccard_vs_lowvol": 0.04221815528869471,
+            "max_drawdown": -0.11587988066818455,
+            "profit_cny": 382648.28271827986,
+            "quarterly_returns": {
+              "1": 0.0684762147118756,
+              "2": 0.0068954697322209935,
+              "3": 0.01908248627246012,
+              "4": 0.02843537162226495
+            },
+            "relative_wealth_return": -0.004212031960913354,
+            "stale_position_days": 11,
+            "targets_sha256": "0fdf6047215d2ec5d80713999d60bcb560fc49496ea94090f1db186662a4c9aa",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.10960047487851554,
+            "account_sha256": "0122cc0c0c494d5358bdf6dd46cc145a6f51a6530d90b3eb60549583120dfbfa",
+            "active_sharpe": 0.003373720612365161,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 51399.07539266,
+            "cost_cny": 51399.0753926601,
+            "excess_percentage_points": -0.007239485881361363,
+            "final_nav": 3328801.4246355467,
+            "gross_traded_notional": 25432305.18234729,
+            "hash_control_return": 0.04153464604053392,
+            "holdings_jaccard_vs_lowvol": 0.04213633942086067,
+            "max_drawdown": -0.11870998823216117,
+            "profit_cny": 328801.42463554675,
+            "quarterly_returns": {
+              "1": 0.06655641316817529,
+              "2": 0.0031900431814959607,
+              "3": 0.011857830029615046,
+              "4": 0.024896695082384568
+            },
+            "relative_wealth_return": -0.006482115733426719,
+            "stale_position_days": 11,
+            "targets_sha256": "0fdf6047215d2ec5d80713999d60bcb560fc49496ea94090f1db186662a4c9aa",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.09194125110757678,
+            "account_sha256": "7087cf33888af498ee3c7f0cf7086f6de400952fcb1f49c24766325a824c31cf",
+            "active_sharpe": -0.01531337732282576,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 101956.98765663056,
+            "cost_cny": 101956.9876566288,
+            "excess_percentage_points": -0.009643910123638744,
+            "final_nav": 3275823.7533227303,
+            "gross_traded_notional": 25220977.844585463,
+            "hash_control_return": 0.03869008789183548,
+            "holdings_jaccard_vs_lowvol": 0.041972550271305455,
+            "max_drawdown": -0.12153006868436389,
+            "profit_cny": 275823.7533227303,
+            "quarterly_returns": {
+              "1": 0.06464349811865056,
+              "2": -0.000502091683715733,
+              "3": 0.0046840895351065726,
+              "4": 0.021371305364167092
+            },
+            "relative_wealth_return": -0.008754575191317948,
+            "stale_position_days": 11,
+            "targets_sha256": "0fdf6047215d2ec5d80713999d60bcb560fc49496ea94090f1db186662a4c9aa",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": -0.058387180929125315,
+            "account_sha256": "bba201a346646ba7dc602bf5f7d399eb451fc05beb64125fae22896f294d31a0",
+            "active_sharpe": -1.5735900395511144,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 657920.3232310911,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.36157739480105666,
+            "final_nav": 2824838.457212624,
+            "gross_traded_notional": 22237154.475619514,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.04431222224393037,
+            "max_drawdown": -0.3186076259986761,
+            "profit_cny": -175161.54278737586,
+            "quarterly_returns": {
+              "1": -0.11861779307360865,
+              "2": -0.08365890957529099,
+              "3": 0.11197161997196581,
+              "4": 0.0484729217654134
+            },
+            "relative_wealth_return": -0.2774555785887677,
+            "stale_position_days": 0,
+            "targets_sha256": "90002aa6bd73c55b42ffbba5c8a0d6759cd09a550b2f4cf19db9d6e2d580e9b7",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.07371475937973337,
+            "account_sha256": "467fd40b1769463aea0e3ed26601c20e96855605828cba748aa5a99f0b75e88a",
+            "active_sharpe": -1.5797464355294315,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 688326.5548191017,
+            "cost_cny": 44499.37294488197,
+            "excess_percentage_points": -0.3574040748392169,
+            "final_nav": 2778855.7218608,
+            "gross_traded_notional": 22067438.098363794,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.046945562077041425,
+            "max_drawdown": -0.318607625998676,
+            "profit_cny": -221144.27813920006,
+            "quarterly_returns": {
+              "1": -0.12020143049871101,
+              "2": -0.08721336871281227,
+              "3": 0.10785124049775363,
+              "4": 0.04114393482878187
+            },
+            "relative_wealth_return": -0.27841945129167633,
+            "stale_position_days": 0,
+            "targets_sha256": "90002aa6bd73c55b42ffbba5c8a0d6759cd09a550b2f4cf19db9d6e2d580e9b7",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.08881357111798682,
+            "account_sha256": "e7efeddd3381dd74fd518b148e0c7c9c32822ebe97f82764f0d466091ac5ecfd",
+            "active_sharpe": -1.585769149038633,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 718284.7623865221,
+            "cost_cny": 88331.8706254009,
+            "excess_percentage_points": -0.35326557935604186,
+            "final_nav": 2733559.2866460397,
+            "gross_traded_notional": 21899440.16831419,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.04394847810425262,
+            "max_drawdown": -0.31941008069340704,
+            "profit_cny": -266440.7133539603,
+            "quarterly_returns": {
+              "1": -0.12177938727940285,
+              "2": -0.09075507769798696,
+              "3": 0.10374559183233645,
+              "4": 0.03384099683466202
+            },
+            "relative_wealth_return": -0.27938235461249183,
+            "stale_position_days": 0,
+            "targets_sha256": "90002aa6bd73c55b42ffbba5c8a0d6759cd09a550b2f4cf19db9d6e2d580e9b7",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.08295084272959086,
+        "compound_increment_vs_lowvol": -0.29043877277859775,
+        "compound_return_reset_accounts": 0.10246279658545432,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.3795282314820575,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "concentration",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "7b12be05111d37b2c20bfa7b5d300ed5fccb8ce9fe20f9af43a83b7c4a0e794f",
+      "name": "conditional_concentration_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.0041977084084265925,
+            "account_sha256": "3d01aa348fa2880c7847938ff5881472025fc9f1a8a69e1dbd23547f6109d8a1",
+            "active_sharpe": -1.7352790974017729,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 2.982048386002134e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.12812108209989725,
+            "final_nav": 3012593.12522528,
+            "gross_traded_notional": 17169054.650812306,
+            "hash_control_return": 0.04439276338586917,
+            "holdings_jaccard_vs_lowvol": 0.03559709498765343,
+            "max_drawdown": -0.13775043363337924,
+            "profit_cny": 12593.125225279946,
+            "quarterly_returns": {
+              "1": 0.08181572083936328,
+              "2": -0.0031855828196902802,
+              "3": -0.026086643753158834,
+              "4": -0.04383838449325783
+            },
+            "relative_wealth_return": -0.11314930315903415,
+            "stale_position_days": 1,
+            "targets_sha256": "0842770acfde7226473deed17902d6142d24a91b11bd32428889e02d78e8cc79",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.0066861782218207155,
+            "account_sha256": "35e3b2e0eeda16b4d72f401e6136917a38cf1a5eea02974109e799464daa530a",
+            "active_sharpe": -1.6947581838041963,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 34231.91635416833,
+            "cost_cny": 34231.91635416739,
+            "excess_percentage_points": -0.12352613898169762,
+            "final_nav": 2979941.465334538,
+            "gross_traded_notional": 17060174.817111634,
+            "hash_control_return": 0.04153464604053392,
+            "holdings_jaccard_vs_lowvol": 0.0355577021624,
+            "max_drawdown": -0.13937535919838173,
+            "profit_cny": -20058.534665462095,
+            "quarterly_returns": {
+              "1": 0.07987195132697456,
+              "2": -0.0057649594740577514,
+              "3": -0.0305324342667721,
+              "4": -0.045684739974547695
+            },
+            "relative_wealth_return": -0.11060325858832343,
+            "stale_position_days": 1,
+            "targets_sha256": "0842770acfde7226473deed17902d6142d24a91b11bd32428889e02d78e8cc79",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.01743468811806348,
+            "account_sha256": "be8cbd0adb4d1517a3b0e6170701decbda07144b3fead250063282298598fcca",
+            "active_sharpe": -1.6529538478327719,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 68040.09216998453,
+            "cost_cny": 68040.09216998097,
+            "excess_percentage_points": -0.119019849349279,
+            "final_nav": 2947695.9356458094,
+            "gross_traded_notional": 16952700.518023416,
+            "hash_control_return": 0.03869008789183548,
+            "holdings_jaccard_vs_lowvol": 0.03535115327945004,
+            "max_drawdown": -0.14099447628920525,
+            "profit_cny": -52304.0643541906,
+            "quarterly_returns": {
+              "1": 0.07793515428394215,
+              "2": -0.008335083681278888,
+              "3": -0.03495037627393116,
+              "4": -0.04752365702219996
+            },
+            "relative_wealth_return": -0.10804416538822426,
+            "stale_position_days": 1,
+            "targets_sha256": "0842770acfde7226473deed17902d6142d24a91b11bd32428889e02d78e8cc79",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.14506300760966306,
+            "account_sha256": "6ba0e310d80acec64af1fd598466618ca49f6ee293b2ba70fa425c8db5860c0e",
+            "active_sharpe": -1.3656037361521802,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 772974.1703958425,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.15812720626226828,
+            "final_nav": 3435189.022828989,
+            "gross_traded_notional": 16598499.484152125,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.019567813765872598,
+            "max_drawdown": -0.20295420943342746,
+            "profit_cny": 435189.0228289892,
+            "quarterly_returns": {
+              "1": 0.026490464840725148,
+              "2": -0.06021002300006317,
+              "3": 0.17041894291649218,
+              "4": 0.014150278014779083
+            },
+            "relative_wealth_return": -0.1213385464217489,
+            "stale_position_days": 3,
+            "targets_sha256": "15cd4a24c6fa1a916cca455d4bd4829d81036b516c5de909d743bf34fe2f5df7",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.13348183275390868,
+            "account_sha256": "d3d963cb26dce91a29fd6194afc1a0c07587d10704440cc23df6f772f07bf0b4",
+            "active_sharpe": -1.3076886334366726,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 793965.4484092979,
+            "cost_cny": 33094.02904382831,
+            "excess_percentage_points": -0.15020748270557482,
+            "final_nav": 3400445.498261726,
+            "gross_traded_notional": 16505246.603203591,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.019397641068947334,
+            "max_drawdown": -0.20428880728155485,
+            "profit_cny": 400445.498261726,
+            "quarterly_returns": {
+              "1": 0.024646101857382474,
+              "2": -0.06229235527989907,
+              "3": 0.1682508692497262,
+              "4": 0.009804035813236744
+            },
+            "relative_wealth_return": -0.11701233382300891,
+            "stale_position_days": 3,
+            "targets_sha256": "15cd4a24c6fa1a916cca455d4bd4829d81036b516c5de909d743bf34fe2f5df7",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.1220249516786569,
+            "account_sha256": "88eb1a03ac6ea5eb462c4a74b65ba152f39f415e116b7943533d41311b356d78",
+            "active_sharpe": -1.2491330925215343,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 814723.0192652944,
+            "cost_cny": 65825.57249650951,
+            "excess_percentage_points": -0.14242705655939814,
+            "final_nav": 3366074.8550359705,
+            "gross_traded_notional": 16412843.831771035,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.019070220183724045,
+            "max_drawdown": -0.20561879242244907,
+            "profit_cny": 366074.85503597045,
+            "quarterly_returns": {
+              "1": 0.022808354763576455,
+              "2": -0.06436721805374923,
+              "3": 0.16608995272125382,
+              "4": 0.005473814475690508
+            },
+            "relative_wealth_return": -0.11263935335739828,
+            "stale_position_days": 3,
+            "targets_sha256": "15cd4a24c6fa1a916cca455d4bd4829d81036b516c5de909d743bf34fe2f5df7",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.08339118877963103,
+        "compound_increment_vs_lowvol": -0.23692299794223648,
+        "compound_return_reset_accounts": 0.1559785714218156,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.455630824272535,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "late_30_return",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "91408c0f5f6c291e1781e5e2624ce1838a818f008b40dd5ba1b0bff2de648aee",
+      "name": "conditional_late_30_return_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.1371469711874227,
+            "account_sha256": "c6ef7c80a0c148840234d1ea00ecc5e7a4b0422c726b467b1f2a9f57df079a26",
+            "active_sharpe": 0.09312821687259917,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 9.206075901602162e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": 0.004828180679098848,
+            "final_nav": 3411440.913562268,
+            "gross_traded_notional": 28644948.51040458,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.03228405944783132,
+            "max_drawdown": -0.10187306169571997,
+            "profit_cny": 411440.913562268,
+            "quarterly_returns": {
+              "1": 0.09623894538274236,
+              "2": -0.018608943232604203,
+              "3": 0.03223705416358924,
+              "4": 0.023976125923445446
+            },
+            "relative_wealth_return": 0.004263976469851993,
+            "stale_position_days": 12,
+            "targets_sha256": "e01279c87002f5d7e61882c9b4e7dc81bd14357b8e99db221bae44d85942b17f",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.117199876946664,
+            "account_sha256": "a3c71611d563b6fb66bc6681dd44345641b71abbee1efa5874cbba4ff5a8bb19",
+            "active_sharpe": 0.05262231951118021,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 57460.434676847275,
+            "cost_cny": 57460.434676846795,
+            "excess_percentage_points": 0.00035991618678710147,
+            "final_nav": 3351599.6308399923,
+            "gross_traded_notional": 28388326.6186232,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.03186408195862474,
+            "max_drawdown": -0.10546546109335797,
+            "profit_cny": 351599.6308399923,
+            "quarterly_returns": {
+              "1": 0.09426926071345787,
+              "2": -0.02243512927962743,
+              "3": 0.024123025357305927,
+              "4": 0.01978580518430184
+            },
+            "relative_wealth_return": 0.0003222629915053954,
+            "stale_position_days": 12,
+            "targets_sha256": "e01279c87002f5d7e61882c9b4e7dc81bd14357b8e99db221bae44d85942b17f",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.09759943920616787,
+            "account_sha256": "391b0dd451a8dba9f3ab60b96b954b20f36f5e04ddee1ca7a850e79ef9731802",
+            "active_sharpe": 0.012263220081635258,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 113909.5857795056,
+            "cost_cny": 113909.58577950377,
+            "excess_percentage_points": -0.0039857220250476555,
+            "final_nav": 3292798.3176185037,
+            "gross_traded_notional": 28134788.04551562,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.03216550687116644,
+            "max_drawdown": -0.10904500957617524,
+            "profit_cny": 292798.3176185037,
+            "quarterly_returns": {
+              "1": 0.09230664147343837,
+              "2": -0.026247590466376813,
+              "3": 0.016069858101815493,
+              "4": 0.01561051521555723
+            },
+            "relative_wealth_return": -0.003618169675227767,
+            "stale_position_days": 12,
+            "targets_sha256": "e01279c87002f5d7e61882c9b4e7dc81bd14357b8e99db221bae44d85942b17f",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.08916464996207929,
+            "account_sha256": "40a0d4c5da56eadb88112b17adcc7f168d3a9406ca0e9ca3a73f87e5188d549d",
+            "active_sharpe": -1.0919659550608534,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 840196.5109197123,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.21402556390985206,
+            "final_nav": 3267493.949886238,
+            "gross_traded_notional": 25055898.924669337,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.013103297663245249,
+            "max_drawdown": -0.2338341081514811,
+            "profit_cny": 267493.9498862382,
+            "quarterly_returns": {
+              "1": -0.03314465511851761,
+              "2": -0.1368566804354291,
+              "3": 0.18862921850324876,
+              "4": 0.09800095957970645
+            },
+            "relative_wealth_return": -0.16423202202689724,
+            "stale_position_days": 10,
+            "targets_sha256": "069d6f56946e5f81212164efdeb5da1d8a1e73c66986c5934d3557e660776446",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.07103848106692734,
+            "account_sha256": "1082d6d00cb5ab883989a5f4cdbbd09574bed6c3712a87555f0ea5ef0a65de44",
+            "active_sharpe": -1.1034019701609385,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 870508.8361145835,
+            "cost_cny": 50218.99891893401,
+            "excess_percentage_points": -0.21265083439255617,
+            "final_nav": 3213115.443200782,
+            "gross_traded_notional": 24856802.033758182,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.013103297663245249,
+            "max_drawdown": -0.23984564092285765,
+            "profit_cny": 213115.44320078194,
+            "quarterly_returns": {
+              "1": -0.034881867756555884,
+              "2": -0.14010400397759448,
+              "3": 0.18375646730734285,
+              "4": 0.09022543085267665
+            },
+            "relative_wealth_return": -0.16565599778045992,
+            "stale_position_days": 10,
+            "targets_sha256": "069d6f56946e5f81212164efdeb5da1d8a1e73c66986c5934d3557e660776446",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.05318801206555834,
+            "account_sha256": "a46be225928c5d426f9b38116ae1a9e50af2002b942485581a7b65ede995f007",
+            "active_sharpe": -1.1146338008462469,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 900343.856062455,
+            "cost_cny": 99654.8713856442,
+            "excess_percentage_points": -0.2112639961724967,
+            "final_nav": 3159564.036196675,
+            "gross_traded_notional": 24659766.81706131,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.016139427609606953,
+            "max_drawdown": -0.24581210011673327,
+            "profit_cny": 159564.03619667515,
+            "quarterly_returns": {
+              "1": -0.03661284886261207,
+              "2": -0.14333967908935907,
+              "3": 0.17890120049632952,
+              "4": 0.08247779361968921
+            },
+            "relative_wealth_return": -0.16707948960979657,
+            "stale_position_days": 10,
+            "targets_sha256": "069d6f56946e5f81212164efdeb5da1d8a1e73c66986c5934d3557e660776446",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": false,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": -0.012284300756958855,
+        "compound_increment_vs_lowvol": -0.33259848747882637,
+        "compound_return_reset_accounts": 0.06030308188522571,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.2485982041603163,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "late_30_return",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "1db85fa479e1ae1c91bfe7fe8616eb2ba2ac1a515b030c0ebaf784ec8fa93c22",
+      "name": "conditional_late_30_return_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.09764470065993058,
+            "account_sha256": "9a9f61d06beca003f693fc86d7c930bba8678f38159f917b032664a6cbe6cd2c",
+            "active_sharpe": -0.3071034439855167,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 2.9787088351440616e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.034674089848393264,
+            "final_nav": 3292934.1019797917,
+            "gross_traded_notional": 28880295.11914914,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.016166653041620214,
+            "max_drawdown": -0.09871089047871029,
+            "profit_cny": 292934.10197979165,
+            "quarterly_returns": {
+              "1": 0.10939685494534945,
+              "2": -0.03190845143280052,
+              "3": 0.015192495920352878,
+              "4": 0.00672308394893717
+            },
+            "relative_wealth_return": -0.03062219768765584,
+            "stale_position_days": 54,
+            "targets_sha256": "512562a1db2e98e33256e1c8eca51982894dafbad8863c36e031feb5b2cbc449",
+            "writeoffs": 1
+          },
+          "1": {
+            "absolute_return": 0.07814552922249685,
+            "account_sha256": "1ac60b7e153b9566f731ad99b3213ff63dafcc056b44bc9054624ce0f0d4aab6",
+            "active_sharpe": -0.35190098784815743,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 57938.54357742649,
+            "cost_cny": 57938.54357742362,
+            "excess_percentage_points": -0.03869443153738006,
+            "final_nav": 3234436.5876674904,
+            "gross_traded_notional": 28621492.16659961,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.016165306278363687,
+            "max_drawdown": -0.10239953626533127,
+            "profit_cny": 234436.58766749036,
+            "quarterly_returns": {
+              "1": 0.1074035285938808,
+              "2": -0.03587049510332008,
+              "3": 0.006899878887820066,
+              "4": 0.0028819643310509235
+            },
+            "relative_wealth_return": -0.034646353011091424,
+            "stale_position_days": 54,
+            "targets_sha256": "512562a1db2e98e33256e1c8eca51982894dafbad8863c36e031feb5b2cbc449",
+            "writeoffs": 1
+          },
+          "2": {
+            "absolute_return": 0.0589886135153217,
+            "account_sha256": "45889dd76d52fa749fdae9ae653dc415ca140fe7fb893367359fd5b8898a71de",
+            "active_sharpe": -0.3963491398394701,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 114857.21232419275,
+            "cost_cny": 114857.21232419305,
+            "excess_percentage_points": -0.04259654771589383,
+            "final_nav": 3176965.8405459654,
+            "gross_traded_notional": 28365800.906836834,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.01579909237633733,
+            "max_drawdown": -0.10607495056049021,
+            "profit_cny": 176965.84054596536,
+            "quarterly_returns": {
+              "1": 0.10541735247643502,
+              "2": -0.039818326580520313,
+              "3": -0.0013291663452187352,
+              "4": -0.0009453768585521161
+            },
+            "relative_wealth_return": -0.03866841095452356,
+            "stale_position_days": 54,
+            "targets_sha256": "512562a1db2e98e33256e1c8eca51982894dafbad8863c36e031feb5b2cbc449",
+            "writeoffs": 1
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.03566843265142272,
+            "account_sha256": "ba88e9327157f2738f165b69e580c8bc6dbcd6c40e3d34fa45d80353a12dc51e",
+            "active_sharpe": -1.3080424281605496,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 813539.9167028726,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2675217812205086,
+            "final_nav": 3107005.2979542683,
+            "gross_traded_notional": 24280964.864166476,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.013250944387582224,
+            "max_drawdown": -0.22462313465988593,
+            "profit_cny": 107005.29795426829,
+            "quarterly_returns": {
+              "1": -0.05842989993299019,
+              "2": -0.11960082017781182,
+              "3": 0.1609651961633365,
+              "4": 0.07614117962606204
+            },
+            "relative_wealth_return": -0.2052822207939008,
+            "stale_position_days": 3,
+            "targets_sha256": "4455bd574af34570a309bfbe1febb9da1c94f1271e9581680633c2e2cd00606f",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.01832236603603432,
+            "account_sha256": "fe0e70e929c4eef8dcf43a56cd31d51dad3ace7fa20ed4e9707cb74c3b637bf1",
+            "active_sharpe": -1.3186014454558392,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 842885.2618332279,
+            "cost_cny": 48643.857738234525,
+            "excess_percentage_points": -0.2653669494234492,
+            "final_nav": 3054967.098108103,
+            "gross_traded_notional": 24088632.57258533,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.013307245304724163,
+            "max_drawdown": -0.23211812278448096,
+            "profit_cny": 54967.09810810303,
+            "quarterly_returns": {
+              "1": -0.06012168090735737,
+              "2": -0.12303133395561783,
+              "3": 0.15631783843064606,
+              "4": 0.06844543818487159
+            },
+            "relative_wealth_return": -0.20672209874120817,
+            "stale_position_days": 3,
+            "targets_sha256": "4455bd574af34570a309bfbe1febb9da1c94f1271e9581680633c2e2cd00606f",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.001241248822818397,
+            "account_sha256": "389ca02ed008090285f722684cd6480719844eebce3fcf7393d459ecf91aaab9",
+            "active_sharpe": -1.3289683868832234,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 871771.5078058048,
+            "cost_cny": 96531.25790007651,
+            "excess_percentage_points": -0.26321075941523664,
+            "final_nav": 3003723.746468455,
+            "gross_traded_notional": 23898290.797835745,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.01645867132499834,
+            "max_drawdown": -0.2395404340792765,
+            "profit_cny": 3723.746468455065,
+            "quarterly_returns": {
+              "1": -0.06180739331704954,
+              "2": -0.12644954218380167,
+              "3": 0.1516871100999888,
+              "4": 0.06077731875710435
+            },
+            "relative_wealth_return": -0.20816192129111055,
+            "stale_position_days": 3,
+            "targets_sha256": "4455bd574af34570a309bfbe1febb9da1c94f1271e9581680633c2e2cd00606f",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": true
+        },
+        "compound_increment_vs_hash": 0.1764421785991106,
+        "compound_increment_vs_lowvol": -0.1438720081227569,
+        "compound_return_reset_accounts": 0.24902956124129516,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.7515718430398349,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "realized_volatility",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "c8b83b9bc6a0e9ebcbcfdf0085fb3d54175c2d879278dfc0129929a692f39415",
+      "name": "conditional_realized_volatility_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.10487472240391793,
+            "account_sha256": "1fbc3888597edd4897c8c39f20b314bf66ae2f18d240afe46f46dc6ebc1111d2",
+            "active_sharpe": -0.22682217572879645,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 155997.41498880004,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.027444068104405916,
+            "final_nav": 3314624.167211754,
+            "gross_traded_notional": 23506775.52258514,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.0387485210079276,
+            "max_drawdown": -0.10752078039907409,
+            "profit_cny": 314624.1672117538,
+            "quarterly_returns": {
+              "1": 0.12166486490714745,
+              "2": 0.007155674893972952,
+              "3": 0.0066467612116904995,
+              "4": -0.028425255949981576
+            },
+            "relative_wealth_return": -0.024237050850393183,
+            "stale_position_days": 0,
+            "targets_sha256": "b6ba8c38e0ab1f9636615666b9325abf1c0c7a8a2dbee58aeeeca95068187af8",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.08918226724992406,
+            "account_sha256": "fdd5e7ab17bf61642f7cb26a229cc2549dec316723f0f2db9199c86c6af40d53",
+            "active_sharpe": -0.23260392792179388,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 201620.99935425125,
+            "cost_cny": 47081.238065612815,
+            "excess_percentage_points": -0.02765769350995284,
+            "final_nav": 3267546.801749772,
+            "gross_traded_notional": 23326569.637120213,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.03857834831100234,
+            "max_drawdown": -0.1100942968990567,
+            "profit_cny": 267546.8017497719,
+            "quarterly_returns": {
+              "1": 0.11964949581468232,
+              "2": 0.003648770397317813,
+              "3": 0.0003220604791642767,
+              "4": -0.03106003381925171
+            },
+            "relative_wealth_return": -0.024764240608954546,
+            "stale_position_days": 0,
+            "targets_sha256": "b6ba8c38e0ab1f9636615666b9325abf1c0c7a8a2dbee58aeeeca95068187af8",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.07372322636312689,
+            "account_sha256": "0acde7d4f14b40b449ef79007cf9c56a08b89d4724b79529dc1fc88bd4b11f28",
+            "active_sharpe": -0.2383290028882884,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 246551.3409780465,
+            "cost_cny": 93455.38192361419,
+            "excess_percentage_points": -0.027861934868088634,
+            "final_nav": 3221169.679089381,
+            "gross_traded_notional": 23148452.25186644,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.03846318647447079,
+            "max_drawdown": -0.1126591871939201,
+            "profit_cny": 221169.6790893809,
+            "quarterly_returns": {
+              "1": 0.117641356025457,
+              "2": 0.0001544454703981124,
+              "3": -0.00595932600046678,
+              "4": -0.033685137430946366
+            },
+            "relative_wealth_return": -0.02529258367727827,
+            "stale_position_days": 0,
+            "targets_sha256": "b6ba8c38e0ab1f9636615666b9325abf1c0c7a8a2dbee58aeeeca95068187af8",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.19624709706493837,
+            "account_sha256": "3d925c9e126e1f2f5e126eceeecf2747900f82a6ff0b883b791587705311930f",
+            "active_sharpe": -0.8507483021876016,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 580971.65898752,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.10694311680699298,
+            "final_nav": 3588741.291194815,
+            "gross_traded_notional": 22883954.531139374,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.05973440031002171,
+            "max_drawdown": -0.1719194670136035,
+            "profit_cny": 588741.2911948152,
+            "quarterly_returns": {
+              "1": -0.026140846857976463,
+              "2": 0.021448301458637076,
+              "3": 0.18011299600999764,
+              "4": 0.01902482158444707
+            },
+            "relative_wealth_return": -0.08206255362312176,
+            "stale_position_days": 0,
+            "targets_sha256": "3da274e8fcc716e5d9d49aed82e4daf86aa6599f25d88c4b5fafea22bcaa91bd",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.17965158488439958,
+            "account_sha256": "057a5256a77f86242d1d96d2e7cf0b247e759cccdb874d82c2a7937e76354aee",
+            "active_sharpe": -0.8374570385284396,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 610219.6385594362,
+            "cost_cny": 45853.71401830265,
+            "excess_percentage_points": -0.10403773057508392,
+            "final_nav": 3538954.7546531986,
+            "gross_traded_notional": 22727927.116974678,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.059296085775511743,
+            "max_drawdown": -0.1719194670136035,
+            "profit_cny": 538954.7546531986,
+            "quarterly_returns": {
+              "1": -0.027890643699319595,
+              "2": 0.018404141846086963,
+              "3": 0.1772199719249934,
+              "4": 0.012187230452761044
+            },
+            "relative_wealth_return": -0.08104588027816129,
+            "stale_position_days": 0,
+            "targets_sha256": "3da274e8fcc716e5d9d49aed82e4daf86aa6599f25d88c4b5fafea22bcaa91bd",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.16326957503933204,
+            "account_sha256": "583da20df2231d96096ca1c56082d3e01e0c99ef9acb309b9433fb99ae02a8aa",
+            "active_sharpe": -0.8241717493085225,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 639067.9450955667,
+            "cost_cny": 91096.2349473812,
+            "excess_percentage_points": -0.101182433198723,
+            "final_nav": 3489808.725117996,
+            "gross_traded_notional": 22573338.25119694,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.05845499572280344,
+            "max_drawdown": -0.1719194670136034,
+            "profit_cny": 489808.72511799587,
+            "quarterly_returns": {
+              "1": -0.029634163868051955,
+              "2": 0.01537090189735113,
+              "3": 0.1743367687781956,
+              "4": 0.005373651512092126
+            },
+            "relative_wealth_return": -0.08002077780691352,
+            "stale_position_days": 0,
+            "targets_sha256": "3da274e8fcc716e5d9d49aed82e4daf86aa6599f25d88c4b5fafea22bcaa91bd",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": false,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": -0.048505745019138624,
+        "compound_increment_vs_lowvol": -0.36881993174100614,
+        "compound_return_reset_accounts": 0.024081637623045937,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.16620120679233635,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "realized_volatility",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "4efef5da717030e25185c851b76dbc5894aeb333f7b7cd640fead091c11c26b2",
+      "name": "conditional_realized_volatility_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.04526547132279424,
+            "account_sha256": "d750b59c7abb2177280db41cf051a0535efdb4ca641b956d7bd9440b9c0aac1c",
+            "active_sharpe": -0.7505091261941105,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 4.431797151482897e-10,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.08705331918552961,
+            "final_nav": 3135796.4139683824,
+            "gross_traded_notional": 14755512.47886565,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.03193668313049307,
+            "max_drawdown": -0.12186056974646564,
+            "profit_cny": 135796.4139683824,
+            "quarterly_returns": {
+              "1": 0.03257000543516986,
+              "2": -0.05395181896827639,
+              "3": 0.10266428602055488,
+              "4": -0.029600563779114353
+            },
+            "relative_wealth_return": -0.07688057454778208,
+            "stale_position_days": 20,
+            "targets_sha256": "ea908eb9a9ce996ac6d710633d4a6534039c8d9b07b604bb6580229b68af46c0",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.035300675083841604,
+            "account_sha256": "f71f9b1df03062f20ef251b5d4878fc773817826916546bcfc2aae94decc08b0",
+            "active_sharpe": -0.7077636094948204,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 29325.42492194019,
+            "cost_cny": 29325.42492193806,
+            "excess_percentage_points": -0.0815392856760353,
+            "final_nav": 3105902.025251525,
+            "gross_traded_notional": 14667362.714979317,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.028751072061064573,
+            "max_drawdown": -0.12349030576398234,
+            "profit_cny": 105902.02525152499,
+            "quarterly_returns": {
+              "1": 0.030714718941076136,
+              "2": -0.05571569155123257,
+              "3": 0.098560292997242,
+              "4": -0.03171913660300962
+            },
+            "relative_wealth_return": -0.07300892566608863,
+            "stale_position_days": 20,
+            "targets_sha256": "ea908eb9a9ce996ac6d710633d4a6534039c8d9b07b604bb6580229b68af46c0",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.025452059545913563,
+            "account_sha256": "f3549fdd9f445912c394c31df8d15839cd4e8e2ae65ab25544708d482ed29055",
+            "active_sharpe": -0.6649095147902554,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 58308.03139102436,
+            "cost_cny": 58308.031391022145,
+            "excess_percentage_points": -0.07613310168530196,
+            "final_nav": 3076356.1786377407,
+            "gross_traded_notional": 14580213.9939821,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.031931083430636976,
+            "max_drawdown": -0.1251141957774503,
+            "profit_cny": 76356.17863774067,
+            "quarterly_returns": {
+              "1": 0.028866087520097228,
+              "2": -0.057473236970677744,
+              "3": 0.09448073860630335,
+              "4": -0.03382744856968245
+            },
+            "relative_wealth_return": -0.06911231592862954,
+            "stale_position_days": 20,
+            "targets_sha256": "ea908eb9a9ce996ac6d710633d4a6534039c8d9b07b604bb6580229b68af46c0",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.024546179793575984,
+            "account_sha256": "0833e7df92a267e260e2de7856270f0103eb38d14fd0c120056ade5c574f6aa2",
+            "active_sharpe": -1.3654073667317708,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 1186570.483352587,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.27864403407835536,
+            "final_nav": 3073638.5393807283,
+            "gross_traded_notional": 18318839.40709843,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.03600366007723758,
+            "max_drawdown": -0.2804594542580374,
+            "profit_cny": 73638.53938072827,
+            "quarterly_returns": {
+              "1": -0.059372160528392115,
+              "2": -0.20472185997920644,
+              "3": 0.23426279410989714,
+              "4": 0.10965257997699784
+            },
+            "relative_wealth_return": -0.2138168558298723,
+            "stale_position_days": 10,
+            "targets_sha256": "2628a22d1772de81bb4886d25afaa8250f90371e343528b2cea587e6448d19e3",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.011525456554003943,
+            "account_sha256": "24ba6a4603bfe67e7c2c9d0b153c35f2656af7165bd38e4fa6799e93b020145b",
+            "active_sharpe": -1.3503655279309434,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 1205920.6197122957,
+            "cost_cny": 36574.43220700509,
+            "excess_percentage_points": -0.27216385890547956,
+            "final_nav": 3034576.369662012,
+            "gross_traded_notional": 18202579.804367475,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.03592487442673073,
+            "max_drawdown": -0.2841095447382619,
+            "profit_cny": 34576.36966201197,
+            "quarterly_returns": {
+              "1": -0.0610622484811264,
+              "2": -0.20616512899578832,
+              "3": 0.23020945857617425,
+              "4": 0.10314037939567
+            },
+            "relative_wealth_return": -0.21201692311979814,
+            "stale_position_days": 10,
+            "targets_sha256": "2628a22d1772de81bb4886d25afaa8250f90371e343528b2cea587e6448d19e3",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.001336407597127831,
+            "account_sha256": "a5880d65ef494a8bc56fdc507b54cf3a4781ebe862b758a8e5f67285ba335486",
+            "active_sharpe": -1.3352186412323896,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 1225007.531674584,
+            "cost_cny": 72694.47203906029,
+            "excess_percentage_points": -0.26578841583518287,
+            "final_nav": 2995990.7772086165,
+            "gross_traded_notional": 18087347.51293677,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.038809197875774346,
+            "max_drawdown": -0.28799813952286946,
+            "profit_cny": -4009.2227913835086,
+            "quarterly_returns": {
+              "1": -0.06274627394220078,
+              "2": -0.20760322088158167,
+              "3": 0.22617009419235856,
+              "4": 0.09665145842203349
+            },
+            "relative_wealth_return": -0.21020047744282877,
+            "stale_position_days": 10,
+            "targets_sha256": "2628a22d1772de81bb4886d25afaa8250f90371e343528b2cea587e6448d19e3",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.08802657312729267,
+        "compound_increment_vs_lowvol": -0.23228761359457484,
+        "compound_return_reset_accounts": 0.16061395576947723,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.5641455679651024,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "amihud_intraday",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "e69769f97b908a41485021637e791b654938d341af3365c06615f9d01bfbc9dd",
+      "name": "conditional_amihud_intraday_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": -0.06894494640586024,
+            "account_sha256": "971de06b43700456f318fbe17fcb50c588ea606ddfccbd8cdebd17b5099176b0",
+            "active_sharpe": -2.045367120732867,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 2.1402684069471434e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2012637369141841,
+            "final_nav": 2793165.160782419,
+            "gross_traded_notional": 16948669.884661958,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.019056363389048928,
+            "max_drawdown": -0.18661053889168078,
+            "profit_cny": -206834.83921758085,
+            "quarterly_returns": {
+              "1": 0.05483562932587982,
+              "2": -0.0606588284535422,
+              "3": -0.0024770084191553243,
+              "4": -0.058014324280809104
+            },
+            "relative_wealth_return": -0.17774476463808586,
+            "stale_position_days": 0,
+            "targets_sha256": "db08e90a0461dcb8fe175374a9ad8c331db925e2aa07d2739728cf069c7d1e13",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.07934434250682731,
+            "account_sha256": "618763f67ce21fdd55fa6c4d65ebb2dcb8bd237c7e97dff886aecde4ce893a8b",
+            "active_sharpe": -2.018029475318263,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 33786.28678242287,
+            "cost_cny": 33786.28678242139,
+            "excess_percentage_points": -0.19618430326670422,
+            "final_nav": 2761966.972479518,
+            "gross_traded_notional": 16842848.883280873,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.018975557593657284,
+            "max_drawdown": -0.19248309188996726,
+            "profit_cny": -238033.02752048196,
+            "quarterly_returns": {
+              "1": 0.05294033671978515,
+              "2": -0.06283936868440498,
+              "3": -0.007404662416682917,
+              "4": -0.06004471113812071
+            },
+            "relative_wealth_return": -0.17566017527992472,
+            "stale_position_days": 0,
+            "targets_sha256": "db08e90a0461dcb8fe175374a9ad8c331db925e2aa07d2739728cf069c7d1e13",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.08961483318486374,
+            "account_sha256": "5895d542eda33621669e6dd4169c278a6b305a51dd977ad0d859bf1a8950f94c",
+            "active_sharpe": -1.990431279504967,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 67160.91288230277,
+            "cost_cny": 67160.91288230079,
+            "excess_percentage_points": -0.19119999441607927,
+            "final_nav": 2731155.5004454087,
+            "gross_traded_notional": 16738373.762404798,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.018937810812384055,
+            "max_drawdown": -0.19830707973450235,
+            "profit_cny": -268844.49955459125,
+            "quarterly_returns": {
+              "1": 0.0510518426921871,
+              "2": -0.06501208712886775,
+              "3": -0.012303337783515889,
+              "4": -0.06206778576952754
+            },
+            "relative_wealth_return": -0.17356805551227616,
+            "stale_position_days": 0,
+            "targets_sha256": "db08e90a0461dcb8fe175374a9ad8c331db925e2aa07d2739728cf069c7d1e13",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.29845942038666795,
+            "account_sha256": "6f700677d70b3e8f0c203553b651f47300889e0d2765dac627f71e0cd10b415f",
+            "active_sharpe": -0.049662731915306846,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 1194325.3850670853,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.004730793485263396,
+            "final_nav": 3895378.261160004,
+            "gross_traded_notional": 16561066.220344882,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.03086764549420151,
+            "max_drawdown": -0.10808909969508074,
+            "profit_cny": 895378.261160004,
+            "quarterly_returns": {
+              "1": 0.08331517371672881,
+              "2": 0.011256101317707046,
+              "3": 0.18290794213736294,
+              "4": 0.0019855367639527444
+            },
+            "relative_wealth_return": -0.0036301634518937087,
+            "stale_position_days": 0,
+            "targets_sha256": "61be95ec8aab5b01c7b407fa3949de5d6d21c9b86546cb012457bae466b5a9eb",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.286605296616365,
+            "account_sha256": "dc2899edd46ab82b57e9931c2e4bb483f4dcf874fc89edf1dd3f0558f63b739e",
+            "active_sharpe": 0.003701885305460372,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 1212039.3854359635,
+            "cost_cny": 33041.29741592104,
+            "excess_percentage_points": 0.0029159811568815197,
+            "final_nav": 3859815.889849095,
+            "gross_traded_notional": 16479530.288569292,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.030649257199814088,
+            "max_drawdown": -0.10897452188016366,
+            "profit_cny": 859815.8898490951,
+            "quarterly_returns": {
+              "1": 0.08136871003865798,
+              "2": 0.009948360920787325,
+              "3": 0.18163926489369087,
+              "4": -0.0030176874316582003
+            },
+            "relative_wealth_return": 0.002271563003418464,
+            "stale_position_days": 0,
+            "targets_sha256": "61be95ec8aab5b01c7b407fa3949de5d6d21c9b86546cb012457bae466b5a9eb",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.27486035370032846,
+            "account_sha256": "c1481f916096428d5711ff862681dd235a91834670e1d0cc701212caa66a96a3",
+            "active_sharpe": 0.05651803610299642,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 1229559.626160348,
+            "cost_cny": 65767.43119685641,
+            "excess_percentage_points": 0.010408345462273427,
+            "final_nav": 3824581.0611009854,
+            "gross_traded_notional": 16398670.117379997,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.030229279710607508,
+            "max_drawdown": -0.10985782299039626,
+            "profit_cny": 824581.0611009854,
+            "quarterly_returns": {
+              "1": 0.07942922849414868,
+              "2": 0.008645311501774389,
+              "3": 0.18037377963356427,
+              "4": -0.008002873837136382
+            },
+            "relative_wealth_return": 0.008231506925104215,
+            "stale_position_days": 0,
+            "targets_sha256": "61be95ec8aab5b01c7b407fa3949de5d6d21c9b86546cb012457bae466b5a9eb",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.09767942853289546,
+        "compound_increment_vs_lowvol": -0.22263475818897205,
+        "compound_return_reset_accounts": 0.17026681117508002,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.44892159020234856,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "amihud_intraday",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "ccb5e9fbd2b4cf9bbef869b827622c5c7471bee54a7b5b21ca43bce329204f9a",
+      "name": "conditional_amihud_intraday_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.11742950932652074,
+            "account_sha256": "d33d5e8ac42a25e4b440fb0f8eafe4fd6b21f2ef189ca8b3e8e168e2d7487d53",
+            "active_sharpe": -0.0680866432312796,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 13194.98161677004,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.014889281181803105,
+            "final_nav": 3352288.527979562,
+            "gross_traded_notional": 23269541.827383764,
+            "hash_control_return": 0.03613826626375727,
+            "holdings_jaccard_vs_lowvol": 0.006263459215294921,
+            "max_drawdown": -0.09449026330383292,
+            "profit_cny": 352288.52797956206,
+            "quarterly_returns": {
+              "1": 0.07508830442666659,
+              "2": -0.035321353383749865,
+              "3": 0.07489465039107546,
+              "4": 0.002368549997581848
+            },
+            "relative_wealth_return": -0.013149372161455508,
+            "stale_position_days": 14,
+            "targets_sha256": "bed59084a7b3ab10f14c83614fd03a1b6a2a41c566746759a8c5d60ac6b33734",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.1012002884636296,
+            "account_sha256": "b17fa6e0e6dd0d3a6e65a952a98b26746267680af4c70e9ca4af616b0c2e96f7",
+            "active_sharpe": -0.07619160253067511,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 59516.79290710149,
+            "cost_cny": 46587.56048669147,
+            "excess_percentage_points": -0.015639672296247298,
+            "final_nav": 3303600.865390889,
+            "gross_traded_notional": 23085811.510521844,
+            "hash_control_return": 0.033192701785064394,
+            "holdings_jaccard_vs_lowvol": 0.006224066390041494,
+            "max_drawdown": -0.09751989638376557,
+            "profit_cny": 303600.8653908889,
+            "quarterly_returns": {
+              "1": 0.07315662250615529,
+              "2": -0.03854645153631964,
+              "3": 0.06827557717031896,
+              "4": -0.0009399333243458319
+            },
+            "relative_wealth_return": -0.014003503497140635,
+            "stale_position_days": 14,
+            "targets_sha256": "bed59084a7b3ab10f14c83614fd03a1b6a2a41c566746759a8c5d60ac6b33734",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.08521827311722907,
+            "account_sha256": "be39d6df399962d770c12d8a2dd54946b93d27f7ffeb6451ca9f90617f430f46",
+            "active_sharpe": -0.08424744919255606,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 105119.26317869552,
+            "cost_cny": 92454.82668929198,
+            "excess_percentage_points": -0.016366888113986455,
+            "final_nav": 3255654.819351687,
+            "gross_traded_notional": 22904536.40876764,
+            "hash_control_return": 0.03026182529560839,
+            "holdings_jaccard_vs_lowvol": 0.006185646227140003,
+            "max_drawdown": -0.10053895785183786,
+            "profit_cny": 255654.8193516871,
+            "quarterly_returns": {
+              "1": 0.07123186969576323,
+              "2": -0.04176029665786973,
+              "3": 0.06170359716706719,
+              "4": -0.004236591526578959
+            },
+            "relative_wealth_return": -0.01485757859673209,
+            "stale_position_days": 14,
+            "targets_sha256": "bed59084a7b3ab10f14c83614fd03a1b6a2a41c566746759a8c5d60ac6b33734",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.11124371642847275,
+            "account_sha256": "ddcea14bdb86bc2d353124a2fdd7bdcf140fe0ecabcb37861b9c7845ba3b720d",
+            "active_sharpe": -0.5754837296181613,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 845082.9362041263,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.1919464974434586,
+            "final_nav": 3333731.1492854184,
+            "gross_traded_notional": 22001202.3789221,
+            "hash_control_return": 0.04810792832363098,
+            "holdings_jaccard_vs_lowvol": 0.003715860531368056,
+            "max_drawdown": -0.2650185023691499,
+            "profit_cny": 333731.14928541845,
+            "quarterly_returns": {
+              "1": -0.11757284913458199,
+              "2": -0.08965299535421534,
+              "3": 0.18945346464621537,
+              "4": 0.16299014026023717
+            },
+            "relative_wealth_return": -0.14728970138070863,
+            "stale_position_days": 6,
+            "targets_sha256": "360bb0a1f57a7dca6fd4b995c93473fd26526289f846add84efab1e8934cb944",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.0946922569347739,
+            "account_sha256": "9f586cc3437e185a097569d6a0ddc7015fdb055d86fe39c74961aa4529a72568",
+            "active_sharpe": -0.5757924274843487,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 870881.5981431934,
+            "cost_cny": 44032.25620860579,
+            "excess_percentage_points": -0.1889970585247096,
+            "final_nav": 3284076.770804322,
+            "gross_traded_notional": 21839633.24124568,
+            "hash_control_return": 0.04458551729651283,
+            "holdings_jaccard_vs_lowvol": 0.003715860531368056,
+            "max_drawdown": -0.26633909200354355,
+            "profit_cny": 284076.77080432186,
+            "quarterly_returns": {
+              "1": -0.11915836407924008,
+              "2": -0.0921292084527835,
+              "3": 0.18494998232858162,
+              "4": 0.15523449560510616
+            },
+            "relative_wealth_return": -0.14722959539244906,
+            "stale_position_days": 6,
+            "targets_sha256": "360bb0a1f57a7dca6fd4b995c93473fd26526289f846add84efab1e8934cb944",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.07836998340762702,
+            "account_sha256": "fe70882283ba339a36f96a48e6f6bbbfbf77ca91d1cce9f009612b0f099b9499",
+            "active_sharpe": -0.5760596359296462,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 896293.0517289639,
+            "cost_cny": 87430.25936513447,
+            "excess_percentage_points": -0.18608202483042802,
+            "final_nav": 3235109.950222881,
+            "gross_traded_notional": 21679644.935476065,
+            "hash_control_return": 0.041082331022438856,
+            "holdings_jaccard_vs_lowvol": 0.003715860531368056,
+            "max_drawdown": -0.2710611028448986,
+            "profit_cny": 235109.95022288105,
+            "quarterly_returns": {
+              "1": -0.1207381916446616,
+              "2": -0.09459653916080146,
+              "3": 0.18046324797557922,
+              "4": 0.14750598792709524
+            },
+            "relative_wealth_return": -0.14716416567657886,
+            "stale_position_days": 6,
+            "targets_sha256": "360bb0a1f57a7dca6fd4b995c93473fd26526289f846add84efab1e8934cb944",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": true,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": true,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.2694527195635841,
+        "compound_increment_vs_lowvol": -0.14759147140312834,
+        "compound_return_reset_accounts": 0.24531009796092373,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.6416019891047937,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": -1,
+        "field": "auction_return",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "cab1c4328999c2f68a1a12e3fe6d33a328485d0f2fd2d28ccfe4c70440187078",
+      "name": "conditional_auction_return_-1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.25137063777220336,
+            "account_sha256": "48a798e189f9e7ca84b342270f866d617ba3fa9ea6bbce992a482283f69edbd9",
+            "active_sharpe": 0.9491213187870959,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 4.701405487139709e-09,
+            "cost_cny": 0.0,
+            "excess_percentage_points": 0.11905184726387952,
+            "final_nav": 3754111.91331661,
+            "gross_traded_notional": 31075873.48490291,
+            "hash_control_return": -0.00021622896210693465,
+            "holdings_jaccard_vs_lowvol": 0.003151426020274174,
+            "max_drawdown": -0.10113270157914467,
+            "profit_cny": 754111.9133166098,
+            "quarterly_returns": {
+              "1": 0.12802070289020873,
+              "2": 0.048063354992711416,
+              "3": 0.03628543996513156,
+              "4": 0.021414355509883354
+            },
+            "relative_wealth_return": 0.10513986720156288,
+            "stale_position_days": 0,
+            "targets_sha256": "4701456a5c1770b31567edbd64a42b079ede24e9e7c791f42605f6c0afed65e6",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.2292634188252911,
+            "account_sha256": "5f42474e886f131e59318c856997729506c1e26fa4651b50679bde2cb7c6249b",
+            "active_sharpe": 0.9127925539790751,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 62388.9213276613,
+            "cost_cny": 62388.92132766766,
+            "excess_percentage_points": 0.1124234580654142,
+            "final_nav": 3687790.2564758733,
+            "gross_traded_notional": 30791865.41333449,
+            "hash_control_return": -0.003007645092926947,
+            "holdings_jaccard_vs_lowvol": 0.003151426020274174,
+            "max_drawdown": -0.10461549851149543,
+            "profit_cny": 687790.2564758733,
+            "quarterly_returns": {
+              "1": 0.12599391384528857,
+              "2": 0.04377401604734232,
+              "3": 0.028219976328495155,
+              "4": 0.01722352725460019
+            },
+            "relative_wealth_return": 0.10066210201587289,
+            "stale_position_days": 0,
+            "targets_sha256": "4701456a5c1770b31567edbd64a42b079ede24e9e7c791f42605f6c0afed65e6",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.20754255623548912,
+            "account_sha256": "36016e95474d58d6878d8c6bd5194f4c66a6f282c003a9551401f6f8152a7a02",
+            "active_sharpe": 0.8762660359062564,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 123658.14436140358,
+            "cost_cny": 123658.14436140869,
+            "excess_percentage_points": 0.10595739500427359,
+            "final_nav": 3622627.6687064674,
+            "gross_traded_notional": 30511296.412006803,
+            "hash_control_return": -0.0057856778394071995,
+            "holdings_jaccard_vs_lowvol": 0.003151426020274174,
+            "max_drawdown": -0.108085835537437,
+            "profit_cny": 622627.6687064674,
+            "quarterly_returns": {
+              "1": 0.1239743950679646,
+              "2": 0.03950006333174971,
+              "3": 0.02021474567840298,
+              "4": 0.0130477372668103
+            },
+            "relative_wealth_return": 0.09618629474442764,
+            "stale_position_days": 0,
+            "targets_sha256": "4701456a5c1770b31567edbd64a42b079ede24e9e7c791f42605f6c0afed65e6",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.0664171142491452,
+            "account_sha256": "c15f8a728870bda2ef940e3901f819a61967aa75c0313c9b3d146a4b45d51167",
+            "active_sharpe": -1.1803445659397687,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 226606.9443375492,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.23677309962278614,
+            "final_nav": 3199251.3427474354,
+            "gross_traded_notional": 26207889.00172634,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.01037344398340249,
+            "max_drawdown": -0.21097406428778442,
+            "profit_cny": 199251.34274743544,
+            "quarterly_returns": {
+              "1": -0.02350251219547772,
+              "2": -0.12213806988644371,
+              "3": 0.14329689120975275,
+              "4": 0.08810482900456384
+            },
+            "relative_wealth_return": -0.18168729100512926,
+            "stale_position_days": 2,
+            "targets_sha256": "b4608608e6ff3d46179972b19f08dffcd8888dc0ff2a8cbafea2332e7afe14fa",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.048728992882966615,
+            "account_sha256": "09deeb6a7c45c6855f4164b9f759bcfa17d97b9f04783459dfe90110eb7c7060",
+            "active_sharpe": -1.188246388660852,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 254946.67082840786,
+            "cost_cny": 52617.48618907659,
+            "excess_percentage_points": -0.2349603225765169,
+            "final_nav": 3146186.9786489,
+            "gross_traded_notional": 26026503.32562404,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.01037344398340249,
+            "max_drawdown": -0.21414402849321335,
+            "profit_cny": 146186.97864890005,
+            "quarterly_returns": {
+              "1": -0.02525704950636609,
+              "2": -0.12563701758625623,
+              "3": 0.1395624821233603,
+              "4": 0.07979985872312012
+            },
+            "relative_wealth_return": -0.1830351937551301,
+            "stale_position_days": 2,
+            "targets_sha256": "b4608608e6ff3d46179972b19f08dffcd8888dc0ff2a8cbafea2332e7afe14fa",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.031276364986402516,
+            "account_sha256": "cf4d0bb8a4000c3f78873d7f248e087dba8d284ee15e4ae1754a817cbe264886",
+            "active_sharpe": -1.1961165159139386,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 282880.4964499948,
+            "cost_cny": 104523.65517617605,
+            "excess_percentage_points": -0.23317564325165252,
+            "final_nav": 3093829.094959208,
+            "gross_traded_notional": 25846681.304533653,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.01037344398340249,
+            "max_drawdown": -0.21956762801278573,
+            "profit_cny": 93829.09495920781,
+            "quarterly_returns": {
+              "1": -0.027005293140173192,
+              "2": -0.12912341425805163,
+              "3": 0.13582804026429707,
+              "4": 0.07150792294282371
+            },
+            "relative_wealth_return": -0.18440845657445704,
+            "stale_position_days": 2,
+            "targets_sha256": "b4608608e6ff3d46179972b19f08dffcd8888dc0ff2a8cbafea2332e7afe14fa",
+            "writeoffs": 0
+          }
+        }
+      }
+    },
+    {
+      "assessment": {
+        "checks": {
+          "accounts": true,
+          "annual_increment": false,
+          "drawdown": false,
+          "hash_increment": true,
+          "lowvol_increment": false,
+          "positive_both_years": false,
+          "sharpe": false
+        },
+        "compound_increment_vs_hash": 0.053792846081249124,
+        "compound_increment_vs_lowvol": -0.3632513448854633,
+        "compound_return_reset_accounts": 0.029650224478588783,
+        "interpretation": "synthetic chain of annual-reset accounts, not a continuous live account",
+        "pooled_sharpe": 0.18186272990596378,
+        "suspected_lead": false,
+        "validated_alpha": false
+      },
+      "hypothesis": {
+        "direction": 1,
+        "field": "auction_return",
+        "horizon": 60,
+        "method": "conditional"
+      },
+      "identity": "703e19236c3cb0eeb4be607aafeabce73817495c500a9f67c7d98cd8787d1273",
+      "name": "conditional_auction_return_+1_h60",
+      "years": {
+        "2023": {
+          "0": {
+            "absolute_return": 0.09531272918538591,
+            "account_sha256": "9310391f49225c3800f1bc3ef514c856b494f2ebfc1580248570ddcb7bb6fe3c",
+            "active_sharpe": -0.2785366375147658,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.13231879050832385,
+            "blocked_notional_cny": 80869.47811119749,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.03700606132293793,
+            "final_nav": 3285938.187556158,
+            "gross_traded_notional": 27888364.66728041,
+            "hash_control_return": -0.00021622896210693465,
+            "holdings_jaccard_vs_lowvol": 5.252376700456957e-05,
+            "max_drawdown": -0.09091818171906829,
+            "profit_cny": 285938.1875561578,
+            "quarterly_returns": {
+              "1": 0.07718051106248214,
+              "2": -0.006192603958327991,
+              "3": 0.012035837511437997,
+              "4": 0.011000874687831397
+            },
+            "relative_wealth_return": -0.032681663179258025,
+            "stale_position_days": 13,
+            "targets_sha256": "83ddd463f1fe271e84bfcf6ecededeee96c4d3376fe10d559d4abec696851411",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": 0.07619380245951834,
+            "account_sha256": "e6e80fe4b539dcf043505d0714d68fa229a580a985e0964ca1888a79bd8b1cf9",
+            "active_sharpe": -0.3164032252100746,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.1168399607598769,
+            "blocked_notional_cny": 123677.12830773293,
+            "cost_cny": 55979.74343620832,
+            "excess_percentage_points": -0.04064615830035856,
+            "final_nav": 3228581.4073785553,
+            "gross_traded_notional": 27666218.780658197,
+            "hash_control_return": -0.003007645092926947,
+            "holdings_jaccard_vs_lowvol": 5.252376700456957e-05,
+            "max_drawdown": -0.09980612143148027,
+            "profit_cny": 228581.40737855528,
+            "quarterly_returns": {
+              "1": 0.07524506993659674,
+              "2": -0.010079332861286594,
+              "3": 0.004086869913408009,
+              "4": 0.006957978651608077
+            },
+            "relative_wealth_return": -0.036393896823591065,
+            "stale_position_days": 13,
+            "targets_sha256": "83ddd463f1fe271e84bfcf6ecededeee96c4d3376fe10d559d4abec696851411",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": 0.057371802481062106,
+            "account_sha256": "c76c8da770441a27038044badda4acac0d937c96b867afd66e2795262754331e",
+            "active_sharpe": -0.35439343644979043,
+            "audit": {
+              "maximum_balance_residual_cny": 0.0,
+              "pass": true
+            },
+            "benchmark_return": 0.10158516123121553,
+            "blocked_notional_cny": 165757.98418744968,
+            "cost_cny": 111085.5878247015,
+            "excess_percentage_points": -0.04421335875015342,
+            "final_nav": 3172115.4074431863,
+            "gross_traded_notional": 27446352.446533937,
+            "hash_control_return": -0.0057856778394071995,
+            "holdings_jaccard_vs_lowvol": 5.1867219917012454e-05,
+            "max_drawdown": -0.11039493018697843,
+            "profit_cny": 172115.40744318627,
+            "quarterly_returns": {
+              "1": 0.07331657140542225,
+              "2": -0.01395211973151611,
+              "3": -0.0038345893542484077,
+              "4": 0.0029295520227672345
+            },
+            "relative_wealth_return": -0.040136124111128435,
+            "stale_position_days": 13,
+            "targets_sha256": "83ddd463f1fe271e84bfcf6ecededeee96c4d3376fe10d559d4abec696851411",
+            "writeoffs": 0
+          }
+        },
+        "2024": {
+          "0": {
+            "absolute_return": 0.004749965285764768,
+            "account_sha256": "81cc19f7f86888cc98071199fd4d9b5063f34f189140de988fc1a92ceade9b7e",
+            "active_sharpe": -1.1066428432984323,
+            "audit": {
+              "maximum_balance_residual_cny": 2.3283064365386963e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.30319021387193135,
+            "blocked_notional_cny": 1880208.8260895945,
+            "cost_cny": 0.0,
+            "excess_percentage_points": -0.2984402485861666,
+            "final_nav": 3014249.895857294,
+            "gross_traded_notional": 21691026.990040697,
+            "hash_control_return": -0.012604934066421936,
+            "holdings_jaccard_vs_lowvol": 0.003164556962025317,
+            "max_drawdown": -0.3134764454285025,
+            "profit_cny": 14249.89585729409,
+            "quarterly_returns": {
+              "1": -0.12221447846628175,
+              "2": -0.07572119029288515,
+              "3": 0.12675055251926914,
+              "4": 0.0991040561264358
+            },
+            "relative_wealth_return": -0.22900743529946066,
+            "stale_position_days": 0,
+            "targets_sha256": "a82efedfe3dce56a9187ab3580a7cf31bf1c3180d22c3d50bffdd33020c45776",
+            "writeoffs": 0
+          },
+          "1": {
+            "absolute_return": -0.010848372700192344,
+            "account_sha256": "a3accb6fdd87bcf22f86058c203347190721389c15f88f678805d159e78e7a68",
+            "active_sharpe": -1.1087225618403942,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.2836893154594835,
+            "blocked_notional_cny": 1896939.3008190796,
+            "cost_cny": 43388.33037975511,
+            "excess_percentage_points": -0.29453768815967585,
+            "final_nav": 2967454.881899423,
+            "gross_traded_notional": 21525601.608370807,
+            "hash_control_return": -0.015541613173710389,
+            "holdings_jaccard_vs_lowvol": 0.003164556962025317,
+            "max_drawdown": -0.31470996748702573,
+            "profit_cny": -32545.118100577034,
+            "quarterly_returns": {
+              "1": -0.12379165349000043,
+              "2": -0.0794249843019399,
+              "3": 0.12226046687341241,
+              "4": 0.09270425791504544
+            },
+            "relative_wealth_return": -0.2294462410900796,
+            "stale_position_days": 0,
+            "targets_sha256": "a82efedfe3dce56a9187ab3580a7cf31bf1c3180d22c3d50bffdd33020c45776",
+            "writeoffs": 0
+          },
+          "2": {
+            "absolute_return": -0.02621743641869989,
+            "account_sha256": "8cd7b69af41a379f62fe4cf563bae2fd3eab2e3fee69f8e253a287105964d39d",
+            "active_sharpe": -1.1106415291382516,
+            "audit": {
+              "maximum_balance_residual_cny": 4.656612873077393e-10,
+              "pass": true
+            },
+            "benchmark_return": 0.26445200823805504,
+            "blocked_notional_cny": 1913369.0802041348,
+            "cost_cny": 86126.6806583828,
+            "excess_percentage_points": -0.2906694446567549,
+            "final_nav": 2921347.6907439004,
+            "gross_traded_notional": 21361857.8824521,
+            "hash_control_return": -0.01846376918344972,
+            "holdings_jaccard_vs_lowvol": 0.003164556962025317,
+            "max_drawdown": -0.3159390647952395,
+            "profit_cny": -78652.30925609963,
+            "quarterly_returns": {
+              "1": -0.1253631710505,
+              "2": -0.08311549248154748,
+              "3": 0.11778648737105657,
+              "4": 0.08632742451745634
+            },
+            "relative_wealth_return": -0.22987779904892314,
+            "stale_position_days": 0,
+            "targets_sha256": "a82efedfe3dce56a9187ab3580a7cf31bf1c3180d22c3d50bffdd33020c45776",
+            "writeoffs": 0
+          }
+        }
+      }
+    }
+  ],
+  "decision": "NO_LEAD_CONTINUE_RESEARCH",
+  "independent_sql_pass": true,
+  "issue": 184,
+  "max_balance_residual_cny": 4.656612873077393e-10,
+  "new_trials": 96,
+  "placebo": {
+    "block_sessions": 60,
+    "exchangeability": "assumption_not_independent_confirmation",
+    "null": "common_block_sign_symmetry_of_active_returns",
+    "p_value": 0.995,
+    "repetitions": 199,
+    "winner": "cab1c4328999c2f68a1a12e3fe6d33a328485d0f2fd2d28ccfe4c70440187078"
+  },
+  "protected_unchanged": true,
+  "raw_global_trial_lower_bound": 3184,
+  "restricted_rows_read": 0,
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "source_result_sha256": "a449ad26193ecd0aadac9d281bbf2469a9b8e6cb1c4d7b490a68c2ac9f28d1fa",
+  "statistics": {
+    "daily_observations": 484,
+    "dsr": 0.016301195168819893,
+    "dsr_assumption": "current-family Sharpe dispersion extrapolated to all raw trials; not a calibrated full-history DSR",
+    "dsr_benchmark_daily_sharpe": 0.07605209869226993,
+    "dsr_raw_trial_count": 3184,
+    "dsr_status": "RAW_COUNT_SENSITIVITY_HISTORICAL_SHARPE_MATRIX_UNAVAILABLE",
+    "dsr_trial_sharpe_estimates": 16,
+    "effective_observations": 484,
+    "empirical_excess_kurtosis": 5.5777669587832595,
+    "empirical_skewness": -0.5292744700217844,
+    "pbo": 0.55,
+    "pbo_status": "DIAGNOSTIC",
+    "selector": "mean daily net active return, lower daily volatility, canonical ID",
+    "winner": "cab1c4328999c2f68a1a12e3fe6d33a328485d0f2fd2d28ccfe4c70440187078"
+  },
+  "suspected_count": 0,
+  "validated_alpha": false,
+  "version": "11.8.0-successor",
+  "winner": null
+}

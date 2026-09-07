@@ -1,0 +1,51 @@
+{
+  "version": "11.11.0",
+  "issue": 184,
+  "full_tests": {"passed": 811, "skipped": 1, "seconds": 114.80},
+  "pre_epoch_tests": {"passed": 809, "skipped": 1},
+  "new_targeted_tests": {"temporal": 6, "stability_driver": 2},
+  "ruff": "PASS:src,tests,and all six new audit/report/driver scripts",
+  "runtime_code_sha256": "df0b6c1b9c9924dc95cd1ced5b3c28fcceb99357602298944196c0ab3664e319",
+  "snapshot_sha256": "b813a94d5342013488b8192e8ecf940c898ce984e47fbe2fdcb95a3c570c5a51",
+  "epoch": {
+    "preregistration_comment": 5560059246,
+    "new_trials": 21,
+    "completed": 21,
+    "native_model_bindings": 24,
+    "native_trial_contracts": 21,
+    "raw_trial_lower_bound": 3310,
+    "result_sha256": "858f7b70436feaf146f9e807e1889a1a6e4756e3e8e433a7e6f1cf50e7fb6021",
+    "independent_audit_sha256": "600712ccc7f6d7860eec52777e627d8efe30bf3e4e24acc4a27e88e17112a41d",
+    "distinct_nonzero_active_paths": 0,
+    "new_temporal_leads": 0,
+    "placebo_p": 1,
+    "pbo_dsr": "NOT_IDENTIFIABLE"
+  },
+  "deep": {
+    "preregistration_comment": 5560193208,
+    "new_trials": 10,
+    "completed": 10,
+    "native_explicit_unfitted_contracts": 10,
+    "raw_trial_lower_bound": 3320,
+    "stress_scenarios_passed": 5,
+    "result_sha256": "2b8385034514cab167470982d780fceac6eacf97478c74d220a664c4c7cca407",
+    "independent_audit_sha256": "18230f1073fdd6545f48cea40b0fdbe7165cdab4061d86cb543d2128198564ad",
+    "driver_sha256": "0b3daba6679ea679de33910b99d3afd2d3dbbc9fe772e21fc04ca6ef6e41e330",
+    "status": "ALLOCATION_OBSERVATION_REQUIRES_INDEPENDENT_EXECUTION_AND_STYLE_EVIDENCE"
+  },
+  "independent_audits": "PASS:25 daily accounts;SQL,fees,NAV,cash,positions,annual compounding,targets,31 native Trial contracts,24 model bindings",
+  "report_validation": {
+    "temporal_payload": "artifacts/temporal-increments/epoch-001/report-artifact.v3.json",
+    "deep_payload": "artifacts/stability-challenge/epoch-001/report-artifact.json",
+    "native_schema": "PASS:both complete payloads",
+    "query_provenance": "actual DuckDB SELECT over public-safe audited summaries",
+    "earlier_temporal_payloads": "v1 lacked required SQL;v2 partially serialized a DuckDB date;retained locally,not delivered;v3 supersedes",
+    "visible_delivery": "deferred per user request to notify only usable Alpha,actionable blocker or major fault",
+    "pixel_qa": "NOT_PERFORMED;no claim of successful visible rendering"
+  },
+  "restricted_2025_2026_rows_read": 0,
+  "protected_evidence_unchanged": true,
+  "main_changed": false,
+  "validated_alpha": false,
+  "remote_ci": "query live after push;local result is not remote CI proof"
+}

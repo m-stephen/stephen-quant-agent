@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .fit_lineage import FitStage
 
 
 def utc_now_iso() -> str:
@@ -55,3 +59,4 @@ class TrialSpec:
     validation_end: str
     test_start: str
     test_end: str
+    fit_stages: tuple[FitStage, ...] | None = None

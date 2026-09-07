@@ -1,0 +1,59 @@
+{
+  "actual_writeoff_recovery_counts": {
+    "lowvol-full_target-0": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "lowvol-full_target-164": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "lowvol-full_target-82": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "lowvol-target_changes-0": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "lowvol-target_changes-164": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "lowvol-target_changes-82": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-full_target-0": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-full_target-164": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-full_target-82": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-target_changes-0": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-target_changes-164": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    },
+    "stable_lowrisk-target_changes-82": {
+      "recovery_events": 0,
+      "writeoff_events": 0
+    }
+  },
+  "basis": "Frozen source reconstructed from Git; zero writeoff/recovery events in all12accounts. Patch only retains pending intent for written-down positions. Synthetic recovery/capacity regression passes;not an empirical rerun of patched code.",
+  "market_accounts_rerun": false,
+  "market_runtime_commit": "9bd9eaeaa8405272593227cb588ed6968d3d279d",
+  "market_runtime_sha256": "a09243312be33883cb84e8d4f0883ba8e1295d3f31741cc3c56a3d19fcc102ca",
+  "new_trials": 0,
+  "pass": true,
+  "post_run_patch_runtime_sha256": "0aadc640b304583d47fd793994db125d0672acfe1a347344a109a745ba68071f"
+}

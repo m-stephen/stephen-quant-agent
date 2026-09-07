@@ -1,0 +1,70 @@
+{
+  "version": "11.17.0",
+  "status": "COMPLETE_NO_CANDIDATE",
+  "issue": 184,
+  "pr": 195,
+  "runtime_commit": "7aa5a9c4b1354d2acaa0842769ae5413add9f839",
+  "runtime_sha256": "6a803877d057994f9dc8d1e10d80867b9a8a8f1ebf5ac50e01679bb49102a803",
+  "driver_sha256": "87ef32b5b72e0b9e6c1080f487de9f6cbdf6fba6d1027cf41c793c7db6fb24c6",
+  "result_sha256": "948ab8dc763fbfc319153ef956c107bc57d7cac111ee7995fa85b2b132276aa5",
+  "audit_sha256": "9845f28915f351961257254d17230bf8124c2c8efe65adf57c29cb7481586baa",
+  "report_sha256": "30d799ed1a9109404f273220cf479122055bdea9665fa32f913c4019746ec7dc",
+  "tests": {
+    "passed": 952,
+    "skipped": 1,
+    "seconds": 171.23,
+    "new_cases": 28,
+    "audit_fix_regressions": 7,
+    "ruff": "PASS"
+  },
+  "engineering": {
+    "source_rows": 3440702,
+    "selected_edges": 92060,
+    "exhaustive_top10_receiver_samples": 40,
+    "target_sets": 24,
+    "accounts": 50,
+    "native_fit_records": 96,
+    "protected_files": 13,
+    "bound_evidence_files": 135,
+    "maximum_balance_residual_cny": 4.656612873077393e-10
+  },
+  "economics": {
+    "primary_identities": 6,
+    "screen_survivors": 0,
+    "trial_debt_before": 3506,
+    "trial_debt_after": 3556,
+    "new_trials": 50,
+    "failed_or_unused_trials": 0,
+    "market_retries": 0,
+    "certified_usable_alpha": false
+  },
+  "reporting": {
+    "native_schema": {
+      "ok": true,
+      "validation_type": "artifact",
+      "surface": "report",
+      "manifest_title": "Statistical Peer Information | 跨股统计关联",
+      "dataset_count": 2,
+      "source_count": 1,
+      "snapshot_status": "ready",
+      "message": "Artifact payload is valid. Follow the selected delivery surface for rendering or export."
+    },
+    "notebook_plain_python_cells_executed": 4,
+    "notebook_frontend_qa": "DEFERRED: optional Jupyter packages absent",
+    "visible_pixel_qa": "DEFERRED: user requested quiet continuation until usable alpha"
+  },
+  "ci": {
+    "dependency_fix_run": 34057169899,
+    "dependency_fix_conclusion": "SUCCESS",
+    "final_report_head": "See PR195 latest head checks; not claimed in this immutable verification receipt"
+  },
+  "limitations": [
+    "Reused 2023-2024 development history, not independent final evidence.",
+    "2025 and 2026 remain sealed.",
+    "Statistical graph is not an economic-link or causal-data source.",
+    "Selected correlations all checked; exhaustive neighbor ranking independently sampled on 40 fixed receivers.",
+    "Adjusted fractional-share execution is not physical-lot or corporate-action cash certification.",
+    "No full DSR/PBO/placebo Alpha Court PASS claimed."
+  ],
+  "audit_compatibility_fix": "Replaced ambiguous HAVING n with count(*) in independent audit SQL; no market runtime, driver, targets or results changed."
+}
