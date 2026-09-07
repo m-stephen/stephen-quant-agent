@@ -1,6 +1,22 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: phase B3 synthetic integration
+## Current checkpoint: phase B4 complete finite synthetic epoch
+
+Read PHASE_B4.zh.md/.en.md and latest VERIFICATION first. B3headccb88e9b5f69503bb58f5335302a62ec4153a31e/CI34074615494 verified SUCCESS. PR199 remains Draft. No market epoch or new empirical Trials; debt remains3660. B4 adds flow_response_protocol.py,flow_response_replay.py and workflows/flow_response_epoch.py;history now supports exact cross-cost model binding and VerifiedHistoryCache. Earlier B3/B2 pending packet,budget,shared-fit,anchor and synthetic cross-year work is now implemented,not a reason to restart those tasks.
+
+Final B4:62targeted159.39s/full1252passed1skipped350.89s;JUnit1253total/fail0/error0/skip1;Ruff/12fileformat/whitespacePASS. Sessions22453/29486doneexit0;noPythonprocessremaining. JUnit filenames/hashes are in VERIFICATION. Earlier35/55pass and initialepoch1failed6passed are retained,not additive. Do not start tests/epochs again merely because a heartbeat wakes.
+
+Fixed protocol:2primary(response,response_interaction),9controls percost,82/164bps,22accounts+1provider=23reservations;14actualannual supervised model files,28nativebindings. Synthetic550weekdays/80stocks executes all23native results,488historicalbundles and all22continuous2023/24accounts. Original synthetic anchor bytes preserved; real original target numerical files remain unread. Debt3683 in temp test fixtures is hypothetical; do not add it to empirical3660.
+
+Backend execute_reserved_epoch checks all native reservations and exact experiment spec before target/source values; exclusive BACKEND_CLAIM prevents local retry; failures save ABORTED and retain full reserved debt. It is NOT production authorization. All22accounts are independently reconciled from fills/source bars,with source/model/target-selection independence explicitlyfalse. Screen cannot survive the missing full audit; DSR/PBO/placeboNOT_RUN/validated_alphafalse. Generic isolated shared-fit tests prove binding,not full historical derivation; new full epoch test covers actual synthetic source->history->bothannualfits->bothcostaccounts.
+
+Next B5: independently reconstruct source/availability/response/risk/ranks/labels/models/targets/account scheduling; add raw-source planted/null/cross-year poisoning fixtures; measure bounded-memory/resource scaling; implement exclusive production entrypoint binding fixed parentRESULT/AUDIT/registry,source/card/target/code/auditor hashes and actual Issue184 preregistration. Only then may one real2022-24operation reserve23Trials and read values. Do not spend a partial real test before that. Use only original frozenV11.4inputs; no2021numericwarmup,2025/26orwarehouse reads. Keep every old anchor/control and unchangedgates.
+
+Synthetic history26,009,973bytes+488bundles25,935,534bytes. Original manifest metadataonly was read:daily4,017,047rows/fundflow3,865,427rowsincluding2021-10..2024;those are not authorized2022+selected rowcounts. Naive91.3xscale references4.74GB JSON alone,not observed runtime orpeakRAM. Whole-process immutablecache avoids repeateddecode but still hashesactualfiles; it does not make in-memoryscale free. Measure peakRAM before market launch; RAM query via CIM was unavailable,not evidence of adequate memory. No realParquetvalues were opened.
+
+No rootdirtyfile edits,newtask/subagent/automation,mainmerge,purchaseortrades. StripAlphaPai credentials from childprocessenv. Current tests/evidence and exact completed sessions are in VERIFICATION; do not rerun completed operations simply because another turn starts.
+
+## Historical checkpoint: phase B3 synthetic integration
 
 B2 headbbe3944d208d88df5e12f942aca58bbdeb078256/CI34072443592 verified SUCCESS. B3 adds qmt/flow_response_panel.py and discovery/flow_response_history.py/flow_response_accounts.py, plus25new tests. Read PHASE_B3.zh.md/.en.md and latest VERIFICATION. Native source→per-day bundle→immutable actual history file→mature supervised pairs/model→four-phase netted account is now covered by a synthetic80-stock/300-weekday integration fixture. New empiricalTrials0/debt3660; no actual epoch. Earlier B2 incomplete-chain statements below are historical, not current.
 

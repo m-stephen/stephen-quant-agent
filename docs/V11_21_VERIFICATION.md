@@ -1,6 +1,21 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: phase B3 / 最新检查点
+## Latest checkpoint: phase B4 / 最新检查点
+
+**62 targeted passed in159.39s;1252 full passed,1 skipped in350.89s.** Full JUnit1253total/0failures/0errors/1skip,time350.749s. Ruff check src/tests/scripts,format check of12new/modifiedPythonfiles and Git whitespace pass. Final sessions22453targeted and29486full completed exit0; no Python test/market process remains. B3headccb88e9b5f69503bb58f5335302a62ec4153a31e/CI34074615494 verified SUCCESS. New B4head CI must be checked independently,not inferred from B3.
+
+Saved ignored immutable artifacts:
+
+- `artifacts/flow-response/phase-b4-regression-20260907.xml`, SHA256 `aad9328de046676a892408f556e8c8ba628dec058d5a38be882d60975becf16c`.
+- `artifacts/flow-response/phase-b4-targeted-final-20260907.xml`, SHA256 `6fd1a0429965da01b9246ca8ec6208d4bad459b4d0fd4f98e9bd1b6fbea14316`.
+
+Targeted command: `python -m pytest -q --tb=short tests/test_flow_response_epoch.py tests/test_flow_response_history.py tests/test_flow_response_protocol.py tests/test_flow_response_shared_fit.py tests/test_flow_response_replay.py --junitxml=<new-unique-path>`. Full: `python -m pytest -q --tb=short --junitxml=<new-unique-path>`. Child test environments exclude AlphaPai credentials. Do not overwrite existing evidence.
+
+There are48new tests relative to B3. Earlier targeted35passed and initial cache-inclusive55passed are superseded,not added together. First epoch test run1failed/6passed in112.94s exposed a test-only nonexistent SQL column after the backend completed; it now reads native fit_lineage. `phase-b4-epoch-initial-20260907.xml` and `phase-b4-targeted-initial-20260907.xml` remain. Final full and targeted runs both confirm the550session/80stock/488bundle synthetic epoch,14actualsupervisedfiles/28bindings,23nativecompletedresults and22cost/controlaccounts.
+
+JUnit properties independently record synthetic history26,009,973bytes,bundles25,935,534bytes. Original anchor bytes and bothcost target equality checked. Account cash/holdings/cost/NAV reconciliation passes,not complete independent source/model/label/target audit. Full source-level planted/null/resource scaling/production claim/preregistration are pending. Real source numerical reads0,newempiricalTrials0,debt3660; market backtest/Court NOT_RUN. Manifest row-count/date metadata only was inspected for scaling;2021numericwarmup and2025/26remainexcluded. See PHASE_B4.zh.md/.en.md.
+
+## Historical checkpoint: phase B3 / 历史检查点
 
 **163 targeted passed in45.03s;1204 full passed,1 skipped in226.11s.** JUnit reports1205total,0failures,0errors,1skip (suite time226.003s). Ruff check src/tests/scripts,format check of7new/modifiedPythonfiles and Git whitespace pass. Sessions82285targeted and25359full completed exit0; no test/market process remains. Prior B2headbbe3944d208d88df5e12f942aca58bbdeb078256/CI34072443592 verified SUCCESS; new B3commit CI must be verified separately.
 

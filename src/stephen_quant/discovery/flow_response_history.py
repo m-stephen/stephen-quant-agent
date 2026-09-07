@@ -241,9 +241,60 @@ def read_verified_history(registry, consumer, path):
     }
 
 
-def fit_history_predictor(registry, consumer, provider, *, history_path, year, policy, model_path):
+class _FrozenDict(dict):
+    def _reject(self, *args, **kwargs):
+        raise TypeError("verified historical cache is immutable")
+
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = __ior__ = _reject
+
+
+def _freeze(value):
+    if isinstance(value, dict):
+        return _FrozenDict({k: _freeze(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(v) for v in value)
+    return value
+
+
+class VerifiedHistoryCache:
+    """One-process immutable decode; preserve native/actual-file checks on each use.
+
+    This avoids repeatedly parsing a large historical matrix. It is not a saved
+    authorization token and cannot accept a caller-supplied matrix.
+    """
+
+    def __init__(self, registry, consumer, path):
+        document, proof = read_verified_history(registry, consumer, path)
+        self._path = Path(path).resolve()
+        self._document, self._proof = _freeze(document), _freeze(proof)
+        self._sources = _freeze(registry.feature_sources(consumer))
+
+    def get(self, registry, consumer, path):
+        if (
+            Path(path).resolve() != self._path
+            or sha256_json(registry.feature_sources(consumer)) != sha256_json(self._sources)
+            or file_sha(self._path) != self._proof["history_artifact_sha256"]
+        ):
+            raise ValueError("verified cache source/path/bytes changed")
+        for proof in self._document["days"].values():
+            if file_sha(self._path.parent / proof["bundle_file"]) != proof["bundle_sha256"]:
+                raise ValueError("verified cache bundle bytes changed")
+        return self._document, dict(self._proof)
+
+
+def verified_history(registry, consumer, path, *, cache=None):
+    if cache is None:
+        return read_verified_history(registry, consumer, path)
+    if type(cache) is not VerifiedHistoryCache:
+        raise ValueError("only a runtime-verified historical cache is accepted")
+    return cache.get(registry, consumer, path)
+
+
+def fit_history_predictor(
+    registry, consumer, provider, *, history_path, year, policy, model_path, cache=None
+):
     assert_predictor_contract(registry, consumer, provider, year, policy, model_path)
-    history, provenance = read_verified_history(registry, consumer, history_path)
+    history, provenance = verified_history(registry, consumer, history_path, cache=cache)
     days = prefix(history["calendar"], year)
     # Materialize training bars only inside the already-purged mature prefix.
     bars = {d: {n: StatefulBar(**b) for n, b in history["bars"][d].items()} for d in days}
@@ -267,3 +318,52 @@ def fit_history_predictor(registry, consumer, provider, *, history_path, year, p
         artifact_path=model_path,
         training_provenance=provenance,
     )
+
+
+def bind_shared_history_predictor(
+    registry, source_trial, consumer, provider, *, history_path, model_path, year, policy, calendar
+):
+    """Reuse actual fitted bytes for the other counted cost Trial; never call a fit."""
+    target_sources = assert_predictor_contract(
+        registry, consumer, provider, year, policy, model_path, new_artifact=False
+    )
+    source_sources = registry.feature_sources(source_trial)
+    validate_calendar(calendar)
+    if source_trial == consumer or target_sources != source_sources:
+        raise ValueError("distinct cost consumers of exactly the same provider required")
+    with registry.connect() as conn:
+        metadata = [
+            json.loads(
+                conn.execute("SELECT hyperparams FROM trials WHERE trial_id=?", (t,)).fetchone()[0]
+            )
+            for t in (source_trial, consumer)
+        ]
+    if (
+        any(m.get("response_policy") != policy for m in metadata)
+        or any(m.get("response_calendar_sha256") != sha256_json(list(calendar)) for m in metadata)
+        or {m.get("roundtrip_bps") for m in metadata} != {82, 164}
+        or {k: v for k, v in metadata[0].items() if k not in {"key", "roundtrip_bps"}}
+        != {k: v for k, v in metadata[1].items() if k not in {"key", "roundtrip_bps"}}
+    ):
+        raise ValueError("only82/164cost may differ for shared fitted predictors")
+    model = json.loads(Path(model_path).read_bytes())
+    days = [d for d in calendar if d.startswith(str(year))]
+    if len(days) < 2:
+        raise ValueError("actual registered prediction sessions required")
+    # Native file identity and completed source stages, before any target/predictor use.
+    registry.assert_prediction_fit(
+        source_trial,
+        model=model,
+        artifact_path=model_path,
+        prediction_date=days[1],
+        signal_date=days[0],
+    )
+    if (
+        model["year"] != year
+        or model["policy"] != policy
+        or model["feature_sources_sha256"] != target_sources["sha256"]
+        or model.get("training_provenance", {}).get("history_artifact_sha256")
+        != file_sha(history_path)
+    ):
+        raise ValueError("shared predictor lacks exact historical provenance")
+    return registry.record_model_fit(consumer, str(year), model=model, artifact_path=model_path)

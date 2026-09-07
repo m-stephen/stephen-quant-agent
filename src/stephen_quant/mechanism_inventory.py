@@ -56,6 +56,7 @@ CALLS = frozenset(
         "volatility",
         "rolling_response",
         "response_residual",
+        "ridge_rank_score",
     }
 )
 

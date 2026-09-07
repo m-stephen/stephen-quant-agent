@@ -254,7 +254,9 @@ def fit_predictor(pairs, calendar, year, policy):
     }
 
 
-def assert_predictor_contract(registry, trial_id, provider_id, year, policy, artifact_path):
+def assert_predictor_contract(
+    registry, trial_id, provider_id, year, policy, artifact_path, *, new_artifact=True
+):
     sources = registry.feature_sources(trial_id)  # Before reading pairs or fitting anything.
     if sources["providers"] != [provider_id]:
         raise ValueError("exact response provider required before supervised fit")
@@ -277,7 +279,7 @@ def assert_predictor_contract(registry, trial_id, provider_id, year, policy, art
     ):
         raise ValueError("unfitted predeclared supervised stage/policy required")
     path = Path(artifact_path)
-    if path.exists():
+    if new_artifact and path.exists():
         raise FileExistsError(path.name)
     return sources
 

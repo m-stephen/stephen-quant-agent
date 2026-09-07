@@ -10,9 +10,11 @@ import pytest
 from stephen_quant.discovery.flow_response_accounts import execute_response_account, history_targets
 from stephen_quant.discovery.flow_response_history import (
     VERSION,
+    VerifiedHistoryCache,
     build_history_from_frozen,
     fit_history_predictor,
     read_verified_history,
+    verified_history,
 )
 from stephen_quant.discovery.flow_response_predictor import POLICIES, ranked_rows, stages
 from stephen_quant.discovery.flow_response_series import response_stages
@@ -24,11 +26,11 @@ from stephen_quant.qmt.flow_response_inputs import load_response_sources
 from stephen_quant.qmt.reliable_panel import file_sha
 
 
-def frozen_sources(root):
+def frozen_sources(root, *, span_days=420):
     # Explicit SYNTHETIC weekday calendar, not a claim about exchange holidays.
     days = [
         str(date(2022, 1, 3) + timedelta(days=i))
-        for i in range(365 + 55)
+        for i in range(span_days)
         if (date(2022, 1, 3) + timedelta(days=i)).weekday() < 5
     ]
     root.mkdir()
@@ -333,6 +335,61 @@ def test_unbound_matrix_and_nonfrozen_cost_cannot_execute(integrated):
     for cost in (0, 41, 80, 82.0):
         with pytest.raises(ValueError, match="frozen"):
             execute_response_account((), (), roundtrip_bps=cost)
+
+
+def test_verified_cache_is_immutable_and_reuses_exact_targets(integrated):
+    _, reg, _, consumers, days, _, path, models, paths = integrated
+    cache = VerifiedHistoryCache(reg, consumers["response"], path)
+    value, proof = cache.get(reg, consumers["response"], path)
+    reused, same_proof = cache.get(reg, consumers["lowvol"], path)
+    assert value is reused and proof == same_proof
+    assert sha256_json(value) == sha256_json(read_verified_history(reg, consumers["hash"], path)[0])
+    with pytest.raises(TypeError, match="immutable"):
+        value["ranks"][days[65]]["600000"]["ranks"]["flow_surprise"] = 0.999
+    with pytest.raises(TypeError, match="immutable"):
+        value["ranks"].clear()
+    assert isinstance(value["calendar"], tuple)
+    options = {
+        "history_path": path,
+        "policy": "response",
+        "models": {2023: models["response"]},
+        "paths": {2023: paths["response"]},
+    }
+    assert history_targets(reg, consumers["response"], cache=cache, **options) == history_targets(
+        reg, consumers["response"], **options
+    )
+
+
+@pytest.mark.parametrize("kind", ["history", "bundle", "path", "consumer"])
+def test_verified_cache_rechecks_actual_bytes_and_native_sources(integrated, kind):
+    _, reg, provider, consumers, days, _, path, _, _ = integrated
+    cache = VerifiedHistoryCache(reg, consumers["response"], path)
+    altered = path if kind == "history" else path.parent / f"response-{days[61]}.json"
+    raw = altered.read_bytes()
+    try:
+        if kind in ("history", "bundle"):
+            altered.write_bytes(raw + b" ")
+        with pytest.raises(ValueError):
+            cache.get(
+                reg,
+                provider if kind == "consumer" else consumers["hash"],
+                path.parent / "unbound.json" if kind == "path" else path,
+            )
+    finally:
+        altered.write_bytes(raw)
+
+
+def test_caller_supplied_cache_rejected_before_get(integrated):
+    _, reg, _, consumers, _, _, path, _, _ = integrated
+
+    class Fake:
+        def get(self, *args):
+            raise AssertionError("unverified caller matrix must never be used")
+
+    with pytest.raises(ValueError, match="runtime-verified"):
+        verified_history(reg, consumers["hash"], path, cache=Fake())
+    with pytest.raises(ValueError, match="runtime-verified"):
+        history_targets(reg, consumers["hash"], history_path=path, policy="hash", cache=Fake())
 
 
 @pytest.mark.parametrize(

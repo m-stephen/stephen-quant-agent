@@ -17,14 +17,16 @@ from stephen_quant.baseline.stateful import (
 )
 
 from .calendar_robustness import PHASES, combine_sleeves
-from .flow_response_history import read_verified_history
+from .flow_response_history import verified_history
 from .flow_response_predictor import HORIZON, POLICIES, guarded_predict
 from .flow_response_series import clock
 from .pairwise_ranking import select
 from .search_power_dsl import sha256_json
 
 
-def history_targets(registry, consumer, *, history_path, policy, models=None, paths=None):
+def history_targets(
+    registry, consumer, *, history_path, policy, models=None, paths=None, cache=None
+):
     if policy not in POLICIES + ("hash", "lowvol"):
         raise ValueError("registered response allocation policy required")
     with registry.connect() as conn:
@@ -38,7 +40,7 @@ def history_targets(registry, consumer, *, history_path, policy, models=None, pa
         raise ValueError("native response predictors required")
     if not learned and registry.fit_lineage(consumer)["stages"]:
         raise ValueError("explicit no-fit allocation control required")
-    history, proof = read_verified_history(registry, consumer, history_path)
+    history, proof = verified_history(registry, consumer, history_path, cache=cache)
     days = [d for d in history["calendar"] if "2023-01-01" <= d <= "2024-12-31"]
     if not days:
         raise ValueError("development execution window required")
