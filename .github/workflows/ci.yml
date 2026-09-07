@@ -44,14 +44,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Prepare native crash diagnostics
+        run: |
+          if ! command -v gdb >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y gdb
+          fi
+          gdb --version
+
       - name: Run tests
         timeout-minutes: 45
         shell: bash
         run: |
           mkdir -p artifacts/ci
           set -o pipefail
+          # B18 run 34118784744 exited with SIGSEGV, not an assertion failure.
+          # Preserve native stacks without disk-heavy process-memory dumps.
+          ulimit -c 0
           python -c "import sys, numpy, duckdb; print(sys.version); print('numpy', numpy.__version__, 'duckdb', duckdb.__version__); numpy.show_config()" 2>&1 | tee artifacts/ci/runtime.log
-          python -m pytest -vv --durations=25 -o faulthandler_timeout=120 --junitxml=artifacts/ci/pytest.xml 2>&1 | tee artifacts/ci/pytest.log
+          /usr/bin/time -v -o artifacts/ci/resources.log gdb --batch --nx --return-child-result \
+            -ex 'set debuginfod enabled off' \
+            -ex 'set print thread-events off' \
+            -ex 'set print frame-arguments none' \
+            -ex run -ex 'thread apply all bt 40' \
+            --args python -m pytest -vv --durations=25 -o faulthandler_timeout=120 \
+            --junitxml=artifacts/ci/pytest.xml 2>&1 | tee artifacts/ci/pytest.log
+          # A debugger must not turn a truncated suite into a green check.
+          python scripts/check_ci_test_result.py artifacts/ci/pytest.xml
 
       - name: Run lint
         if: ${{ !cancelled() }}
