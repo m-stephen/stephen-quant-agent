@@ -17,7 +17,7 @@ import duckdb
 
 from stephen_quant.qmt.reliable_panel import file_sha
 
-from .flow_response_history import read_verified_history
+from .flow_response_history import verified_history
 from .flow_response_reference import reference_history
 from .search_power_dsl import sha256_json
 
@@ -136,8 +136,8 @@ def compare(actual, expected, *, label="reference"):
         raise TypeError("unsupported reference evidence type")
 
 
-def audit_source_history(registry, consumer, *, history_path, input_folder):
-    history, native_proof = read_verified_history(registry, consumer, history_path)
+def audit_source_history(registry, consumer, *, history_path, input_folder, cache=None):
+    history, native_proof = verified_history(registry, consumer, history_path, cache=cache)
     manifest_sha = history["source_evidence"]["parent_snapshot_sha256"]
     calendar = history["calendar"]
     total_bars, total_ranks, total_models, days = 0, 0, 0, 0

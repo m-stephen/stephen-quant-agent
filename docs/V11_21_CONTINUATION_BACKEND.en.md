@@ -1,5 +1,7 @@
 # V11.21 frozen-model continuation: B18 engineering status
 
+Historical B18 checkpoint. The independent audit has since been implemented; see [B19 status](V11_21_CONTINUATION_AUDIT.en.md). The real launcher remains pending.
+
 As of 2026-09-07, this increment has only synthetic development evidence. No new market experiment was executed and no usable Alpha is claimed. The actual cumulative Trial lower bound remains **3707**.
 
 ## Implemented

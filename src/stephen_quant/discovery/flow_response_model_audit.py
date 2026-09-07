@@ -256,6 +256,13 @@ def audit_models_targets(registry, tids, *, history_path, operation):
         raise ValueError("audit registry must belong to the operation")
     epoch_result = json.loads((root / "RESULT.json").read_bytes())
     history, proof = read_verified_history(registry, tids["response-82"], history_path)
+    models, fingerprints = audit_frozen_models(registry, tids, root, history, proof)
+    target_hashes = audit_generated_targets(registry, tids, root, epoch_result, history, models)
+    return model_target_evidence(fingerprints, target_hashes, proof)
+
+
+def audit_frozen_models(registry, tids, root, history, proof):
+    """Numerical reference only; caller must first verify native history/source."""
     models, fingerprints, prefix_digests = {}, {}, {}
     for policy in POLICIES:
         models[policy] = {}
@@ -305,6 +312,11 @@ def audit_models_targets(registry, tids, *, history_path, operation):
             compare({k: model[k] for k in expected}, expected, label=f"supervised:{policy}:{year}")
             models[policy][year] = model
             fingerprints[f"{policy}-{year}"] = file_sha(path)
+    return models, fingerprints
+
+
+def audit_generated_targets(registry, tids, root, epoch_result, history, models):
+    """Independent selection, bound to completed account results in this registry."""
     target_hashes = {}
     for policy in POLICIES + ("hash", "lowvol"):
         expected, diagnostic = reference_targets(history, policy, models.get(policy))
@@ -325,6 +337,10 @@ def audit_models_targets(registry, tids, *, history_path, operation):
             if result["target_sha256"] != file_sha(path):
                 raise ValueError("native account targets changed")
         target_hashes[policy] = file_sha(path)
+    return target_hashes
+
+
+def model_target_evidence(fingerprints, target_hashes, proof):
     return {
         "supervised_model_target_audit_pass": True,
         "complete_pipeline_audit_pass": False,

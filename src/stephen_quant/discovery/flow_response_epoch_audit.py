@@ -100,6 +100,25 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
     history, proof = read_verified_history(registry, tids["response-82"], history_path)
     if result["history_sha256"] != proof["history_artifact_sha256"]:
         raise ValueError("offline audit result history identity mismatch")
+    audit_original_anchors(original_tree, result, spec)
+    accounts, report_hashes = audit_saved_accounts(root, result, tids, history, plans()[1:])
+    if file_sha(result_path) != result_hash:
+        raise ValueError("offline audit result changed during verification")
+    return {
+        "pipeline_audit_pass": True,
+        "validated_alpha": False,
+        "result_sha256": result_hash,
+        "native_registry_sha256": file_sha(registry.db_path),
+        "source_audit": source_audit,
+        "model_target_audit": model_audit,
+        "accounts": accounts,
+        "full_account_report_sha256": report_hashes,
+        "statistics": spec["contract"]["statistics"],
+        "interpretation": "independent reproduction of disclosed model;not first-seen/broker/Court certification",
+    }
+
+
+def audit_original_anchors(original_tree, result, spec):
     original = Path(original_tree).resolve(strict=True)
     card = read_bound_file(
         original, "configs/v11.11-frozen-stability-observation.json", spec["anchor_card_sha256"]
@@ -115,10 +134,14 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
             or result["targets_sha256"][policy] != card["targets_file_sha256"][old]
         ):
             raise ValueError("offline audit original anchor identity mismatch")
+
+
+def audit_saved_accounts(root, result, tids, history, account_plans):
+    """Independent saved-report reconciliation; no execution engine is invoked."""
     days = [d for d in history["calendar"] if d >= "2023-01-01"]
     sessions = HistoricalSessions(history["bars"], days)
     accounts, report_hashes = {}, {}
-    for p in plans()[1:]:
+    for p in account_plans:
         key, policy = p["key"], p["response_policy"]
         record = result["records"][key]
         if (
@@ -161,6 +184,17 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
         ]
         compare(compact, expected_compact, label=f"compact-full-report:{key}")
         compare(raw_report["metrics"], record["metrics"], label=f"native-metrics:{key}")
+        compare(record["dates"], days, label=f"native-calendar:{key}")
+        compare(
+            record["daily_returns"],
+            [p.net_return for p in report.periods],
+            label=f"native-return-path:{key}",
+        )
+        compare(
+            record["profit_cny"],
+            report.metrics.final_nav - 3_000_000,
+            label=f"native-profit:{key}",
+        )
         accounts[key] = audit_response_account(
             report, sessions, targets, roundtrip_bps=p["roundtrip_bps"], mode=p["execution_mode"]
         )
@@ -170,18 +204,16 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
             record["pooled_sharpe"],
             label=f"independent-sharpe:{key}",
         )
+        execution = {
+            "executed_tickets": accounts[key]["executed_tickets"],
+            "traded_cny": accounts[key]["traded_cny"],
+            "mean_cash_fraction": sum(p.cash / p.end_nav for p in report.periods) / len(days),
+            "max_close_weight": max(
+                (m.market_value / p.end_nav for p in report.periods for m in p.marks), default=0
+            ),
+            "max_actual_positions": max(len(p.marks) for p in report.periods),
+            "end_positions": len(report.periods[-1].marks),
+        }
+        compare(record["execution"], execution, label=f"native-execution-summary:{key}")
         report_hashes[key] = record["full_account_sha256"]
-    if file_sha(result_path) != result_hash:
-        raise ValueError("offline audit result changed during verification")
-    return {
-        "pipeline_audit_pass": True,
-        "validated_alpha": False,
-        "result_sha256": result_hash,
-        "native_registry_sha256": file_sha(registry.db_path),
-        "source_audit": source_audit,
-        "model_target_audit": model_audit,
-        "accounts": accounts,
-        "full_account_report_sha256": report_hashes,
-        "statistics": spec["contract"]["statistics"],
-        "interpretation": "independent reproduction of disclosed model;not first-seen/broker/Court certification",
-    }
+    return accounts, report_hashes

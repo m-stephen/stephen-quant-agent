@@ -163,7 +163,8 @@ def test_completed_backend_cannot_replay_or_overwrite(epoch, monkeypatch):
     assert before == file_sha(root / "operation/RESULT.json")
 
 
-def test_complete_frozen_continuation_all22_no_new_fits(epoch, monkeypatch):
+@pytest.fixture(scope="module")
+def continued_epoch(epoch):
     from stephen_quant.discovery import flow_response_continuation as continuation
 
     root, inherited, old_tids, plan, original_result = epoch
@@ -194,16 +195,25 @@ def test_complete_frozen_continuation_all22_no_new_fits(epoch, monkeypatch):
     def forbidden(*a, **kw):
         raise AssertionError("continuation must not refit production predictors/history")
 
-    for target in (
-        "stephen_quant.discovery.flow_response_history.fit_history_predictor",
-        "stephen_quant.discovery.flow_response_history.build_history_from_frozen",
-        "stephen_quant.discovery.flow_response_history.bind_shared_history_predictor",
-        "stephen_quant.discovery.flow_response_predictor.fit_predictor",
-    ):
-        monkeypatch.setattr(target, forbidden)
-    result = continuation.execute_continuation(
-        reg, tids, spec, output=output, original_tree=root / "original"
-    )
+    with pytest.MonkeyPatch.context() as patch:
+        for target in (
+            "stephen_quant.discovery.flow_response_history.fit_history_predictor",
+            "stephen_quant.discovery.flow_response_history.build_history_from_frozen",
+            "stephen_quant.discovery.flow_response_history.bind_shared_history_predictor",
+            "stephen_quant.discovery.flow_response_predictor.fit_predictor",
+        ):
+            patch.setattr(target, forbidden)
+        result = continuation.execute_continuation(
+            reg, tids, spec, output=output, original_tree=root / "original"
+        )
+    return root, reg, tids, spec, result, original_result
+
+
+def test_complete_frozen_continuation_all22_no_new_fits(continued_epoch):
+    from stephen_quant.discovery import flow_response_continuation as continuation
+
+    root, reg, tids, spec, result, original_result = continued_epoch
+    output, old = root / "continuation", root / "operation"
     assert result["reserved_trials"] == len(result["records"]) == 22
     assert result["new_fits"] == 0 and result["raw_global_trial_lower_bound"] == 3729
     assert result["inherited_supervised_models"] == 14
@@ -219,7 +229,7 @@ def test_complete_frozen_continuation_all22_no_new_fits(epoch, monkeypatch):
         assert json.loads((output / f"targets/{policy}.json").read_bytes()) == json.loads(
             (old / f"targets/{policy}.json").read_bytes()
         )
-    assert file_sha(inherited.db_path) == files["registry.sqlite3"]
+    assert file_sha(old / "registry.sqlite3") == spec["inherited"]["files"]["registry.sqlite3"]
     for tid in tids.values():
         assert not reg.fit_lineage(tid)["fits"] and not reg.feature_sources(tid)["providers"]
     with pytest.raises(ValueError):
@@ -257,6 +267,287 @@ def test_independent_mature_models_and_targets_from_both_years(epoch, monkeypatc
     assert evidence["models_checked"] == 14 and evidence["native_bindings_checked"] == 28
     assert evidence["policies_checked"] == 9
     assert not evidence["complete_pipeline_audit_pass"] and not evidence["validated_alpha"]
+
+
+def test_complete_continuation_audit_is_independent_readonly_single_decode(
+    continued_epoch, monkeypatch
+):
+    from stephen_quant.discovery import flow_response_continuation_audit as audit
+    from stephen_quant.discovery import flow_response_history as history_module
+
+    root, reg, _, _, result, _ = continued_epoch
+    output = root / "continuation"
+    files = [output / "RESULT.json", reg.db_path, root / "operation/registry.sqlite3"]
+    before = [file_sha(p) for p in files]
+
+    def forbidden(*a, **kw):
+        raise AssertionError("independent audit called production numerical path or fit binding")
+
+    for target in (
+        "stephen_quant.discovery.flow_response_predictor.fit_predictor",
+        "stephen_quant.discovery.flow_response_predictor.pairs_for_year",
+        "stephen_quant.discovery.flow_response_predictor.vector",
+        "stephen_quant.discovery.flow_response_predictor.predict",
+        "stephen_quant.discovery.flow_response_accounts.history_targets",
+        "stephen_quant.discovery.flow_response_accounts.execute_response_account",
+        "stephen_quant.discovery.flow_response_series.fit_response_bundle",
+        "stephen_quant.discovery.flow_response_series.bridge_source_rows",
+        "stephen_quant.discovery.flow_response_history.fit_history_predictor",
+        "stephen_quant.discovery.flow_response_history.build_history_from_frozen",
+        "stephen_quant.qmt.flow_response_panel.build_response_panel",
+        "stephen_quant.discovery.pairwise_ranking.select",
+        "stephen_quant.discovery.pairwise_ranking.leg_label",
+        "stephen_quant.discovery.calendar_robustness.combine_sleeves",
+        "stephen_quant.baseline.stateful.run_stateful_execution",
+        "stephen_quant.integrity.registry.ExperimentRegistry.record_model_fit",
+    ):
+        monkeypatch.setattr(target, forbidden)
+    loader, loads = history_module.load_json, []
+
+    def capture(path, **kw):
+        loads.append((path, kw))
+        return loader(path, **kw)
+
+    monkeypatch.setattr(history_module, "load_json", capture)
+    # A failed inherited epoch does not have RESULT.json. Do not manufacture it
+    # merely to make the old completed-epoch auditor accept a continuation.
+    old_result = root / "operation/RESULT.json"
+    raw_old_result = old_result.read_bytes()
+    old_result.unlink()  # Synthetic temporary fixture only.
+    try:
+        evidence = audit.audit_complete_continuation(
+            operation=output, input_folder=root / "inputs", original_tree=root / "original"
+        )
+    finally:
+        old_result.write_bytes(raw_old_result)
+    assert len(loads) == 1 and loads[0][1] == {"immutable": True}
+    assert evidence["pipeline_audit_pass"] and not evidence["validated_alpha"]
+    assert not evidence["launch_authorization_verified"]
+    assert evidence["new_native_accounts_checked"] == 22 and evidence["new_fits"] == 0
+    assert evidence["raw_global_trial_lower_bound"] == 3729  # Synthetic only.
+    assert evidence["model_target_audit"]["models_checked"] == 14
+    assert evidence["model_target_audit"]["native_bindings_checked"] == 28
+    assert evidence["model_target_audit"]["policies_checked"] == 9
+    assert len(evidence["accounts"]) == 22
+    assert evidence["statistics"]["DSR"] is None
+    assert evidence["source_audit"]["source_numeric_years"] == [2022, 2023, 2024]
+    assert evidence["model_target_audit"]["models_sha256"] == result["models_sha256"]
+    assert not evidence["audited_screen"]["validated_alpha"]
+    assert all(
+        v["independent_audit"]
+        for costs in evidence["audited_screen"]["checks"].values()
+        for v in costs.values()
+    )
+    assert before == [file_sha(p) for p in files]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "duplicate_trial",
+        "missing_control",
+        "debt",
+        "fit",
+        "alpha",
+        "status",
+        "inherited_hash",
+        "model_count",
+        "binding_count",
+        "spec",
+        "native_record",
+        "statistics",
+        "diagnostic",
+        "target_set",
+        "promoted_screen",
+    ],
+)
+def test_continuation_audit_native_gate_before_inherited_reads(
+    continued_epoch, monkeypatch, change
+):
+    from stephen_quant.discovery import flow_response_continuation_audit as audit
+
+    root, _, _, _, result, _ = continued_epoch
+    path = root / "continuation/RESULT.json"
+    raw = path.read_bytes()
+    value = copy.deepcopy(result)
+    if change == "duplicate_trial":
+        value["trial_ids"]["risk-82"] = value["trial_ids"]["response-82"]
+    elif change == "missing_control":
+        del value["records"]["risk-82"]
+    elif change == "debt":
+        value["raw_global_trial_lower_bound"] -= 23
+    elif change == "fit":
+        value["new_fits"] = 14
+    elif change == "alpha":
+        value["validated_alpha"] = True
+    elif change == "status":
+        value["status"] = "PARTIAL"
+    elif change == "inherited_hash":
+        value["inherited_sha256"] = "0" * 64
+    elif change == "model_count":
+        value["inherited_supervised_models"] = 13
+    elif change == "binding_count":
+        value["inherited_native_bindings"] = 14
+    elif change == "spec":
+        value["spec_sha256"] = "0" * 64
+    elif change == "native_record":
+        value["records"]["risk-82"]["profit_cny"] += 100
+    elif change == "statistics":
+        value["statistics"]["DSR"] = 0.99
+    elif change == "diagnostic":
+        del value["diagnostics"]["risk"]
+    elif change == "target_set":
+        del value["targets_sha256"]["original_stable"]
+    else:
+        value["checks"]["response"]["82"]["independent_audit"] = True
+
+    def forbidden(*a, **kw):
+        raise AssertionError("inherited numerical read before complete native preflight")
+
+    monkeypatch.setattr(audit, "verified_inherited", forbidden)
+    try:
+        path.write_text(json.dumps(value), encoding="utf-8")
+        with pytest.raises(ValueError):
+            audit.audit_complete_continuation(
+                operation=path.parent, input_folder=root / "inputs", original_tree=root / "original"
+            )
+    finally:
+        path.write_bytes(raw)
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE experiments SET code_version='changed'",
+        "UPDATE data_snapshots SET snapshot_sha256='changed'",
+        "UPDATE trials SET result_json=NULL WHERE rowid=(SELECT min(rowid) FROM trials)",
+        "UPDATE trial_fit_contracts SET stages_json='[{\"stage_id\":\"unapproved\"}]'",
+    ],
+)
+def test_continuation_audit_rejects_mutated_native_metadata(
+    continued_epoch, tmp_path, monkeypatch, statement
+):
+    import shutil
+    import sqlite3
+
+    from stephen_quant.discovery import flow_response_continuation_audit as audit
+
+    root, _, _, _, _, _ = continued_epoch
+    for name in ("frozen_spec.json", "RESULT.json", "registry.sqlite3"):
+        shutil.copyfile(root / "continuation" / name, tmp_path / name)
+    with sqlite3.connect(tmp_path / "registry.sqlite3") as db:
+        if "trial_fit_contracts" in statement:
+            with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+                db.execute(statement)
+            # Deliberately corrupt this *copied synthetic* database after proving
+            # its native trigger rejects normal mutation. The offline audit must
+            # also reject the forgery, not rely solely on the write trigger.
+            db.execute("DROP TRIGGER trial_fit_contracts_no_update")
+        db.execute(statement)
+
+    def forbidden(*a, **kw):
+        raise AssertionError("mutated native metadata reached inherited reader")
+
+    monkeypatch.setattr(audit, "verified_inherited", forbidden)
+    with pytest.raises(ValueError):
+        audit.audit_complete_continuation(
+            operation=tmp_path, input_folder=root / "inputs", original_tree=root / "original"
+        )
+
+
+@pytest.mark.parametrize(
+    "relative", ["history/history.json", "models/risk-2023.json", "targets/response.json"]
+)
+def test_continuation_rejects_changed_inherited_artifact_before_decode(
+    continued_epoch, monkeypatch, relative
+):
+    from stephen_quant.discovery import flow_response_continuation_audit as audit
+
+    root, _, _, _, _, _ = continued_epoch
+    path = root / "operation" / relative
+    raw = path.read_bytes()
+
+    def forbidden(*a, **kw):
+        raise AssertionError("changed inherited bytes reached history decoder")
+
+    monkeypatch.setattr(audit, "VerifiedHistoryCache", forbidden)
+    try:
+        path.write_bytes(raw + b"\n")
+        with pytest.raises(ValueError, match="inherited evidence"):
+            audit.audit_complete_continuation(
+                operation=root / "continuation",
+                input_folder=root / "inputs",
+                original_tree=root / "original",
+            )
+    finally:
+        path.write_bytes(raw)
+
+
+@pytest.fixture(scope="module")
+def continuation_audit_history(continued_epoch):
+    root, _, _, _, _, _ = continued_epoch
+    return json.loads((root / "operation/history/history.json").read_bytes())
+
+
+@pytest.mark.parametrize(
+    "change", ["returns", "dates", "profit", "execution", "cash", "mark", "cost"]
+)
+def test_independent_continuation_account_rejects_self_consistent_rehashed_report(
+    continued_epoch, continuation_audit_history, tmp_path, change
+):
+    import shutil
+
+    from stephen_quant.discovery.flow_response_continuation import account_plans
+    from stephen_quant.discovery.flow_response_epoch_audit import audit_saved_accounts
+
+    root, _, tids, _, original, _ = continued_epoch
+    key, policy = "response-82", "response"
+    result = copy.deepcopy(original)
+    record = result["records"][key]
+    for relative in (
+        f"targets/{policy}.json",
+        f"accounts/{key}.jsonl",
+        f"account_reports/{key}.json",
+    ):
+        target = tmp_path / relative
+        target.parent.mkdir(exist_ok=True)
+        shutil.copyfile(root / "continuation" / relative, target)
+    path = tmp_path / f"account_reports/{key}.json"
+    report = json.loads(path.read_bytes())
+    if change == "returns":
+        record["daily_returns"][0] += 0.1
+    elif change == "dates":
+        record["dates"][0] = "2025-01-01"
+    elif change == "profit":
+        record["profit_cny"] += 1000
+    elif change == "execution":
+        record["execution"]["mean_cash_fraction"] = -1
+    else:
+        period = next(p for p in report["periods"] if p["marks"] and p["orders"])
+        if change == "cash":
+            period["cash"] += 1000
+        elif change == "cost":
+            period["orders"][0]["total_cost"] += 1000
+        else:
+            period["marks"][0]["shares"] += 1
+        path.write_text(json.dumps(report), encoding="utf-8")
+        record["full_account_sha256"] = file_sha(path)
+        # Also forge the compact copy and its digest. Numerical audit, not merely
+        # comparison of two copies, must reject the changed order/cash/holding.
+        compact_path = tmp_path / f"accounts/{key}.jsonl"
+        compact = [json.loads(line) for line in compact_path.read_text().splitlines()]
+        row = next(r for r in compact if r["date"] == period["trade_date"])
+        row.update(cash=period["cash"], positions=period["marks"], orders=period["orders"])
+        compact_path.write_text("".join(json.dumps(r) + "\n" for r in compact), encoding="utf-8")
+        record["account_sha256"] = file_sha(compact_path)
+    with pytest.raises(ValueError):
+        audit_saved_accounts(
+            tmp_path,
+            result,
+            tids,
+            continuation_audit_history,
+            [p for p in account_plans() if p["key"] == key],
+        )
 
 
 @pytest.fixture(scope="module")

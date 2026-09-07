@@ -1,5 +1,7 @@
 # B18 runtime comparison / 运行环境对照
 
+Latest verification: `b58f5c2` completed all three groups in CI34122881453, each1494 passed/2 skipped. The original3.10/trace120 group emitted its120-second dump and continued successfully. Details and retained limitations: [B19 English](V11_21_CONTINUATION_AUDIT.en.md) / [B19 中文](V11_21_CONTINUATION_AUDIT.zh.md). The earlier failures below remain immutable evidence; their root cause is not proven.
+
 Date / 日期: 2026-09-07. Engineering-only synthetic evidence; no new market Trial, no Alpha claim. 本文只记录合成工程测试，真实 Trial 下界仍为3707。
 
 ## Native crash / 原生崩溃
