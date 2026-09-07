@@ -91,6 +91,12 @@ Maximum runtime: four hours; at most 500 paths per scenario, 2,000 total. No aut
 replacement, subjective veto/recursion, or second reserved audit in V12.0. Development
 cases, including failed runs and repeated known seeds, are not readiness evidence.
 
+`status` previews the static capability/authorization contract; it does not load a
+previous audit result. Read the hashed RESULT/TERMINAL and bilingual report for an
+executed suite. From an uninstalled worktree, use its `src` on PYTHONPATH and invoke
+`python -m stephen_quant.cli research-reset ...`; do not silently use another
+worktree's older editable installation. NumPy is provided by `[research]` or `[dev]`.
+
 The cheap training score is a gross matched-group horizon spread, whereas the final
 diagnostic uses a continuous fixed risk-baseline account with costs. Their mismatch
 is an explicit limitation to measure, not an assertion that proxy ranking is optimal.

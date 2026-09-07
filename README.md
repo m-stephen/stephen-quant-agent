@@ -7,7 +7,12 @@ account evidence, a small typed adaptive search, and an independent-source,
 finite-look synthetic calibration. Package version is 12.0.0. Engineering tests,
 synthetic capability and real-market Alpha evidence are different conclusions.
 
-See [V12.0 contract / 实施规格](docs/V12_0_SPEC.md). Entry point:
+The reserved600-path audit finished: economic-detection power FAIL (40%/54%),
+both null-FWER gates PASS. No market Alpha is certified. Full local regression:
+1,674passed,2platform skips; frozen implementation CI passed all three groups.
+See [中文测试报告](docs/V12_0_RESULT.zh.md) / [English results](docs/V12_0_RESULT.en.md),
+[machine-readable evidence](docs/V12_0_RESULT.summary.json),
+[V12.0 中文规格](docs/V12_0_SPEC.zh.md) / [English specification](docs/V12_0_SPEC.md). Entry point:
 `stephen-quant research-reset status`. The CLI has no real-data path argument.
 This version does **not** resume empirical search, change the old forward clock,
 or authorize trading. Missing new data domains are optional, not a global blocker.
