@@ -3,6 +3,20 @@
 Issue: #204. Implementation specification approved by the independent reviewer.
 This document does not authorize an empirical launch or a main merge.
 
+## Engineering checkpoint / 工程进度
+
+Core allocation, four-native-account backend and independent source/score/target/
+saved-account audit components are implemented.38 targeted synthetic tests pass,
+including real native model/cache bindings and independent target reconstruction.
+This does not yet constitute an empirical run or a complete launcher/E2E acceptance.
+The full regression, once-only launcher, complete four-account backend-to-audit
+synthetic end-to-end test, frozen launch plan and reviewer launch approval remain required.
+
+已完成纯分配、四账户原生预留/后端及独立来源/评分/目标/已存账户审计构件，
+38项针对性合成测试通过。原生模型与缓存不是模拟的校验函数；独立参考不调用
+生产预测器。完整回归、一次性启动器、完整四账户端到端合成验收、冻结计划和
+审查Agent启动批准仍待完成。未运行市场账户，真实尝试下界仍3733。
+
 ## 中文
 
 目标：检验冻结的流价响应信号在更稳定的持仓构造中是否仍有净增量；
