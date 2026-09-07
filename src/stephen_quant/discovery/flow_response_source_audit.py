@@ -1,8 +1,9 @@
 """Read-only independent source/mathematical audit; no automatic promotion.
 
 Native/hash verification shares infrastructure. Numerical source projection,
-response/risk/rank/bar calculations are separate from production. Current history
-loading is not bounded-memory; the *reference source scan* uses bounded batches.
+response/risk/rank/bar calculations are separate from production. The optional
+native-verified immutable cache avoids repeat decoding, but retains the history
+matrix; only the *reference source scan* uses bounded batches.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import duckdb
 
 from stephen_quant.qmt.reliable_panel import file_sha
 
-from .flow_response_history import verified_history
+from .flow_response_history import read_verified_history, verified_history
 from .flow_response_reference import reference_history
 from .search_power_dsl import sha256_json
 
@@ -137,7 +138,13 @@ def compare(actual, expected, *, label="reference"):
 
 
 def audit_source_history(registry, consumer, *, history_path, input_folder, cache=None):
-    history, native_proof = verified_history(registry, consumer, history_path, cache=cache)
+    # Preserve the original no-cache reader and its independent-audit test seam.
+    # The opt-in continuation path accepts only a VerifiedHistoryCache.
+    history, native_proof = (
+        read_verified_history(registry, consumer, history_path)
+        if cache is None
+        else verified_history(registry, consumer, history_path, cache=cache)
+    )
     manifest_sha = history["source_evidence"]["parent_snapshot_sha256"]
     calendar = history["calendar"]
     total_bars, total_ranks, total_models, days = 0, 0, 0, 0

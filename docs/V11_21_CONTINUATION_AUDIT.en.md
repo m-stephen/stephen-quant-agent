@@ -31,6 +31,10 @@ Intermediate B19 development run:33 passed,1 failed in246.10s. The failure occur
 
 Final local full-suite and new-CI results must be supplied by subsequent actual runs. The previous commit's CI is not evidence that the new audit version has already passed.
 
+The full local `cad54e3` batch produced **1520 passed,4 failed,2 skipped in637.55s**. The new continuation audit/adversarial tests passed. All four failures were legacy source-audit tests whose `read_verified_history` module entry point was removed by the refactor, preventing their forged-source injection from running. This is a compatibility regression, not four accepted forgeries. The correction restores the original no-cache reader and retains the immutable-cache path as an explicit option. Keep all four assertions and retest; no comparison is weakened. The new commit still requires its own CI evidence.
+
+After correction, source/history tests: **28 passed in85.00s**, including rejection of all four forged support-evidence cases. The JUnit completion check and Ruff passed. This set overlaps the full suite; counts must not be added or reported as complete new-CI verification.
+
 ## Still not enabled
 
 - The empirical launcher still needs actual code/input/two failed operations/B17 original diagnostic and append-only explanation pins, verified GitHub preregistration, a shared exclusive claim, all22 reservations before numerical work, and separate bounded producer/auditor children.
