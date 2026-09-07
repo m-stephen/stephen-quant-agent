@@ -16,6 +16,19 @@ concurrency:
 
 jobs:
   test:
+    name: test (Python ${{ matrix.python }}, trace ${{ matrix.trace }})
+    # Fixed B18 runtime comparison after two native crashes. Keep the original
+    # Python3.10/120s group required; do not retry until green or skip assertions.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.10"
+            trace: 120
+          - python: "3.10"
+            trace: 0
+          - python: "3.12"
+            trace: 120
     # ubuntu-slim has a 15-minute runner hard limit; increasing the YAML timeout
     # did not fix B7 run 34086974315. This standard (not larger/paid) runner is
     # free for this public repository. Keep the full suite and bounded job time.
@@ -37,7 +50,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python }}
 
       - name: Install project
         run: |
@@ -67,7 +80,7 @@ jobs:
             -ex 'set print thread-events off' \
             -ex 'set print frame-arguments none' \
             -ex run -ex 'thread apply all bt 40' \
-            --args python -m pytest -vv --durations=25 -o faulthandler_timeout=120 \
+            --args python -m pytest -vv --durations=25 -o faulthandler_timeout=${{ matrix.trace }} \
             --junitxml=artifacts/ci/pytest.xml 2>&1 | tee artifacts/ci/pytest.log
           # A debugger must not turn a truncated suite into a green check.
           python scripts/check_ci_test_result.py artifacts/ci/pytest.xml
@@ -80,7 +93,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: ci-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ci-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}-py${{ matrix.python }}-trace${{ matrix.trace }}
           path: artifacts/ci/
           if-no-files-found: warn
           retention-days: 7
