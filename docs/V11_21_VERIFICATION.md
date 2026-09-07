@@ -1,6 +1,18 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: B7 day-scoped views and owned-child supervision
+## Latest checkpoint: B8 once-only entrypoint and read-only audit
+
+Full regression **1399 passed, 2 skipped in514.80s**; JUnit1401total/0failures/0errors/2skips,time513.612s. Session12859 completed exit0. FullJUnit `artifacts/flow-response/phase-b8-regression-20260907.xml`, SHA256 `15a1cfefdf9691cd5cfba37e188e043d69434c8cef19066585434e1fa6902e7a`. Ruff src/tests/scripts and4changedPythonformat PASS. No Python changes after this fullrun. Same two platform/symlink skips are not passes.
+
+Targeted launcher/supervisor56passed18.67s/session14543: `phase-b8-final-targeted-20260907.xml`, SHA `a5b582f2eeed4f3217727264f31df142e4214443151572022e418ce004d30101`. Initial28tests had1failure27passes14.27s, SHA `f5d602a9427b6d3316f5776d3072cac6341753fb4f0312f29c61760199520009`: invalid JSON was correctly rejected but a test expected the wrong exception message. The assertion was corrected, not the fail-closed behavior. One unused fixture variable lint finding was fixed before finalfullrun. Intermediate tests are subsets, not additive.
+
+34newlaunchtests verify frozen bytes/protocol/code,DATE-only two-sourceprepare,nondecodedoriginaltargets,all23native reservations,priorledger,preregistrationAPI/times/hash,globalclaim across actualGitworktrees,resource/refusal/failure retention,partialnativecount honesty,child-evidence tampering and sequentiallifecycle. Lifecycle numerical stages are stubs,not new fullpower experiments. Existing complete numericalepoch now audits through ReadOnlyRegistry(mode=ro/query_only),with unchangedRESULT/nativeDBhashes. Windowsownedchildmeasurement remains inexisting tests. No real numericalrun has been certified by these tests.
+
+B7CI34086974315/job101632767939 CANCELLED at05:44:17Z after05:29:05Zstart(~73%). Root cause correction: ubuntu-slim hard15minute runnerlimit,not configurable20minutejoblimit. B7 YAML40minutechange didnot solveit. Repo public verified by GitHubapp and approvedhostnetworkCLI; B8 uses standardubuntu-24.04/fullsuite/40minjob,not largerpaidrunner. Officialsource and caveats inPHASE_B8.zh/en. B7Issue184comment5565525869 andB7docs explicitlycorrected,oldtestresults unchanged. Newcommit remoteCI must be independentlychecked afterpush;no rerun of obsoletecancelledheads.
+
+Ready next: commit/testedcode,prepare actualhash/date-onlyplan inignoredartifacts,publish fullIssue184preregistration withplanSHA,thenone bounded realrun onlyafterCI/preflight. Main/rootdirtyfiles untouched. Empiricaldebt remains3660 untilactualglobalclaim;thatclaim commits23evenifnative reservationfails,withactualnativecountreported separately. All financial/source/Court gates remainfrozen. B8 code alone is not a marketAlpha result.
+
+## Historical checkpoint: B7 day-scoped views and owned-child supervision
 
 Full regression **1365 passed, 2 skipped in498.90s**; JUnit1367total/0failures/0errors/2skips,time497.712s. Session92582 complete exit0. FullJUnit `artifacts/flow-response/phase-b7-regression-20260907.xml`, SHA256 `85130f405c826734e7f21f51fbf08dc1c3dd82fed061b89fe52401543226d8ae`. Skips: non-Windows measurement capability branch and unavailable symbolic links. Ruff src/tests/scripts and9changedPythonformat PASS; no Python edit after the full regression.
 

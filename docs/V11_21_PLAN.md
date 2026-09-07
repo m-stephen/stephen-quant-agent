@@ -1,6 +1,8 @@
 # V11.21 next bounded research stage / 下一轮有限研究
 
-## Latest B7 status / 最新工程检查点
+## Latest B8 status / 最新实证入口
+
+**B8 update:** Actualevidence-bound cross-worktree once-only launch isimplemented withfull23native pre-reservation,sequentialownedbackend/audit,andread-onlynativeaudit. Full1399passed2skipped;no empiricalAlpha evidenceyet. Nextprepareactualhash/date-onlyplan,Issue184fullpreregistration,thenoneboundedepochafteractualCI/preflight,not another storagebenchmark. ReadPHASE_B8.zh/en andlatestCONTINUATION/VERIFICATION. B7CI cancellationwasubuntu-slim15minhardlimit;B8usesstandardubuntu-24.04(fullsuite/40minjob)afterverifiedpublicrepo. No paidrunner purchase. Earlierpendingentrypoint/20mincausalwording below is historical and superseded.
 
 **B7 update:** Day-scoped training/account views preserve exact labels/reports/hashes without a retained secondbarobjectmatrix; nesteddayindexes and earlyflowrelease reduce overlappingobjects. Owned-child supervision preserves terminalfailureevidence without automaticretry. Full1365passed2skipped;no empiricalTrials/debt3660. Read PHASE_B7.zh/en and latestVERIFICATION/CONTINUATION. B6CI wascancelled near80%;same runner/fulltests now have40min jobheadroom. Next B8 is the globallyexclusive actualparent/source/anchor/code/auditor/publishedpreregistration-bound entrypoint with full23reservation and separate producer/audit process lifetimes. No freshresourcebenchmark or marketrun yet. Earlier checkpoint wording below is historical.
 

@@ -1,6 +1,20 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: B7 views and supervision complete; B8 global launch next
+## Current checkpoint: B8 entrypoint complete; prepare/preregister then one real run
+
+ReadPHASE_B8.zh/en andlatestVERIFICATION. Newflow_response_launch.py + scripts/run_flow_response.py +34launchtests implemented. Fullsession12859DONE exit0:1399pass2skip514.80s,JUnit1401/fail0/error0/skip2/time513.612;SHA15a1cfefdf9691cd5cfba37e188e043d69434c8cef19066585434e1fa6902e7a. Targeted14543DONE56pass18.67s;Ruff src/tests/scripts/4PythonformatPASS. Initial1fail27pass was testexceptionmessage mismatch on correctlyrejectedbadJSON,not repaireddata or weaker gate. Do not restart these tests merely onwake.
+
+Entrypoint derivescommonclaim fromactualgit-common-dir,parent+versionfixedkey;verifies actualparentRESULT/AUDIT/registry+native12/inheritedlineage,source5manifestbutonly2files,originalcard/targetrawhash,cleancommit/allactualsrc+drivers+Pythonbinary/packageversions. Prepare only projects dailyDATE2022–24,notfinancialfields/targetweights. GitHub ghapi fixedendpoint verifiesactualIssue184commentplanSHA/id/issue/tztime;rawcomment/fetchtimebound. Claim beforefull23native reservations; backend/auditseparateownedchildren,producerexit+result/nativehash beforeaudit. ReadOnlyRegistry audit usesmode=ro/query_only andno schemawrites;completeexistingnumericalfixturepassedwiththatconnection. AppendAUDIT/ASSESSMENT,keepRESULTpendingaudit. B8lifecycletestsuse numericalstubs,notstatisticalpower;B5bexistingfullnumericproof notrerun.
+
+Resourcesfrozen10GiBprivate/free>=4GiB/.2seconds/perstage<=14400seconds(fourhours),onechildatonce. Notwholepipelinepeakguarantee/OS-hardlimit/process-treecontrol. PrelaunchRAMrefusalnobudget;afterglobalclaimfull23commitretainedonfailure,actualnativecountseparate/nullonunreadableDB. No hiddenretry/newoutputescape;terminalclaim meansno resume. Needexplicitfinitecorrectiveplanwithallfaileddebtifaborted.
+
+Next afterthiscommittedcheckpoint: check actualheadCI once; use `python scripts/run_flow_response.py prepare --output artifacts/flow-response/launch-plan-001.json` incleanworktree. Ifplanalreadyexists,read/verifyitandcurrentruntime,neveroverwrite. Publishfullfixedcontract/evidencehashes/budget/resourcebounds onIssue184,with standaloneexactline `V11.21-PREREGISTRATION-SHA256: <actual canonical plan SHA>`. Thepubliccommentmustnotinclude localabsolute paths,rawdata orcredentials. Only afterCIandpreflight pass launch `python scripts/run_flow_response.py run --plan artifacts/flow-response/launch-plan-001.json --preregistration-comment <actual ID>` throughapprovedhostcontextifneeded forghnetwork. No new task/automation/subagent/mainmerge. Beforestartinginspectsharedclaim/operation/session so a resumedheartbeatneverduplicatesactiveexecution. Keepcode/plan/sourcebytesunchangedwhile running;progress comesfromownedoperation/log/supervisor/session,notreruns.
+
+CIcorrection: B7CI34086974315 CANCELLED after~15min despite40minuteYAML;officialdocsconfirmubuntu-slim15minhardlimit. B8switchesonlytostandardubuntu-24.04/fullsuite/40minjob. Repopublicverifiedapp+approvedhostghapi,standardpublicrunnerfree;privatefuturebillingmustberechecked. B7Issue184comment5565525869 andPHASE_B7docs explicitlycorrected. OldCI34084914378/34086974315werenotPASS;do not rerunthem. NewcommitCIpendingseparateverification.
+
+No new empiricalTrialsbeforeactualsharedclaim;debt3660. Globalclaimedbudget23willcarryto3683evenonfailure;temporarysyntheticDBdebtisnotempirical. Keeporiginal2022–24daily/flowonly,no2021numericwarmup/2025/26/newwarehouse/anchorchanges,all9controls/82+164costs/CNY3m/screens/Court thresholds. Root23dirtyfilesunchanged. ChildenvremoveALPHAPAI_API_KEY/BASE_URLwithoutprinting. Existing30minheartbeatquietordinaryprogress/negativeresults;notifyonlycertifiedAlphaorseriousactionableproblem.
+
+## Historical checkpoint: B7 views and supervision complete
 
 Read PHASE_B7.zh/en and latest VERIFICATION. Full session92582 completed exit0:1365passed2skipped498.90s;JUnit1367total/0failures/0errors/2skips/time497.712s, SHA85130f405c826734e7f21f51fbf08dc1c3dd82fed061b89fe52401543226d8ae. Ruff src/tests/scripts,9Pythonformat andwhitespacePASS. Earlier targeted63pass61.51s and28pass1.72s are subsets. Do not restart completed tests/B5b/B6 benchmarks merely on wake.
 

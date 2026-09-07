@@ -1,5 +1,7 @@
 # V11.21 B7: day-scoped views and owned-child resource supervision
 
+> B8 correction: the earlier attribution to the configurable 20-minute job limit is inaccurate. `ubuntu-slim` has a 15-minute hard limit; B7's 40-minute YAML change did not fix it. See PHASE_B8.en.md for logs and official documentation. Engineering test counts are unchanged.
+
 ## Conclusion
 
 Full regression: **1365 passed, 2 skipped in 498.90 seconds**. Training/account bar views and an owned-child resource supervisor are implemented. There was no new empirical experiment, market numerical read or Alpha certification. Historical Trial lower bound remains **3660**.

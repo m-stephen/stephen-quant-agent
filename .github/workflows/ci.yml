@@ -16,10 +16,11 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-slim
-    # B6 run 34084914378 was cancelled at ~80% of the full suite after the
-    # 20-minute job budget (including dependency setup). B7 has 1367 tests.
-    # Keep every test and the same runner; allow headroom for slow CI setup.
+    # ubuntu-slim has a 15-minute runner hard limit; increasing the YAML timeout
+    # did not fix B7 run 34086974315. This standard (not larger/paid) runner is
+    # free for this public repository. Keep the full suite and bounded job time.
+    # https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - name: Check out repository

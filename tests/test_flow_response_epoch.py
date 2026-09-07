@@ -197,11 +197,12 @@ def test_independent_mature_models_and_targets_from_both_years(epoch, monkeypatc
 @pytest.fixture(scope="module")
 def audited_epoch(epoch):
     from stephen_quant.discovery.flow_response_epoch_audit import audit_complete_epoch
+    from stephen_quant.discovery.flow_response_launch import ReadOnlyRegistry
 
     root, reg, _, _, _ = epoch
     before = file_sha(root / "operation/RESULT.json"), file_sha(reg.db_path)
     evidence = audit_complete_epoch(
-        reg,
+        ReadOnlyRegistry(reg.db_path),
         operation=root / "operation",
         input_folder=root / "inputs",
         original_tree=root / "original",
