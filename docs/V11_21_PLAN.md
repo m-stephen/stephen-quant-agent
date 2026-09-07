@@ -1,5 +1,9 @@
 # V11.21 next bounded research stage / 下一轮有限研究
 
+## Latest: diagnostic CI recovery
+
+B8 actualCI34089011614 cancelled for configured40minute job timeout; no completed test log is retrievable. CI-onlydiagnostic correction preserves all tests and research logic. See CI_RECOVERY.zh/en and CONTINUATION. Do not launch plan001 after the newcommit; after newCI success prepare newplan002 and fully preregister it. No realclaim/Trial yet, debt3660. Another failure requires concrete log diagnosis, not another blind timeout bump. Existing research/control/Court contract below is unchanged.
+
 ## Latest B8 status / 最新实证入口
 
 **B8 update:** Actualevidence-bound cross-worktree once-only launch isimplemented withfull23native pre-reservation,sequentialownedbackend/audit,andread-onlynativeaudit. Full1399passed2skipped;no empiricalAlpha evidenceyet. Nextprepareactualhash/date-onlyplan,Issue184fullpreregistration,thenoneboundedepochafteractualCI/preflight,not another storagebenchmark. ReadPHASE_B8.zh/en andlatestCONTINUATION/VERIFICATION. B7CI cancellationwasubuntu-slim15minhardlimit;B8usesstandardubuntu-24.04(fullsuite/40minjob)afterverifiedpublicrepo. No paidrunner purchase. Earlierpendingentrypoint/20mincausalwording below is historical and superseded.

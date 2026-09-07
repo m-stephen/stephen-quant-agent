@@ -21,7 +21,15 @@ jobs:
     # free for this public repository. Keep the full suite and bounded job time.
     # https://docs.github.com/en/actions/reference/runners/github-hosted-runners
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Leave time to upload diagnostics after the test step times out.
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: "1"
+      # Bound nested BLAS parallelism in CI only, not in empirical launch plans.
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -37,7 +45,23 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run tests
-        run: pytest -q
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          mkdir -p artifacts/ci
+          set -o pipefail
+          python -c "import sys, numpy, duckdb; print(sys.version); print('numpy', numpy.__version__, 'duckdb', duckdb.__version__); numpy.show_config()" 2>&1 | tee artifacts/ci/runtime.log
+          python -m pytest -vv --durations=25 -o faulthandler_timeout=120 --junitxml=artifacts/ci/pytest.xml 2>&1 | tee artifacts/ci/pytest.log
 
       - name: Run lint
+        if: ${{ !cancelled() }}
         run: ruff check src tests
+
+      - name: Preserve test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/ci/
+          if-no-files-found: warn
+          retention-days: 7

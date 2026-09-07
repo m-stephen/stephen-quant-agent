@@ -1,5 +1,11 @@
 # V11.21 continuation / 续接记录
 
+## Latest: CI recovery before any empirical launch
+
+B8 run34089011614/job101638545074 is CANCELLED, not pending or passing. Actual REST annotation: exceeded maximum execution time40m0s; ubuntu-24.04,06:01:09Z–06:46:10Z including termination. Both connector and CLI lack logs, so the slow-test cause is unknown. Read CI_RECOVERY.zh/en. CI now preserves verbose logs/JUnit/hanging stacks, limits BLAS threads only in CI, and separates45minute test timeout from60minute job. No test or numerical-code changes; no blind repeated time-limit increases if this diagnostic run also fails.
+
+Old launch-plan-001.json and comment5565797581 remain immutable but bind ff7421b, not the next commit. There is still no globalclaim/epoch/native reservation and debt3660. Commit/push this CI-only recovery, verify its actual CI, then prepare a separate launch-plan-002.json and publish the full unchanged research contract with new actual plan/commit hashes on Issue184. Do not launch oldplan on newcommit. Do not change any source/data/anchor/math/threshold or rerun completed market/synthetic evidence. Root dirty files and main stay untouched. Preserve30-minute quiet continuation.
+
 ## Current checkpoint: B8 entrypoint complete; prepare/preregister then one real run
 
 ReadPHASE_B8.zh/en andlatestVERIFICATION. Newflow_response_launch.py + scripts/run_flow_response.py +34launchtests implemented. Fullsession12859DONE exit0:1399pass2skip514.80s,JUnit1401/fail0/error0/skip2/time513.612;SHA15a1cfefdf9691cd5cfba37e188e043d69434c8cef19066585434e1fa6902e7a. Targeted14543DONE56pass18.67s;Ruff src/tests/scripts/4PythonformatPASS. Initial1fail27pass was testexceptionmessage mismatch on correctlyrejectedbadJSON,not repaireddata or weaker gate. Do not restart these tests merely onwake.

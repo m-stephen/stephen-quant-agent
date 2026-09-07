@@ -1,5 +1,11 @@
 # V11.21 engineering verification / 工程验证
 
+## Latest: B8 remote timeout, diagnostic CI correction
+
+Run34089011614/job101638545074 CANCELLED. Actual check annotation confirms40m0s configured job timeout onubuntu-24.04; completed06:46:10Z. Connector BlobNotFound and CLI log-not-found prevent attribution to any test. Existing full1399passed/2skipped is local evidence only. CI/doc-only correction leaves source and tests unchanged; adds verbose/stacks/JUnit/retainedlogs, CI-onlysingleBLASthreads and45minute test/60minute job bounds. Newhead CI must pass independently. Oldplan001 stays unconsumed/immutable and must be superseded by newplan/preregistration after newCI. Empiricaldelta0/debt3660; noAlpha.
+
+Correction checks: all1401 tests collected in1.13s with the new faulthandler/JUnit options (collection is not execution);22existing supervisor tests passed in1.19s with verbose/durations/faulthandler/JUnit. CollectionJUnitSHA55c54be6a180bb67416183b0d5886c09e57abf584b561790df1c6c820cdbfc89;smokeJUnitSHA50766fe2f2d2a85f52f58064cf133ebbd11c4ac2a9825b3633a6f5cc4c0fe307. GitBash syntax-only check of the test-step shell passed. Ruff src/tests/scripts and git diff --check passed; git diff src/tests/scripts is empty. No additional full regression was needed for the CI/doc-only edit. Local YAML parser packages are unavailable, so no local YAML-parser certification is claimed; actual GitHub workflow acceptance/run remains required. Root branch still has23unrelateddirtyfiles, unchanged.
+
 ## Latest checkpoint: B8 once-only entrypoint and read-only audit
 
 Full regression **1399 passed, 2 skipped in514.80s**; JUnit1401total/0failures/0errors/2skips,time513.612s. Session12859 completed exit0. FullJUnit `artifacts/flow-response/phase-b8-regression-20260907.xml`, SHA256 `15a1cfefdf9691cd5cfba37e188e043d69434c8cef19066585434e1fa6902e7a`. Ruff src/tests/scripts and4changedPythonformat PASS. No Python changes after this fullrun. Same two platform/symlink skips are not passes.
