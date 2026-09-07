@@ -38,6 +38,22 @@ def matrix_row(rng, cell=0):
     }
 
 
+def test_prediction_preserves_frozen_sequential_sum_on_every_python():
+    from stephen_quant.discovery.flow_response_predictor import L2, VERSION
+
+    # The built-in sum gives0.0 on3.10 and1.0 on3.12 for these products.
+    # Existing source/model/score hashes must not silently choose a new rule.
+    model = {
+        "version": VERSION,
+        "l2": L2,
+        "policy": "risk",
+        "parameter_count": 3,
+        "weights": [1e16, 1.0, -1e16],
+    }
+    rows = {"SYNTHETIC": {"ranks": dict.fromkeys(INPUTS, 1.0)}}
+    assert predict(model, rows)["SYNTHETIC"].hex() == (0.0).hex()
+
+
 def sample_pairs(mode="planted"):
     rng, dates = np.random.default_rng(184), calendar()
     pairs = []

@@ -323,7 +323,13 @@ def predict(model, rows):
         x = vector(row, model["policy"])
         if len(x) != model["parameter_count"] or len(x) != len(model["weights"]):
             raise ValueError("response parameter count mismatch")
-        result[name] = sum(a * b for a, b in zip(x, model["weights"], strict=True))
+        # The frozen model/reference uses left-to-right binary64 addition.
+        # Python3.12's compensated built-in sum changes score bytes and may
+        # break near ties. Keep the original3.10 semantics on every runtime.
+        score = 0.0
+        for a, b in zip(x, model["weights"], strict=True):
+            score += a * b
+        result[name] = score
     return result
 
 
