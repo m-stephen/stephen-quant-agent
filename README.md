@@ -1,6 +1,22 @@
 # Stephen Quant Agent
 
-## Current checkpoint: V12.0 bounded research reset / 当前：有界研究重构
+## Current checkpoint: V12.1 bounded power design / 当前：有界检出能力验证
+
+Issue #202 / PR #203. Package version12.1.0. Independent reviewer agreement
+preceded development and the once-only reserved audit.144 synthetic development
+paths selected360 evaluation sessions;800 fresh generated audit paths completed:
+linear178/200,interaction185/200,both null scenarios0/200. All frozen complete-path
+power/FWER criteria passed. **This is not a market Alpha or an Alpha Court PASS.**
+HAC finite-sample coverage remains limited; weak cost-consumed signals are not
+rescued simply by more observations. No new empirical Trials,old debt3733 retained.
+
+审查共识后完成144条开发路径和800条一次性保留路径，四项指定合成分布门槛通过。
+这不是市场Alpha，未改变2025/2026封存/已揭示窗口规则，也不改写旧V12.0失败结果。
+
+[V12.1 specification / 双语规格](docs/V12_1_SPEC.md) ·
+[中文结果](docs/V12_1_RESULT.zh.md) · [English results](docs/V12_1_RESULT.md)
+
+## Historical checkpoint: V12.0 bounded research reset / 历史：有界研究重构
 
 V12.0 implements the M0–M2 contract agreed in Issue #200: paired incremental
 account evidence, a small typed adaptive search, and an independent-source,
