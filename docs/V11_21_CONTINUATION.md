@@ -1,6 +1,18 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: phase B4 complete finite synthetic epoch
+## Current checkpoint: B5 numerical audit and synthetic resources
+
+Read PHASE_B5.zh.md/.en.md and latest VERIFICATION first. B4head3889d1ccb94affbcb1810edc08019624b65af993/CI34077310076 was verified SUCCESS. Samebranch/PR199Draft;newempiricalTrials0/debt3660. B5 is a partial engineering checkpoint,not authorization for a real epoch or Alpha.
+
+Implemented separate flow_response_reference/source_audit/model_audit/epoch_audit: independent2sourceDuckDBbatches;allpastresponsefits,risk/ranks/bars;ownmaturepairs/dateequaldesign/shuffle;augmentedSVDridge14models/28bindings;trainingprefixhash;all9newpolicytargets and2originalanchorbytes;fullsaved22reports/nativeSHA/compactJSONL;independent order-intent/pending/capacity/analyticfunding,shares/cash/marks/returns/writeoff/recovery and numeric summaries. Offline audit does not alter RESULT/nativeSQLite;source/model/target calculations are not delegated to production. Shared hash/native infrastructure,order-reason labels,broker realism and truefirstseen remain limitations.
+
+Finalfull1306passed1skip417.96s;JUnit1307total/fail0/error0/skip1;Ruff/14fileformat/whitespacePASS. Session75139doneexit0. Earlier90targeted220.53s(session6493),25replay2.27s and1memoryunit are intermediate/subsets,not additive. InitialSTdisplayfixture failure2failed48passed preserved. Resourceprobe50367/PID37520doneexit0; first invocation failedlocalimport before source generation,thenfixed. Do not restart these completed tests/probe simply onwake.
+
+Synthetic probe `artifacts/flow-response/probes/b5-320-20260907/RESOURCE_RESULT.json`:320stocks/550days/176000rows per source;history189.7065s/cache193.5903s;peakRSS577728512bytes/peakcommit662188032bytes;history107557523bytes+bundle101732413bytes. Windows read-onlykernelAPImeasured31.92GiBRAM/15.46GiBavailable atlastsample. Not a whole-epoch or market-scale guarantee. `_reference` streamsources butloadedhistory/cache/training/account structures still require fullresourceevaluation; do not label entirepipelineboundedmemory.
+
+Next B5b: source-file-levelplanted/null recoverability,fullworkflowresourcebounds,then globallyexclusive productionlauncher withfixedV11.20parentRESULT/AUDIT/nativeledger,source/card/target/code/auditorhashes and actualIssue184preregistration before any realnumericread/reservation. Persist standaloneAUDIT and laterASSESSMENT exclusively;leave originalRESULTpendingaudit unchanged. No empiricalfit/2021numericwarmup/2025/26/newwarehouse. Never use `load_frozen_days` because it opensall5sources. Carryall3660debt;firstcomplete futurebudget23→3683onlywhenactuallyreserved. Every frozencontrol/cost/Court/economicgate unchanged. Root23unrelateddirtyfiles remain untouched;no mainmerge,newtasks/subagents/automations,purchasesortrades. Existing30minheartbeatcontinuesquietly with updated exacthead/CI/evidence.
+
+## Historical checkpoint: phase B4 complete finite synthetic epoch
 
 Read PHASE_B4.zh.md/.en.md and latest VERIFICATION first. B3headccb88e9b5f69503bb58f5335302a62ec4153a31e/CI34074615494 verified SUCCESS. PR199 remains Draft. No market epoch or new empirical Trials; debt remains3660. B4 adds flow_response_protocol.py,flow_response_replay.py and workflows/flow_response_epoch.py;history now supports exact cross-cost model binding and VerifiedHistoryCache. Earlier B3/B2 pending packet,budget,shared-fit,anchor and synthetic cross-year work is now implemented,not a reason to restart those tasks.
 

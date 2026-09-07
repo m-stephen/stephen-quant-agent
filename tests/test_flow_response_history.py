@@ -26,7 +26,9 @@ from stephen_quant.qmt.flow_response_inputs import load_response_sources
 from stephen_quant.qmt.reliable_panel import file_sha
 
 
-def frozen_sources(root, *, span_days=420):
+def frozen_sources(root, *, span_days=420, stock_count=80):
+    if type(stock_count) is not int or not 1 <= stock_count <= 10000:
+        raise ValueError("bounded synthetic stock count required")
     # Explicit SYNTHETIC weekday calendar, not a claim about exchange holidays.
     days = [
         str(date(2022, 1, 3) + timedelta(days=i))
@@ -37,7 +39,7 @@ def frozen_sources(root, *, span_days=420):
     conn = duckdb.connect(":memory:")
     conn.execute("CREATE TABLE days(i INTEGER, d DATE)")
     conn.executemany("INSERT INTO days VALUES(?,?)", list(enumerate(days)))
-    conn.execute("""CREATE TABLE daily AS SELECT d AS trade_date,
+    conn.execute(f"""CREATE TABLE daily AS SELECT d AS trade_date,
         lpad(CAST(600000+j AS VARCHAR),6,'0') instrument,
         CASE WHEN d=DATE '2023-01-02' THEN '*ST Synthetic' ELSE 'Synthetic' END AS name,
         10*exp(.0001*i+(.004+j*.00001)*sin(.7*i+j)) AS open,
@@ -45,7 +47,7 @@ def frozen_sources(root, *, span_days=420):
         100000+j*1000+1000*cos(i*.3+j) AS amount, 10000.0 AS volume,
         1.0 AS adjustment_factor,
         CAST(CAST(d AS VARCHAR)||'T17:00:00+08:00' AS TIMESTAMPTZ) available_at
-        FROM days CROSS JOIN range(80) n(j)""")
+        FROM days CROSS JOIN range({stock_count}) n(j)""")
     conn.execute("""CREATE TABLE fund_flow AS SELECT trade_date,instrument,
         1000000*sin(i*.37+CAST(instrument AS INTEGER)) AS net_inflow_amount,
         CAST(CAST(d AS VARCHAR)||'T18:00:00+08:00' AS TIMESTAMPTZ) available_at
@@ -59,7 +61,7 @@ def frozen_sources(root, *, span_days=420):
                 "source": name,
                 "file": path.name,
                 "sha256": file_sha(path),
-                "rows": len(days) * 80,
+                "rows": len(days) * stock_count,
                 "min_date": days[0],
                 "max_date": days[-1],
                 "authorized_start": "2022-01-01",
@@ -390,6 +392,36 @@ def test_caller_supplied_cache_rejected_before_get(integrated):
         verified_history(reg, consumers["hash"], path, cache=Fake())
     with pytest.raises(ValueError, match="runtime-verified"):
         history_targets(reg, consumers["hash"], history_path=path, policy="hash", cache=Fake())
+
+
+def test_all_source_dates_independently_reconstruct_models_risks_ranks_and_bars(
+    integrated, monkeypatch
+):
+    from stephen_quant.discovery.flow_response_source_audit import audit_source_history
+
+    root, reg, _, consumers, days, _, path, _, _ = integrated
+
+    def poison(*args, **kwargs):
+        raise AssertionError("independent numerical audit called a production calculation")
+
+    for target in (
+        "stephen_quant.qmt.flow_response_inputs.load_response_sources",
+        "stephen_quant.qmt.flow_response_panel.build_response_panel",
+        "stephen_quant.discovery.flow_response_series.bridge_rows",
+        "stephen_quant.discovery.flow_response_series.fit_response_bundle",
+        "stephen_quant.discovery.flow_response.fit_response_prefix",
+        "stephen_quant.discovery.flow_response_predictor.ranked_rows",
+    ):
+        monkeypatch.setattr(target, poison)
+    evidence = audit_source_history(
+        reg, consumers["response"], history_path=path, input_folder=root / "inputs"
+    )
+    assert evidence["source_history_audit_pass"]
+    assert evidence["sessions_checked"] == len(days)
+    assert evidence["source_bars_checked"] == len(days) * 80
+    assert evidence["per_stock_response_fits_checked"] == (len(days) - 62) * 80
+    assert not evidence["complete_pipeline_audit_pass"] and not evidence["validated_alpha"]
+    assert evidence["supervised_label_model_target_account_audit"] == "NOT_RUN"
 
 
 @pytest.mark.parametrize(

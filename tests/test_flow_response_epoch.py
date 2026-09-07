@@ -147,6 +147,104 @@ def test_completed_backend_cannot_replay_or_overwrite(epoch, monkeypatch):
     assert before == file_sha(root / "operation/RESULT.json")
 
 
+def test_independent_mature_models_and_targets_from_both_years(epoch, monkeypatch):
+    from stephen_quant.discovery.flow_response_model_audit import audit_models_targets
+
+    root, reg, tids, _, _ = epoch
+
+    def poison(*args, **kwargs):
+        raise AssertionError("independent model/target audit used a production calculation")
+
+    for target in (
+        "stephen_quant.discovery.flow_response_predictor.fit_predictor",
+        "stephen_quant.discovery.flow_response_predictor.pairs_for_year",
+        "stephen_quant.discovery.flow_response_predictor.vector",
+        "stephen_quant.discovery.flow_response_predictor.predict",
+        "stephen_quant.discovery.flow_response_accounts.history_targets",
+        "stephen_quant.discovery.pairwise_ranking.select",
+        "stephen_quant.discovery.pairwise_ranking.leg_label",
+        "stephen_quant.discovery.calendar_robustness.combine_sleeves",
+    ):
+        monkeypatch.setattr(target, poison)
+    evidence = audit_models_targets(
+        reg,
+        tids,
+        history_path=root / "operation/history/history.json",
+        operation=root / "operation",
+    )
+    assert evidence["supervised_model_target_audit_pass"]
+    assert evidence["models_checked"] == 14 and evidence["native_bindings_checked"] == 28
+    assert evidence["policies_checked"] == 9
+    assert not evidence["complete_pipeline_audit_pass"] and not evidence["validated_alpha"]
+
+
+@pytest.fixture(scope="module")
+def audited_epoch(epoch):
+    from stephen_quant.discovery.flow_response_epoch_audit import audit_complete_epoch
+
+    root, reg, _, _, _ = epoch
+    before = file_sha(root / "operation/RESULT.json"), file_sha(reg.db_path)
+    evidence = audit_complete_epoch(
+        reg,
+        operation=root / "operation",
+        input_folder=root / "inputs",
+        original_tree=root / "original",
+    )
+    assert before == (file_sha(root / "operation/RESULT.json"), file_sha(reg.db_path))
+    return epoch, evidence
+
+
+def test_complete_saved_pipeline_audit_is_not_alpha_certification(audited_epoch):
+    (root, _, _, plan, result), evidence = audited_epoch
+    assert evidence["pipeline_audit_pass"] and not evidence["validated_alpha"]
+    assert evidence["source_audit"]["sessions_checked"] == len(plan["calendar"])
+    assert (
+        evidence["source_audit"]["per_stock_response_fits_checked"]
+        == (len(plan["calendar"]) - 62) * 80
+    )
+    assert evidence["model_target_audit"]["models_checked"] == 14
+    assert len(evidence["accounts"]) == 22
+    assert all(
+        r["pass"] and r["independent_execution_intent"] for r in evidence["accounts"].values()
+    )
+    assert evidence["result_sha256"] == file_sha(root / "operation/RESULT.json")
+    assert result["statistics"]["DSR"] is None and not result["validated_alpha"]
+
+
+@pytest.mark.parametrize("kind", ["duplicate_trial", "native_account", "spec"])
+def test_offline_audit_rejects_changed_operation_before_source_read(epoch, monkeypatch, kind):
+    from stephen_quant.discovery.flow_response_epoch_audit import audit_complete_epoch
+
+    root, reg, _, _, _ = epoch
+    path = root / "operation/RESULT.json"
+    raw = path.read_bytes()
+    changed = json.loads(raw)
+    if kind == "duplicate_trial":
+        changed["trial_ids"]["response-164"] = changed["trial_ids"]["response-82"]
+    elif kind == "native_account":
+        changed["records"]["response-82"]["profit_cny"] += 100
+    else:
+        changed["spec_sha256"] = "a" * 64
+
+    def poison(*args, **kwargs):
+        raise AssertionError("source should not be read before native preflight")
+
+    monkeypatch.setattr(
+        "stephen_quant.discovery.flow_response_epoch_audit.audit_source_history", poison
+    )
+    try:
+        path.write_text(json.dumps(changed), encoding="utf-8")
+        with pytest.raises(ValueError):
+            audit_complete_epoch(
+                reg,
+                operation=root / "operation",
+                input_folder=root / "inputs",
+                original_tree=root / "original",
+            )
+    finally:
+        path.write_bytes(raw)
+
+
 @pytest.mark.parametrize("kind", ["missing", "spec", "overlap", "database"])
 def test_backend_preflight_before_target_or_source_read(tmp_path, monkeypatch, kind):
     plan = spec()

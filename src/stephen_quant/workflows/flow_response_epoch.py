@@ -252,6 +252,8 @@ def _finish_account(registry, tid, output, key, report, sessions, targets, cost,
         or any(abs(v - summary["years"][y]) > 1e-10 for y, v in evidence["years"].items())
     ):
         raise ValueError("independent account metrics must reconcile")
+    report_path = output / "account_reports" / f"{key}.json"
+    write_json(report_path, asdict(report))
     record = {
         "key": key,
         "trial_id": tid,
@@ -260,6 +262,7 @@ def _finish_account(registry, tid, output, key, report, sessions, targets, cost,
         "execution": execution_summary(report),
         "audit": evidence,
         "account_sha256": save_account(output, key, report),
+        "full_account_sha256": file_sha(report_path),
         "target_sha256": target_hash,
         "fit_lineage_sha256": registry.fit_lineage(tid)["sha256"],
         "feature_sources_sha256": registry.feature_sources(tid)["sha256"],

@@ -70,9 +70,10 @@ def _near(actual, expected, why, *, atol=1e-5):
 def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="target_changes"):
     """Reconstruct holdings/cash/marks from saved fills and supplied source bars.
 
-    No execution-engine, target-generator or summary function is called. This does
-    not independently prove optimal fills/target_changes scheduling or raw source
-    correctness; those remain separate target/source audit responsibilities.
+    No execution-engine, target-generator or summary function is called. Orders
+    are independently checked against target-change intent, opening information,
+    capacity and analytic funding allocation under the frozen linear fee model.
+    Raw-source and target-selection correctness remain separate responsibilities.
     """
     if type(roundtrip_bps) is not int or roundtrip_bps not in COSTS:
         raise ValueError("registered82/164bps audit required")
@@ -97,10 +98,24 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
     shares, last_close, stale = {}, {}, {}
     costs, traded, tickets, drawdowns, returns, annual = 0.0, 0.0, 0, [], [], {}
     residual = 0.0
+    totals = dict.fromkeys(
+        (
+            "blocked_notional",
+            "stale_position_days",
+            "writeoff_events",
+            "writeoff_loss",
+            "recovery_events",
+            "recovery_value",
+        ),
+        0.0,
+    )
     previous_date = ""
+    pending, declared = set(), {}
     for day, bars, target in zip(report.periods, sessions, targets, strict=True):
         dt = day.trade_date
         by_name = {b.instrument: b for b in bars}
+        if len(by_name) != len(bars):
+            raise ValueError("duplicate source bar in independent account audit")
         if (
             not previous_date < dt
             or dt != target.trade_date
@@ -117,6 +132,23 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
         ):
             raise ValueError("target exceeds frozen risk budget")
         _near(day.previous_nav, nav, "previous NAV")
+        losses = {
+            n: q * last_close[n]
+            for n, q in shares.items()
+            if q > 1e-12 and n not in by_name and stale.get(n, 0) == 19
+        }
+        recoveries = {
+            n: q * by_name[n].open_price
+            for n, q in shares.items()
+            if q > 1e-12 and n in by_name and stale.get(n, 0) >= 20
+        }
+        _near(day.writeoff_positions, len(losses), "writeoff count", atol=0)
+        _near(day.writeoff_loss, sum(losses.values()), "writeoff loss")
+        _near(day.recovery_positions, len(recoveries), "recovery count", atol=0)
+        _near(day.recovery_value, sum(recoveries.values()), "recovery value")
+        pending, declared = _check_order_intent(
+            day, by_name, target, shares, cash, last_close, stale, pending, declared, mode, scale
+        )
         order_cost = 0.0
         for order in day.orders:
             n, amount = order.instrument, order.executed_notional
@@ -158,6 +190,15 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
             if mark.stale_sessions != stale[n]:
                 raise ValueError("stale global-session count differs")
             valuation += shares[n] * price
+            expected_source = (
+                "current_close"
+                if n in by_name
+                else "conservative_zero_writeoff"
+                if stale[n] >= 20
+                else "explicit_stale_last_close"
+            )
+            if mark.source != expected_source:
+                raise ValueError("independent source mark provenance mismatch")
         for n in set(shares) - set(marks):
             shares.pop(n)
             last_close.pop(n, None)
@@ -166,6 +207,24 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
         if cash < -1e-7:
             raise ValueError("negative cash")
         _near(day.total_cost, order_cost, "daily cost")
+        _near(
+            day.traded_notional_cny,
+            sum(abs(o.executed_notional) for o in day.orders),
+            "daily turnover",
+        )
+        _near(
+            day.stale_position_days,
+            sum(v > 0 for v in stale.values()),
+            "daily stale positions",
+            atol=0,
+        )
+        _near(day.overnight_mark_return, day.open_nav / nav - 1, "overnight return", atol=1e-12)
+        totals["blocked_notional"] += sum(o.blocked_notional for o in day.orders)
+        totals["stale_position_days"] += sum(v > 0 for v in stale.values())
+        totals["writeoff_events"] += len(losses)
+        totals["writeoff_loss"] += sum(losses.values())
+        totals["recovery_events"] += len(recoveries)
+        totals["recovery_value"] += sum(recoveries.values())
         residual = max(residual, abs(day.end_nav - cash - valuation))
         _near(day.end_nav, cash + valuation, "closing NAV")
         ret = day.end_nav / nav - 1
@@ -180,6 +239,9 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
     _near(report.metrics.net_total_return, nav / 3e6 - 1, "total return", atol=1e-12)
     _near(report.metrics.max_drawdown, min(drawdowns), "max drawdown", atol=1e-12)
     _near(report.metrics.total_cost, costs, "total cost")
+    _near(report.metrics.periods, len(returns), "period count", atol=0)
+    for field, value in totals.items():
+        _near(getattr(report.metrics, field), value, f"aggregate {field}")
     sd = stdev(returns) if len(returns) > 1 else 0.0
     return {
         "pass": True,
@@ -191,4 +253,81 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
         "traded_cny": traded,
         "executed_tickets": tickets,
         "independent_source_and_target_selection": False,
+        "independent_execution_intent": True,
+        "order_reason_labels_independently_verified": False,
     }
+
+
+def _check_order_intent(
+    day, bars, target, shares, cash, last_close, stale, pending, declared, mode, scale
+):
+    opening = {
+        n: bars[n].open_price
+        if n in bars
+        else (0.0 if stale.get(n, 0) + 1 >= 20 else last_close[n])
+        for n in shares
+        if shares[n] > 1e-12
+    }
+    values = {n: shares[n] * price for n, price in opening.items()}
+    nav = cash + sum(values.values())
+    _near(day.open_nav, nav, "opening NAV")
+    weights = (
+        dict(target.weights)
+        if target.rebalance
+        else {n: v / nav for n, v in values.items() if nav > 0}
+    )
+    if mode == "target_changes" and target.rebalance:
+        pending = pending | {
+            n
+            for n in declared.keys() | target.weights.keys()
+            if abs(declared.get(n, 0.0) - target.weights.get(n, 0.0)) > 1e-12
+        }
+        weights = {n: min(v / nav, 0.025) for n, v in values.items() if nav > 0}
+        for n in pending:
+            weights[n] = target.weights.get(n, 0.0)
+        declared = dict(target.weights)
+    for n in set(target.forced_exits) | {n for n, bar in bars.items() if bar.forced_exit}:
+        weights.pop(n, None)
+    original, allowed, capacities = {}, {}, {}
+    for n in sorted(values.keys() | weights.keys()):
+        original[n] = weights.get(n, 0.0) * nav - values.get(n, 0.0)
+        bar = bars.get(n)
+        capacities[n] = bar.capacity_cny if bar else 0.0
+        permitted = bar is not None and (
+            bar.can_buy_open if original[n] > 0 else bar.can_sell_open if original[n] < 0 else True
+        )
+        allowed[n] = (
+            math.copysign(min(abs(original[n]), capacities[n]), original[n]) if permitted else 0.0
+        )
+    sales = {n: max(v, -shares[n] * bars[n].open_price) for n, v in allowed.items() if v < 0}
+    available = cash
+    for n in sorted(sales):
+        value = sales[n]
+        available -= value + abs(value) * 23 * scale / 10000
+    buys = {n: v for n, v in allowed.items() if v > 0}
+    needed = sum(v * (1 + 18 * scale / 10000) for v in buys.values())
+    fraction = min(1.0, max(0.0, available) / needed) if needed else 1.0
+    expected = sales | {n: v * fraction for n, v in buys.items()}
+    orders = {o.instrument: o for o in day.orders}
+    if len(orders) != len(day.orders) or set(orders) != set(original):
+        raise ValueError("independent target-change order identity mismatch")
+    for n, order in orders.items():
+        _near(order.desired_notional, original[n], "target-change requested notional")
+        _near(order.capacity_notional, capacities[n], "source capacity")
+        _near(
+            order.executed_notional, expected.get(n, 0.0), "independent capacity/funding allocation"
+        )
+        _near(
+            order.blocked_notional,
+            max(0.0, abs(original[n]) - abs(order.executed_notional)),
+            "blocked notional",
+        )
+    if mode == "target_changes" and target.rebalance:
+        pending = {
+            n
+            for n in pending
+            if abs(original.get(n, 0.0) - (orders[n].executed_notional if n in orders else 0.0))
+            > 1e-8
+            or (n in opening and n not in bars and stale.get(n, 0) + 1 >= 20)
+        }
+    return pending, declared

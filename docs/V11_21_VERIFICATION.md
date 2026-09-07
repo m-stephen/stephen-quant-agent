@@ -1,6 +1,24 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: phase B4 / 最新检查点
+## Latest checkpoint: B5 independent audit and resources / 最新检查点
+
+**Final full regression: 1306 passed,1 skipped in417.96s.** JUnit1307total/0failures/0errors/1skip,time417.890s. Ruff src/tests/scripts,format of14changed Python files and Git whitespace pass. This includes all final source/model/target/intent/account-summary additions. Session75139completed exit0. B4head3889d1ccb94affbcb1810edc08019624b65af993/CI34077310076 verified SUCCESS; the new B5 head requires its own CI check.
+
+Earlier complete-audit targeted run90passed220.53s(session6493); after extra numerical summary checks,replay25passed2.27s. The targeted90predates those6additional tests; it is not a second final full result. Final1306includes54newtests overB4. Initial source fixture2failed48passed51.92s exposed an English display name containingST; replacing it withExample corrected fixture semantics. Initial67passed167.73s predates the full offline/intent connection. All old/failed/intermediate artifacts remain and are not added to final pass counts.
+
+Immutable ignored evidence:
+
+- `artifacts/flow-response/phase-b5-regression-20260907.xml`, SHA256 `b17b6029cd9b919992c44158994ddb2a1be321db3cd0c6d50f352dcdd507cc8e`.
+- `artifacts/flow-response/phase-b5-audit-final-20260907.xml`, SHA256 `2e01552a2036af33fd6fbe2c8291b751e322f1adb19507cd18f651fa47f137f5` (90-test intermediate audit).
+- `artifacts/flow-response/probes/b5-320-20260907/RESOURCE_RESULT.json`, SHA256 `5d55e4d2f83d9bf375c1cbf35fb12424581894e8750c5e0a6a64f2c80723e47b`.
+
+Resource process50367/PID37520 completed exit0:320syntheticstocks/550days/176000rows per source; native history189.7065s/cache193.5903s;peakRSS577728512bytes/peakprivatecommit662188032bytes. History107557523bytes,bundles101732413bytes. Actual machine physical34273542144bytes/available16604770304bytes atfinalsample;not future headroom guarantee. Earlier direct command failed import before source generation;explicit local src path fixed it. Resource memoryunit1passed0.31s and is included in full1306. Probe covers history/cache only,not full accounts/audits or full market scaling. No process left running at this checkpoint.
+
+Reproduce full with `python -m pytest -q --tb=short --junitxml=<new-unique-path>`; selected audit tests are `tests/test_flow_response_epoch.py tests/test_flow_response_replay.py tests/test_flow_response_history.py tests/test_flow_response_reference.py tests/test_flow_response_model_audit.py tests/test_response_resources.py`. Synthetic resource command: `python scripts/profile_response_history.py --output artifacts/flow-response/probes/<new-unique-directory> --stocks 320`. Never overwrite or rerun completed evidence solely on heartbeat wakeup. AlphaPai credentials are removed from subprocess environments.
+
+Full offline source/model/target/22account numerical audit now passes on550syntheticdays/80stocks/39040stockresponsefits/14annualmodels. RESULT/nativeSQLite remain byte-identical before/after audit. Order reason text labels and derived blocked_orders are explicitly not independently certified; all key monetary requests/fills/blocks are. Source-file planted/null power,whole-pipeline resource scaling and globally exclusive parent/preregistration-bound production launcher remain pending. No market epoch or new empirical Trial;debt3660,CourtNOT_RUN. See PHASE_B5.zh.md/.en.md for precise boundaries.
+
+## Historical checkpoint: phase B4 / 历史检查点
 
 **62 targeted passed in159.39s;1252 full passed,1 skipped in350.89s.** Full JUnit1253total/0failures/0errors/1skip,time350.749s. Ruff check src/tests/scripts,format check of12new/modifiedPythonfiles and Git whitespace pass. Final sessions22453targeted and29486full completed exit0; no Python test/market process remains. B3headccb88e9b5f69503bb58f5335302a62ec4153a31e/CI34074615494 verified SUCCESS. New B4head CI must be checked independently,not inferred from B3.
 

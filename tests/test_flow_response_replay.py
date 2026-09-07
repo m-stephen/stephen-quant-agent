@@ -55,7 +55,27 @@ def test_independent_fill_cash_stale_writeoff_and_recovery_reconstruction():
 
 
 @pytest.mark.parametrize(
-    "kind", ["cash", "fill", "mark", "stale", "cost", "limit", "capacity", "date", "config"]
+    "kind",
+    [
+        "cash",
+        "fill",
+        "mark",
+        "stale",
+        "cost",
+        "limit",
+        "capacity",
+        "date",
+        "config",
+        "intent",
+        "omitted_order",
+        "target",
+        "overnight",
+        "turnover",
+        "writeoff_summary",
+        "recovery_summary",
+        "period_summary",
+        "mark_source",
+    ],
 )
 def test_independent_account_detects_corruption(kind):
     sessions, targets, report = account()
@@ -73,10 +93,17 @@ def test_independent_account_detects_corruption(kind):
             ),
         )
         periods[0] = replace(periods[0], orders=tuple(orders))
-    elif kind in ("mark", "stale"):
+    elif kind in ("mark", "stale", "mark_source"):
         marks = list(periods[3].marks)
         marks[0] = replace(
-            marks[0], **({"mark_price": 1.0} if kind == "mark" else {"stale_sessions": 0})
+            marks[0],
+            **(
+                {"mark_price": 1.0}
+                if kind == "mark"
+                else {"source": "current_close"}
+                if kind == "mark_source"
+                else {"stale_sessions": 0}
+            ),
         )
         periods[3] = replace(periods[3], marks=tuple(marks))
     elif kind in ("limit", "capacity"):
@@ -87,6 +114,26 @@ def test_independent_account_detects_corruption(kind):
         sessions = (tuple(bars),) + sessions[1:]
     elif kind == "date":
         targets = (replace(targets[0], decided_at="2023-01-03T08:00:00+08:00"),) + targets[1:]
+    elif kind == "intent":
+        orders = list(periods[0].orders)
+        orders[0] = replace(orders[0], desired_notional=orders[0].desired_notional + 100)
+        periods[0] = replace(periods[0], orders=tuple(orders))
+    elif kind == "omitted_order":
+        periods[0] = replace(periods[0], orders=())
+    elif kind == "target":
+        targets = (replace(targets[0], weights={"A": 0.01}),) + targets[1:]
+    elif kind in ("overnight", "turnover"):
+        field = "overnight_mark_return" if kind == "overnight" else "traded_notional_cny"
+        periods[0] = replace(periods[0], **{field: getattr(periods[0], field) + 1})
+    elif kind.endswith("_summary"):
+        field = {
+            "writeoff_summary": "writeoff_loss",
+            "recovery_summary": "recovery_value",
+            "period_summary": "periods",
+        }[kind]
+        report = replace(
+            report, metrics=replace(report.metrics, **{field: getattr(report.metrics, field) + 1})
+        )
     else:
         report = replace(report, config=replace(report.config, slippage_bps=0.0))
     report = replace(report, periods=tuple(periods))
