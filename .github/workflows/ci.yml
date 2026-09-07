@@ -6,16 +6,25 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Standard CI or the once-authorized V12.2 native diagnostic
+        type: choice
+        default: standard
+        options:
+          - standard
+          - v122-runtime-diagnostic
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.mode || 'standard' }}
   cancel-in-progress: true
 
 jobs:
   test:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'standard' }}
     name: test (Python ${{ matrix.python }}, trace ${{ matrix.trace }})
     # Fixed B18 runtime comparison after two native crashes. Keep the original
     # Python3.10/120s group required; do not retry until green or skip assertions.
@@ -97,3 +106,63 @@ jobs:
           path: artifacts/ci/
           if-no-files-found: warn
           retention-days: 7
+
+  native-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'v122-runtime-diagnostic' }}
+    name: V12.2 bounded Python 3.12.14 trace-zero diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.14"
+      - name: Install observed crash dependency versions
+        run: |
+          python -m pip install -e ".[dev]" numpy==2.5.3 duckdb==1.5.5 pytest==9.1.1 ruff==0.16.6 pytz==2026.3.post1 iniconfig==2.3.0 packaging==26.3 pluggy==1.6.0 pygments==2.21.0
+          mkdir -p artifacts/native-diagnostic
+          python -m pip freeze --all > artifacts/native-diagnostic/dependencies.txt
+          python -VV > artifacts/native-diagnostic/python-vv.txt
+          git rev-parse HEAD > artifacts/native-diagnostic/commit.txt
+          if ! command -v gdb >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y gdb
+          fi
+          gdb --version > artifacts/native-diagnostic/gdb.txt
+          gdb --batch --nx -ex 'info files' --args python > artifacts/native-diagnostic/build-info.txt 2>&1
+      - name: Twelve fixed synthetic child probes (no retry)
+        timeout-minutes: 5
+        run: |
+          ulimit -c 0
+          python scripts/probe_native_runtime.py --output artifacts/native-diagnostic/probes
+      - name: Full suite with scheduled dump disabled (all assertions retained)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          mkdir -p artifacts/native-diagnostic
+          set -o pipefail
+          ulimit -c 0
+          /usr/bin/time -v -o artifacts/native-diagnostic/resources.log gdb --batch --nx --return-child-result \
+            -ex 'set debuginfod enabled off' -ex 'set print thread-events off' \
+            -ex 'set print frame-arguments none' -ex run -ex 'thread apply all bt 40' \
+            --args python -m pytest -vv --durations=25 -o faulthandler_timeout=0 \
+            --junitxml=artifacts/native-diagnostic/pytest.xml 2>&1 | tee artifacts/native-diagnostic/pytest.log
+          python scripts/check_ci_test_result.py artifacts/native-diagnostic/pytest.xml
+      - name: Lint diagnostic implementation and project
+        if: ${{ !cancelled() }}
+        run: ruff check src tests scripts/probe_native_runtime.py
+      - name: Preserve every diagnostic outcome
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: v122-native-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/native-diagnostic/
+          if-no-files-found: error
+          retention-days: 30
