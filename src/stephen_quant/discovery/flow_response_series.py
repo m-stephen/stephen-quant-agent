@@ -59,7 +59,7 @@ def bridge_rows(daily_rows, flow_rows, calendar):
     validate_calendar(calendar)
     allowed, indexed = set(calendar), {}
     for source, rows in (("daily", daily_rows), ("fund_flow", flow_rows)):
-        table = {}
+        table = {d: {} for d in calendar}
         for row in rows:
             dt, asset = str(row["trade_date"]), row["instrument"]
             if (
@@ -69,16 +69,14 @@ def bridge_rows(daily_rows, flow_rows, calendar):
                 or asset.strip() != asset
             ):
                 raise ValueError("source key outside frozen calendar or invalid asset")
-            if (dt, asset) in table:
+            if asset in table[dt]:
                 raise ValueError("duplicate source key")
-            table[dt, asset] = row
+            table[dt][asset] = row
         indexed[source] = table
     # Foreign keys are not silently dropped, including flow-only symbols/dates.
-    if indexed["fund_flow"].keys() - indexed["daily"].keys():
+    if any(indexed["fund_flow"][d].keys() - indexed["daily"][d].keys() for d in calendar):
         raise ValueError("flow keys without a daily source record")
-    by_date = {d: {} for d in calendar}
-    for (dt, asset), row in indexed["daily"].items():
-        by_date[dt][asset] = row
+    by_date = indexed["daily"]
     observations, exclusions, previous = {d: {} for d in calendar}, [], {}
     for i, dt in enumerate(calendar):
         decision, close_clock = aware(clock(dt, "23:59:59")), aware(clock(dt, "15:00:00"))
@@ -101,7 +99,7 @@ def bridge_rows(daily_rows, flow_rows, calendar):
             if not math.isfinite(adjusted):
                 raise ValueError("nonfinite source-adjusted close")
             previous[asset] = (i, adjusted, max(visible, close_clock))
-            flow = indexed["fund_flow"].get((dt, asset))
+            flow = indexed["fund_flow"][dt].get(asset)
             if prior is None or prior[0] != i - 1:
                 reason = "missing_previous_global_close"
             elif flow is None or flow["available_at"] is None:

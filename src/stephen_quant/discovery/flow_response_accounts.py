@@ -10,7 +10,6 @@ import hashlib
 import json
 
 from stephen_quant.baseline.stateful import (
-    StatefulBar,
     StatefulExecutionConfig,
     TargetAllocation,
     run_stateful_execution,
@@ -20,6 +19,7 @@ from .calendar_robustness import PHASES, combine_sleeves
 from .flow_response_history import verified_history
 from .flow_response_predictor import HORIZON, POLICIES, guarded_predict
 from .flow_response_series import clock
+from .flow_response_views import HistoricalSessions
 from .pairwise_ranking import select
 from .search_power_dsl import sha256_json
 
@@ -101,7 +101,7 @@ def history_targets(
             )
         sleeves.append(tuple(targets))
     targets = combine_sleeves(sleeves)
-    sessions = tuple(tuple(StatefulBar(**b) for b in history["bars"][d].values()) for d in days)
+    sessions = HistoricalSessions(history["bars"], days)
     return targets, diagnostics, sessions
 
 

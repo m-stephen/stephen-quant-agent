@@ -1,6 +1,16 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: B6 lower-copy storage
+## Latest checkpoint: B7 day-scoped views and owned-child supervision
+
+Full regression **1365 passed, 2 skipped in498.90s**; JUnit1367total/0failures/0errors/2skips,time497.712s. Session92582 complete exit0. FullJUnit `artifacts/flow-response/phase-b7-regression-20260907.xml`, SHA256 `85130f405c826734e7f21f51fbf08dc1c3dd82fed061b89fe52401543226d8ae`. Skips: non-Windows measurement capability branch and unavailable symbolic links. Ruff src/tests/scripts and9changedPythonformat PASS; no Python edit after the full regression.
+
+Earlier views/series/history63passed61.51s, JUnit `phase-b7-views-initial-20260907.xml`, SHA `fa85dada7d6ce94510e4621fb4f51bc12978b7c87863a9f92e6dcb1034f64318`; guards/views28passed1.72s, JUnit `phase-b7-guards-initial-20260907.xml`, SHA `3fe8d7caf9f30735f403267e7e0eb8206b702b7421b448fab65d58559fa34b42`. These are subsets, not extra passes. Initial twoBLE001 lint findings were corrected with justified boundary-only suppressions and interrupt propagation before final regression.
+
+6newviewtests and22newsupervisortests:exactbar/order/pair/account/hash equivalence,excludedfutureprojection rejection,4800constructions/<=160livebars,earlyflowrelease,actualproducercacheweakref releasebeforeaudit,exclusiveoutputs,resourcepreflight/guards/measurementfailure/nonzeroexit/no-sampleexit/interruption/terminationfailure/platformgaps and realhiddenWindowschild. No new empiricaldata,model/account replay or B5b/B6 benchmark. Underlying source/history remains materialized; no end-to-end resource or Alpha certificate. Details/limitations in PHASE_B7.zh/en.
+
+B6 CI34084914378 confirmed CANCELLED;job101626978133 logs reached~80% beforecancellation,consistent with20min joblimit. CI timeout changed20→40min with same runner/fullsuite; newremote status must be checked afterpush. No source/math/gate changes in that CI edit. Debt3660,PR199Draft,nomerge. Next B8 globalactualparent/source/anchor/code/auditor/preregistration-bound launcher and syntheticguardtests, then oneauthorized23Trialepoch. Do not repeat completedtests on wake.
+
+## Historical checkpoint: B6 lower-copy storage
 
 Full regression **1337 passed, 2 skipped in478.79s**; JUnit1339total/0failures/0errors/2skips,time478.688s. Session77668 completed exit0. Ruff src/tests/scripts and10changed Python file format checks PASS. FullJUnit `artifacts/flow-response/phase-b6-regression-20260907.xml`, SHA-256 `2e776827468adad9f94609da21182ffa4f10c5c6ba1166d639485f7cf48d8b9f`.
 

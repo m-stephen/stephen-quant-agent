@@ -1,5 +1,7 @@
 import copy
+import gc
 import json
+import weakref
 from dataclasses import asdict
 
 import pytest
@@ -55,14 +57,28 @@ def epoch(tmp_path_factory):
     output = root / "operation"
     output.mkdir()
     reg, tids = reserve_trials(output, plan)
-    result = execute_reserved_epoch(
-        reg,
-        tids,
-        plan,
-        output=output,
-        input_folder=root / "inputs",
-        original_tree=root / "original",
-    )
+    # The later offline audit must not coexist with the producer's full cache.
+    import stephen_quant.workflows.flow_response_epoch as module
+
+    cache_type, cache_refs = module.VerifiedHistoryCache, []
+
+    def capture(*args, **kwargs):
+        cache = cache_type(*args, **kwargs)
+        cache_refs.append(weakref.ref(cache))
+        return cache
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(module, "VerifiedHistoryCache", capture)
+        result = execute_reserved_epoch(
+            reg,
+            tids,
+            plan,
+            output=output,
+            input_folder=root / "inputs",
+            original_tree=root / "original",
+        )
+    gc.collect()
+    assert len(cache_refs) == 1 and cache_refs[0]() is None
     return root, reg, tids, plan, result
 
 

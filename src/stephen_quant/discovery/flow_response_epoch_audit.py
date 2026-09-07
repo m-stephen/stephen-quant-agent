@@ -11,7 +11,6 @@ from pathlib import Path
 
 from stephen_quant.baseline.stateful import (
     PositionMark,
-    StatefulBar,
     StatefulExecutionConfig,
     StatefulExecutionReport,
     StatefulMetrics,
@@ -26,6 +25,7 @@ from .flow_response_model_audit import audit_models_targets
 from .flow_response_protocol import contract, plans
 from .flow_response_replay import audit_response_account
 from .flow_response_source_audit import audit_source_history, compare
+from .flow_response_views import HistoricalSessions
 from .search_power_dsl import sha256_json
 
 
@@ -116,7 +116,7 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
         ):
             raise ValueError("offline audit original anchor identity mismatch")
     days = [d for d in history["calendar"] if d >= "2023-01-01"]
-    sessions = tuple(tuple(StatefulBar(**b) for b in history["bars"][d].values()) for d in days)
+    sessions = HistoricalSessions(history["bars"], days)
     accounts, report_hashes = {}, {}
     for p in plans()[1:]:
         key, policy = p["key"], p["response_policy"]

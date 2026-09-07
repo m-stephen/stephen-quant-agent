@@ -1,6 +1,18 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: B6 storage complete; next fullpipeline lifetimes and launch
+## Current checkpoint: B7 views and supervision complete; B8 global launch next
+
+Read PHASE_B7.zh/en and latest VERIFICATION. Full session92582 completed exit0:1365passed2skipped498.90s;JUnit1367total/0failures/0errors/2skips/time497.712s, SHA85130f405c826734e7f21f51fbf08dc1c3dd82fed061b89fe52401543226d8ae. Ruff src/tests/scripts,9Pythonformat andwhitespacePASS. Earlier targeted63pass61.51s and28pass1.72s are subsets. Do not restart completed tests/B5b/B6 benchmarks merely on wake.
+
+HistoricalBarMapping/HistoricalSessions remove fulltraining/account StatefulBar matrices; nestedday sourceindexes avoid tuplekeys/duplicateindex; flowrows releasebeforepanel; exactpairs/account/hash comparisons and actualcacheweakref releasebeforeindependentaudit pass. Original history/rank/source panels can remain resident, so no wholepipeline memory claim. New response_supervisor owns one hidden Windows Popen, strips AlphaPai credentials, validates resources/evidence, writes START/samples/terminal receipts on success/refusal/guards/exceptions/exit/interrupt/cleanup failure, never retries. It is only a supervision primitive, not global authorization or an OS memory/process-tree hard limit. Do not modify old B6 benchmark driver/storage/resources code just to change its historical receipt behavior.
+
+B6 head0732aa11039ae358243d1aba11b0457ca37149fe CI34084914378 is CANCELLED, not PASS. Job101626978133 reached~80% before cancellation at05:11:31Z; logs are consistent with the20min totaljob limit including slow setup. B7 changes only CI timeout20→40min on the same ubuntu-slim runner, retaining every test. Check newcommit CI at a meaningful checkpoint, not by busy polling. No mainmerge.
+
+Next B8: implement one globallyexclusive production launcher, deriving common claim location from actual git-common-dir so newworktrees/outputnames cannot restart the same parent/version. Bind fixedV11.20 RESULT/AUDIT/nativeledger,actual2sourcefile/manifest,originalV11.11card/targetbytes,cleancommit/runtime/drivers/auditorhashes and actualIssue184 plan-SHA preregistration; calendar may project DATE-only2022–24, no numerical warmup. Preflight beforeclaim; claim beforefull23native reservations and anyvalues. Backend and independent audit should be separate owned supervised children, reclaiming producer history before audit; save append-only AUDIT/ASSESSMENT and leave RESULT pendingaudit unchanged. Resource abort/failure retains fullTrials, no hidden retry. Add synthetic launch/refusal/claim/lifecycle tests, then one bounded realepoch only when gates are ready. Never reuse old load_frozen_days (opensall5sources), nor rerun completed calibration.
+
+No empiricalV11.21Trials or new numericreads;debt3660. Frozen2022–24daily/fundflow only;no2021numericwarmup/2025/26/newwarehouse/originaltargetchanges/mainmerge/purchases/trades/rootdirtyedits/subagents/newtasks/newautomation. Existing30minheartbeatcontinuesquietly;notifyusableAlphaorseriousactionableblockage,notordinaryprogress/negativeoutcomes. All23Trials,all9controls,both82/164costs,CNY3m,originalscreens/Court thresholds and independent-evidence requirements remain unchanged.
+
+## Historical checkpoint: B6 storage complete
 
 B5bhead e6a0fcb2d23b440e3596126b3ae7758a67583aed / CI34082559337verifiedSUCCESS. ReadPHASE_B6.zh/en and latestVERIFICATION. Newlower-copy source batching/JSONfreeze/chunkedhash/earlyrelease/year-prefixmemoization passes full1337tests,2skips,478.79s;targeted41pass1skip57.45s. Ruffall/10fileformat/whitespacePASS. Sessions77668(full),68578(targeted),85966(storage),33037(initial)are complete; do not restart them. NoempiricalTrials/debt3660.
 

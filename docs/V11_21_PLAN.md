@@ -1,6 +1,8 @@
 # V11.21 next bounded research stage / 下一轮有限研究
 
-## Latest B5b status / 最新源级校准
+## Latest B7 status / 最新工程检查点
+
+**B7 update:** Day-scoped training/account views preserve exact labels/reports/hashes without a retained secondbarobjectmatrix; nesteddayindexes and earlyflowrelease reduce overlappingobjects. Owned-child supervision preserves terminalfailureevidence without automaticretry. Full1365passed2skipped;no empiricalTrials/debt3660. Read PHASE_B7.zh/en and latestVERIFICATION/CONTINUATION. B6CI wascancelled near80%;same runner/fulltests now have40min jobheadroom. Next B8 is the globallyexclusive actualparent/source/anchor/code/auditor/publishedpreregistration-bound entrypoint with full23reservation and separate producer/audit process lifetimes. No freshresourcebenchmark or marketrun yet. Earlier checkpoint wording below is historical.
 
 **B6 update:** Lower-copy storage now passes the fixed1x/32x synthetic content checks; large fixture2.535GB/new peak private8.6603GiB/204.27s, legacy stopped at10.0423GiB. This is not a completed end-to-end resource proof. Read PHASE_B6.zh/en and latest VERIFICATION/CONTINUATION. Global exclusive production launch and full-pipeline object lifetimes remain next; no market epoch or new empirical Trials. Do not rerun completed B5b or B6 operations.
 

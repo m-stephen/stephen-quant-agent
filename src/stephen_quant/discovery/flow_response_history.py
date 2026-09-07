@@ -11,7 +11,6 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from stephen_quant.baseline.stateful import StatefulBar
 from stephen_quant.integrity.fit_lineage import digest
 from stephen_quant.qmt.flow_response_inputs import load_response_sources
 from stephen_quant.qmt.flow_response_panel import build_response_panel
@@ -34,6 +33,7 @@ from .flow_response_series import (
     validate_calendar,
 )
 from .flow_response_storage import freeze, load_json, streaming_sha256_json
+from .flow_response_views import HistoricalBarMapping
 from .search_power_dsl import sha256_json
 
 VERSION = "11.21-response-history-1"
@@ -108,6 +108,7 @@ def build_history_from_frozen(
         source, expected_manifest_sha256=manifest_sha256, calendar=calendar
     )
     observations, exclusions = bridge_rows(rows["daily"], rows["fund_flow"], calendar)
+    del rows["fund_flow"]  # No flow source matrix is needed while building risk/bars.
     risk, bars, quality = build_response_panel(rows["daily"], calendar)
     del rows
     bundle_files = {}
@@ -308,8 +309,8 @@ def fit_history_predictor(
     assert_predictor_contract(registry, consumer, provider, year, policy, model_path)
     history, provenance = verified_history(registry, consumer, history_path, cache=cache)
     days = prefix(history["calendar"], year)
-    # Materialize training bars only inside the already-purged mature prefix.
-    bars = {d: {n: StatefulBar(**b) for n, b in history["bars"][d].items()} for d in days}
+    # Project only the requested leg, inside the already-purged mature prefix.
+    bars = HistoricalBarMapping(history["bars"], days)
     pairs = pairs_for_year(history["calendar"], history["ranks"], bars, year)
     del bars
     provenance["training_prefix_sha256"] = (
