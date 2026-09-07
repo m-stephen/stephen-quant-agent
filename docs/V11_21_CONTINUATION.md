@@ -1,5 +1,15 @@
 # V11.21 continuation / 续接记录
 
+## Current override: completed and paused / 当前：完成并暂停
+
+As of 8 September 2026, V11.21's 22-account frozen continuation and V11.22's
+four-account construction diagnostic have completed their independent audits.
+Raw-attempt lower bound is 3,733; no validated Alpha. See V11_22_RESULT.zh.md
+and V11_22_RESULT.en.md. Automated search is PAUSED at the user's request.
+All "Latest", "Next" and launch instructions below are historical checkpoints,
+not current authority. Preserve failed attempts and consumed claims; do not rerun
+them, start a new epoch, or resume automation without explicit user approval.
+
 ## Latest B16: consumed plan003 failed in account audit
 
 Plan003 is terminal FAILED; session39273 DONE exit1, no empirical process remains. Debt3706 is preserved;14 models/28 supervised bindings/664 provider bindings/4 completed accounts, no complete RESULT or independent audit. Do not replay plan003 or run the old prepare path. See V11_21_ACCOUNT_AUDIT_FIX.zh.md/.en.md for the precise corrective plan and uncertainty.

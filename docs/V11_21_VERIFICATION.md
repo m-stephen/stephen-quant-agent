@@ -1,5 +1,14 @@
 # V11.21 engineering verification / 工程验证
 
+## Current completed evidence / 最新已完成证据
+
+V11.21 frozen continuation: 22/22 accounts audited. V11.22 diagnostic: 4/4
+accounts independently audited, COMPLETE_DIAGNOSTIC_AUDITED. Original runtime
+dbd1a3f has 1,627 passed / two skipped locally and CI34142836423 success in all
+three groups. See V11_22_RESULT.zh.md/.en.md for frozen evidence hashes and limits.
+No new Trial or Alpha certification in this documentation archive. Search PAUSED.
+All earlier "Latest" statuses below remain historical, not pending work.
+
 ## Latest B16: tiny nonzero fills and failed-account evidence
 
 New synthetic cases before fix:9failed3passed. After fix with existing replay cases:38passed3.93s; Ruff src/tests PASS. Full regression session59960 DONE exit0:1448passed2skipped542.25s (b16-full-suite.xml); new-commit CI not run yet. Do not repeat the completed suite or treat the previous3e9fd CI as this patch's verification. Exact holding-set, source and cost checks were not relaxed.

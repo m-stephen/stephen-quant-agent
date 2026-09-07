@@ -1,5 +1,21 @@
 # Stephen Quant Agent
 
+## Current checkpoint: V11.22 complete; search paused / 当前：诊断完成，搜索暂停
+
+V11.7–V11.22 code and evidence form one cumulative development chain. V11.22
+completed all four diagnostic accounts and the independent audit; no validated
+Alpha was produced. The user paused automated search on 8 September 2026.
+Do not execute historical continuation instructions or replay consumed epochs.
+The research checkpoint is V11.22; package metadata remains 11.20.0 and no new
+release tag is implied. Earlier sections below are historical evidence, not current
+launch authority or current Trial totals.
+
+See [中文完成报告](docs/V11_22_RESULT.zh.md),
+[English completion report](docs/V11_22_RESULT.en.md), and
+[Issue #200 discussion](https://github.com/m-stephen/stephen-quant-agent/issues/200).
+Raw-attempt lower bound: 3,733; formal Court: NOT_RUN_DIAGNOSTIC; no new search
+is authorized by this integration or the discussion.
+
 ## V11.17 statistical peers / 跨股统计关联
 
 Train-only return-correlation graphs test two peer-gap signals across three risk

@@ -1,5 +1,13 @@
 # V11.21 next bounded research stage / 下一轮有限研究
 
+## Superseding state: search paused / 最新覆盖状态：搜索暂停
+
+The response continuation and subsequent V11.22 construction diagnostic are
+complete. See V11_22_RESULT.zh.md/.en.md. The user requested a research pause;
+the plans and "next" instructions below are retained for lineage only, not launch
+authority. Issue #200 is discussion only. Do not repeat consumed operations,
+reserve new Trials, or resume automatic search without explicit approval.
+
 ## Latest: diagnostic CI recovery
 
 B8 actualCI34089011614 cancelled for configured40minute job timeout; no completed test log is retrievable. CI-onlydiagnostic correction preserves all tests and research logic. See CI_RECOVERY.zh/en and CONTINUATION. Do not launch plan001 after the newcommit; after newCI success prepare newplan002 and fully preregister it. No realclaim/Trial yet, debt3660. Another failure requires concrete log diagnosis, not another blind timeout bump. Existing research/control/Court contract below is unchanged.
