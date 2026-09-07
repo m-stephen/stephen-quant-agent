@@ -1,6 +1,18 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: phase B1, still no market epoch
+## Current checkpoint: phase B2 primitives, integration still pending
+
+Phase-B1 head7efb838c2652544f0efe78934fd0e436e71b5de2/CI34071068619 verified SUCCESS. Same branch/PR199 remains Draft. Read V11_21_PHASE_B2.zh.md/.en.md for the new two-source frozen reader and supervised predictor; final tests are recorded in VERIFICATION. The B1 status below is historical, not the current pending list.
+
+Final B2 verification:138targeted6.66s/full1179passed1skipped191.64s;Ruff/4fileformat/whitespacePASS. JUnit counts1180including1skip; paths/digests in VERIFICATION. Full session91563 completed exit0; no test or market process needs restarting. Source/predictor tests are synthetic; real debt still3660 and no actual epoch exists.
+
+New `qmt/flow_response_inputs.py` verifies the inherited five-source manifest but opens only daily/fund_flow files; projects2022–2024, excludes2021 numeric warmup, rejects2025+ partition metadata, duplicate keys and changed bytes. Explicit calendar must match daily dates. All invocations so far use synthetic files; this reader is NOT empirical authorization.
+
+New `discovery/flow_response_predictor.py`: seven finite forms response/response_interaction/risk/raw_flow_return/standardized_flow_return/old_absorption/shuffle; widths5/6/3/5/5/4/6. Current common8field support and5x4risk cells; within-cell ranks. Date-balanced pairwise least-squares regression, ridge.01, horizon20, stride5,5prefix-session embargo, minimum30actual mature training dates. Fixed64-name hash pairing per cell, no duplicate legs. Reuses parent's `pairwise_ranking.leg_label` missing-entry/past-end-mark semantics. This is a gross relative score, not net execution calibration. Training direction comes only from mature labels. Native fit/guarded prediction checks precede sample/current-row access; low-level pure functions aren't authorization gates.
+
+Next integrate the whole chain: daily rows→risk/eligibility/bars with prior source-adjustment/capacity/trading semantics; B1 per-day provider bundles→verified historical response feature cache→B2 same-support ranked pairs; prove every training row came from its own as-of bundle, not an arbitrary matrix or annual backfill. The native predictor fixture uses a generic synthetic label-free provider, so it does NOT yet test full response-source derivation. Connect the canonical finite packet, fixed targets/cash/anchors, complete Trial+cost+control budget and independent source/model/label/target/NAV audit. Preserve old anchors by original target bytes, not rewritten support. Complete synthetic pipeline plus full Issue184 preregistration before any real numeric source read. No new empirical Trials, market reads or Alpha claims; debt3660 and all frozen gates unchanged.
+
+## Historical phase B1, still no market epoch
 
 Phase-A head8e8dc1bcf7416ba63337573903b6de522cc25ae1/CI34069051824 was verified SUCCESS. Same codex/v11.21-flow-response branch and Draft PR199 now contain phase-B1 additions; verify the new exact head/CI before continuing. See V11_21_PHASE_B1.zh.md/.en.md. Do not mistake the historical phase-A pending list below for the current code state.
 

@@ -1,6 +1,19 @@
 # V11.21 phase A verification / 阶段 A 工程验证
 
-## Latest checkpoint: phase B1 / 最新检查点
+## Latest checkpoint: phase B2 / 最新检查点
+
+Phase-B2 reader/predictor primitives: **138 targeted passed in6.66s;1179 full passed,1 skipped in191.64s**. JUnit totals1180tests/0failures/0errors/1skip. Ruff check src/tests/scripts, all4newfiles format and git whitespace checks passed. Full session91563 ended exit0; no tests/market process remains. An earlier138targeted run before test-style cleanup is superseded, not added to the final result.
+
+Saved ignored evidence:
+
+- `artifacts/flow-response/phase-b2-regression-20260907.xml`, SHA256 `b3fb0c2dcde1908089f5c536632dda618ceab2d7f3eb53b0deb69c46aa3e8d99`.
+- `artifacts/flow-response/phase-b2-targeted-final-20260907.xml`, SHA256 `aad55442db69bd1ff3eff6e26b69d67009522f17279072e5c56af9624590599b`.
+
+Targeted reproduction: `python -m pytest -q tests/test_flow_response_inputs.py tests/test_flow_response_predictor.py tests/test_flow_response.py tests/test_flow_response_series.py tests/test_mechanism_inventory.py tests/test_fit_lineage.py`. Existing output files are immutable; choose new names for intentional reruns.
+
+All new numerical tests are synthetic. Market numeric reads0/newempiricalTrials0/debt3660; account backtest and Court NOT_RUN. The supervised primitive is now tested with synthetic mature labels, not real market labels. Passing planted/null fixtures is not an Alpha or false-positive-rate estimate. See PHASE_B2 zh/en for complete limitations and the still-unimplemented end-to-end historical feature/target/account chain. Phase-B1 CI34071068619 was verified SUCCESS; B2 CI must be checked for its own exact head.
+
+## Historical checkpoint: phase B1 / 历史检查点
 
 Phase A below is retained as historical evidence, not the current implementation boundary. See `V11_21_PHASE_B1.zh.md` and `.en.md` for the implemented shared native fit/source bridge/packet primitives and limitations.
 
