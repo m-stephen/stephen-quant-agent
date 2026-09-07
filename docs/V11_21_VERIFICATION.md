@@ -1,6 +1,21 @@
-# V11.21 phase A verification / 阶段 A 工程验证
+# V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: phase B2 / 最新检查点
+## Latest checkpoint: phase B3 / 最新检查点
+
+**163 targeted passed in45.03s;1204 full passed,1 skipped in226.11s.** JUnit reports1205total,0failures,0errors,1skip (suite time226.003s). Ruff check src/tests/scripts,format check of7new/modifiedPythonfiles and Git whitespace pass. Sessions82285targeted and25359full completed exit0; no test/market process remains. Prior B2headbbe3944d208d88df5e12f942aca58bbdeb078256/CI34072443592 verified SUCCESS; new B3commit CI must be verified separately.
+
+Saved ignored artifacts:
+
+- `artifacts/flow-response/phase-b3-regression-20260907.xml`, SHA256 `7a9ed3cc729fc44b58f7adc2f52353e2825f87a2460c84e3d3a458ca9e99c934`.
+- `artifacts/flow-response/phase-b3-targeted-20260907.xml`, SHA256 `b9baffb77ab891bbe8962b977ef04e92b3b04b1a38aeba1c836dc75651c94b08`.
+
+Targeted command: `python -m pytest -q tests/test_flow_response_panel.py tests/test_flow_response_history.py tests/test_flow_response_inputs.py tests/test_flow_response_predictor.py tests/test_flow_response.py tests/test_flow_response_series.py tests/test_mechanism_inventory.py tests/test_fit_lineage.py`. Full command: `python -m pytest -q --tb=short --junitxml=<new-unique-path>`. Existing JUnit artifacts must not be overwritten.
+
+Initial new-only tests exposed Decimal/float source math and two fixture mistakes, corrected before final runs. Their failed artifacts`phase-b3-new-20260907.xml`and`phase-b3-new-v2-20260907.xml`remain. Interim18new tests passed38.05s (`phase-b3-new-v3-20260907.xml`); final25new tests plus138prior targeted tests pass163. Do not add interim or failed attempts to passed totals.
+
+Source→native daily response bundles→bound historical matrix→mature predictor→all9policies/2costs is synthetic integration only. Independent NumPy statistics spot checks at3dates and per-ordercost/dailyNAV identities pass; they do not substitute for complete empirical source/model/label/target/NAV audit. Real numeric source reads0,empiricalTrials0,debt3660; real account backtest/Court NOT_RUN. See PHASE_B3.zh.md/.en.md for exact boundaries and pending original anchors/packet/budget/runner/preregistration.
+
+## Historical checkpoint: phase B2 / 历史检查点
 
 Phase-B2 reader/predictor primitives: **138 targeted passed in6.66s;1179 full passed,1 skipped in191.64s**. JUnit totals1180tests/0failures/0errors/1skip. Ruff check src/tests/scripts, all4newfiles format and git whitespace checks passed. Full session91563 ended exit0; no tests/market process remains. An earlier138targeted run before test-style cleanup is superseded, not added to the final result.
 

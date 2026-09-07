@@ -97,10 +97,16 @@ def load_response_sources(folder, *, expected_manifest_sha256, calendar):
                 raise ValueError("duplicate frozen source key")
         for source, path in files.items():
             columns = FIELDS[source]
+            projection = ",".join(
+                c
+                if c in {"trade_date", "instrument", "name", "available_at"}
+                else f"CAST({c} AS DOUBLE) AS {c}"
+                for c in columns
+            )
             # The inherited file may contain 2021 warmup: do not project those
             # numeric values under this bounded 2022-2024 response protocol.
             values = conn.execute(
-                f"SELECT {','.join(columns)} FROM read_parquet(?) "
+                f"SELECT {projection} FROM read_parquet(?) "
                 "WHERE trade_date BETWEEN DATE '2022-01-01' AND DATE '2024-12-31' "
                 "ORDER BY trade_date,instrument",
                 [str(path)],
@@ -122,6 +128,7 @@ def load_response_sources(folder, *, expected_manifest_sha256, calendar):
         "read_sources": list(FIELDS),
         "source_sha256": {s: declared[s]["sha256"] for s in FIELDS},
         "projected_rows": {s: len(selected[s]) for s in FIELDS},
+        "numeric_projection": "DOUBLE; source Decimal/integers normalized for finite math",
         "calendar_sha256": sha256_json(list(calendar)),
         "warmup_numeric_rows_read": 0,
         "sealed_numeric_rows_read": 0,

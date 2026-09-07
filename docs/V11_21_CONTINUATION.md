@@ -1,6 +1,22 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: phase B2 primitives, integration still pending
+## Current checkpoint: phase B3 synthetic integration
+
+B2 headbbe3944d208d88df5e12f942aca58bbdeb078256/CI34072443592 verified SUCCESS. B3 adds qmt/flow_response_panel.py and discovery/flow_response_history.py/flow_response_accounts.py, plus25new tests. Read PHASE_B3.zh.md/.en.md and latest VERIFICATION. Native source→per-day bundle→immutable actual history file→mature supervised pairs/model→four-phase netted account is now covered by a synthetic80-stock/300-weekday integration fixture. New empiricalTrials0/debt3660; no actual epoch. Earlier B2 incomplete-chain statements below are historical, not current.
+
+Final B3:163targeted45.03s/full1204passed1skipped226.11s; JUnit1205total/failure0/error0/skip1. Ruff/7fileformat/whitespacePASS. Sessions82285/25359doneexit0. Evidence filenames and hashes are in VERIFICATION. No source/test/account process needs restarting. Initialfailednew-only and interim18passed artifacts remain, not counted twice.
+
+The actual history artifact SHA is stored in the immutable provider result; each trained predictor binds history/prefix proofs. Source manifest must belong to the experiment snapshot. The new preflight requires provider params response_history_version=11.21-response-history-1,response_manifest_sha256,response_calendar_sha256,exactresponse_stages and all consuming Trial contracts before source read. Output directory is exclusive and disjoint from source. build_history_from_frozen is NOT empirical authorization; outer runner must preregister/reserve the complete budget first. Failed partial build is retained and cannot be replayed as successful.
+
+Panel risk requires21consecutive global prices,20sample log-return volatility,20return,up-to60meanADV>=10m;ST/noname excluded only from entry features. Missing adjacent prior globalADV means0capacity. These are explicitly conservative differences versus the old row-window bridge; source-adjusted execution/limit/suspension/writeoff remain. Reader now normalizes numeric Decimal/integer columns toDOUBLE. No2021 numeric warmup or2025/26reads.
+
+Synthetic integrated checks cover all7learned+hash/lowvol policies at82/164bps, empty-current-support cash, per-order costs/NAV identities,3date NumPy source-response-risk/rank recomputation, native cache/bundle/model tampering and pre-read scope/replay guards. Three dates are spot checks, not complete independent real-data audit. Models remain gross relative scores, not calibrated executable forecasts. PureB2 fit_and_bind_predictor remains generic; only fit_history_predictor establishes the actual bound cache path.
+
+Next phase B4: finish canonical finite packet and exact full empirical Trial/cost/control budget, share actual annual predictor fits across cost consumers with explicit native bindings, preserve original stable/lowvol target bytes, build exclusive runner and complete independent source/model/label/target/NAV audit plus synthetic cross-year/failure paths. Freeze complete Issue184 preregistration before any real source/anchor numerical read. Do not rerun old epochs or replace original anchors with same-support controls. Keep Draft PR199 and all gates. No main merge.
+
+Before scaling the in-memory B3 history to the market universe, estimate memory/disk/runtime using synthetic sizes. Avoid verifying/reparsing all provider bundles separately for every cost/day: keep a verified immutable cache within one process with explicit actual-file proofs, without dropping checks. A partial failed build must stay in its claimed directory with counted reservations; an outer runner must record failure rather than fabricate completed native fits or silently retry.
+
+## Historical checkpoint: phase B2 primitives
 
 Phase-B1 head7efb838c2652544f0efe78934fd0e436e71b5de2/CI34071068619 verified SUCCESS. Same branch/PR199 remains Draft. Read V11_21_PHASE_B2.zh.md/.en.md for the new two-source frozen reader and supervised predictor; final tests are recorded in VERIFICATION. The B1 status below is historical, not the current pending list.
 

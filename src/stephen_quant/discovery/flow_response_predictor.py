@@ -254,9 +254,7 @@ def fit_predictor(pairs, calendar, year, policy):
     }
 
 
-def fit_and_bind_predictor(
-    registry, trial_id, provider_id, *, pairs, calendar, year, policy, artifact_path
-):
+def assert_predictor_contract(registry, trial_id, provider_id, year, policy, artifact_path):
     sources = registry.feature_sources(trial_id)  # Before reading pairs or fitting anything.
     if sources["providers"] != [provider_id]:
         raise ValueError("exact response provider required before supervised fit")
@@ -281,8 +279,29 @@ def fit_and_bind_predictor(
     path = Path(artifact_path)
     if path.exists():
         raise FileExistsError(path.name)
+    return sources
+
+
+def fit_and_bind_predictor(
+    registry,
+    trial_id,
+    provider_id,
+    *,
+    pairs,
+    calendar,
+    year,
+    policy,
+    artifact_path,
+    training_provenance=None,
+):
+    sources = assert_predictor_contract(
+        registry, trial_id, provider_id, year, policy, artifact_path
+    )
+    path = Path(artifact_path)
     model = fit_predictor(pairs, calendar, year, policy)
     model["feature_sources_sha256"] = sources["sha256"]
+    if training_provenance is not None:
+        model["training_provenance"] = training_provenance
     # Generated fit artifact, exclusive and never a hand-supplied model digest.
     with path.open("x", encoding="utf-8", newline="\n") as output:
         output.write(json.dumps(model, sort_keys=True, allow_nan=False))
