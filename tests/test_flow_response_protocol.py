@@ -28,6 +28,7 @@ def spec():
         "manifest_sha256": "a" * 64,
         "anchor_card_sha256": "b" * 64,
         "runtime_code_sha256": "c" * 64,
+        "failed_epoch_evidence_sha256": "d" * 64,
     }
 
 
@@ -40,12 +41,12 @@ def test_exact_finite_packet_family_and_native_budget(tmp_path):
     assert len(plans()) == BUDGET == 23 and len(CONTROLS) == 9
     assert contract()["actual_supervised_models"] == 14
     assert contract()["supervised_native_bindings"] == 28
-    assert contract()["after_full_reservation_debt"] == 3683
+    assert contract()["after_full_reservation_debt"] == 3706
     # JSON roundtrip cannot invalidate tuples vs lists in a reproducible config.
     registry, tids = reserve_trials(tmp_path, json.loads(json.dumps(spec())))
     receipt = check_complete_reservations(registry, tids)
     assert receipt["reserved"] == registry.global_trial_count() == 23
-    assert receipt["prior_debt"] == DEBT == 3660 and receipt["debt"] == 3683
+    assert receipt["prior_debt"] == DEBT == 3683 and receipt["debt"] == 3706
     with registry.connect() as conn:
         assert conn.execute("SELECT count(*) FROM trial_model_fits").fetchone()[0] == 0
         assert conn.execute("SELECT count(*) FROM trial_feature_contracts").fetchone()[0] == 23

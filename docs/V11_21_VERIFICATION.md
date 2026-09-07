@@ -1,6 +1,14 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest: B8 remote timeout, diagnostic CI correction
+## Latest B13: source-support and failed-debt correction
+
+Final full regression: **1435 passed, 2 skipped, 0 failures/errors, 566.73s**; session1674 DONE exit0. Complete synthetic source→history→models→targets→accounts→independent audit passed. JUnit `artifacts/flow-response/checkpoints/b13-full-suite-final.xml`. Initial full session60218 DONE exit1,1433passed/2skipped/1error/512.29s remains preserved; its only error was the subsequently corrected auditor debt literal. New final suite adds one omitted-debt regression. Do not repeat either completed suite on wake.
+
+Targeted133passed24.85s (launch/native/protocol/series/reference) and104passed90.91s (series/reference/history/views); overlapping subsets, not additive. Ruff src/tests and changed scripts PASS. Broad `ruff check .` also reports6 pre-existing notebook import-format findings outside CI scope; those unrelated notebooks were not changed. No new market trial/result. Actual consumed plan002/claim/terminal/native file verification passes read-only:23reserved,0results/0fits,debt3683.
+
+First full regression detected a stale hard-coded debt in the independent auditor. The required total now comes from DEBT+BUDGET (3706 for the new epoch); an omitted-failed-debt test was added. Final local regression passed; actual new-commit CI remains required before any new launch. Final JUnit SHA-256 `0447239323c881729bd3d461874de8811a5974607759c70b2700d7f44a36c9a1`,1437total/0errors/0failures/2skips,time566.293s. Initial failed JUnit SHA `a2a8f1971e496448bd8f01bb8060ea1f56bbe1f86d4988c1b68ab922282ddd09`; targeted104JUnit SHA `732b888b8380e665846ae3e548ba98cfb1b4dc52bc81eb3826c28225fe9498ac`. See SOURCE_SUPPORT.zh/en; old claims/plans/evidence remain immutable. Earlier entries are historical.
+
+## Historical: B8 remote timeout, diagnostic CI correction
 
 Run34089011614/job101638545074 CANCELLED. Actual check annotation confirms40m0s configured job timeout onubuntu-24.04; completed06:46:10Z. Connector BlobNotFound and CLI log-not-found prevent attribution to any test. Existing full1399passed/2skipped is local evidence only. CI/doc-only correction leaves source and tests unchanged; adds verbose/stacks/JUnit/retainedlogs, CI-onlysingleBLASthreads and45minute test/60minute job bounds. Newhead CI must pass independently. Oldplan001 stays unconsumed/immutable and must be superseded by newplan/preregistration after newCI. Empiricaldelta0/debt3660; noAlpha.
 

@@ -21,7 +21,7 @@ from stephen_quant.discovery.flow_response_history import (
     VerifiedHistoryCache,
     build_history_from_frozen,
 )
-from stephen_quant.discovery.flow_response_series import response_stages
+from stephen_quant.discovery.flow_response_series import DAILY_SUPPORT, response_stages
 from stephen_quant.discovery.response_resources import process_memory
 from stephen_quant.discovery.search_power_dsl import sha256_json
 from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
@@ -60,6 +60,7 @@ def run(output, *, stocks):
         )
         params = {
             "response_history_version": VERSION,
+            "response_support_policy": DAILY_SUPPORT,
             "response_manifest_sha256": manifest,
             "response_calendar_sha256": sha256_json(calendar),
         }

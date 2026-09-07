@@ -7,6 +7,7 @@ loading is not bounded-memory; the *reference source scan* uses bounded batches.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from contextlib import contextmanager
@@ -141,12 +142,38 @@ def audit_source_history(registry, consumer, *, history_path, input_folder):
     calendar = history["calendar"]
     total_bars, total_ranks, total_models, days = 0, 0, 0, 0
     reference_digests = {}
+    support_days, orphan_exclusions = {}, []
+    key_hashes = {k: hashlib.sha256() for k in ("daily_only", "flow_only")}
     with source_streams(input_folder, manifest_sha256=manifest_sha) as (streams, source_hashes):
         if source_hashes != history["source_evidence"]["source_sha256"]:
             raise ValueError("native history belongs to different source files")
         for i, (day, reference) in enumerate(
-            reference_history(streams["daily"], streams["fund_flow"], calendar)
+            reference_history(
+                streams["daily"],
+                streams["fund_flow"],
+                calendar,
+                support_policy="same-date-daily-supported-v1",
+            )
         ):
+            d, f = [set(reference["source_keys"][k]) for k in ("daily", "fund_flow")]
+            support_days[day] = {
+                "daily": len(d),
+                "fund_flow": len(f),
+                "common": len(d & f),
+                "daily_only": len(d - f),
+                "flow_only": len(f - d),
+            }
+            for kind, names in (("daily_only", sorted(d - f)), ("flow_only", sorted(f - d))):
+                for name in names:
+                    key_hashes[kind].update(
+                        (
+                            json.dumps([day, name], separators=(",", ":"), ensure_ascii=True) + "\n"
+                        ).encode()
+                    )
+                    if kind == "flow_only":
+                        orphan_exclusions.append(
+                            {"date": day, "asset": name, "reason": "flow_without_same_date_daily"}
+                        )
             compare(history["bars"][day], reference["bars"], label=f"bars:{day}")
             compare(history["ranks"][day], reference["ranks"], label=f"ranks:{day}")
             if 61 <= i < len(calendar) - 1:
@@ -166,6 +193,27 @@ def audit_source_history(registry, consumer, *, history_path, input_folder):
             total_bars += len(reference["bars"])
             total_ranks += len(reference["ranks"])
             days += 1
+    counts = {
+        k: sum(v[k] for v in support_days.values())
+        for k in ("daily", "fund_flow", "common", "daily_only", "flow_only")
+    }
+    expected_support = {
+        "policy": "same-date-daily-supported-v1",
+        "counts": counts,
+        "days": support_days,
+        "identity_sha256": {k: h.hexdigest() for k, h in key_hashes.items()},
+        "identity_encoding": "sorted-date-instrument compact ASCII JSON pairs, LF",
+        "daily_key_coverage": counts["common"] / counts["daily"] if counts["daily"] else None,
+        "flow_key_coverage": counts["common"] / counts["fund_flow"]
+        if counts["fund_flow"]
+        else None,
+        "feature_coverage_gate": "separate; key coverage is not eight-feature/risk eligibility",
+    }
+    actual_exclusions = [
+        e for e in history["bridge_exclusions"] if e["reason"] == "flow_without_same_date_daily"
+    ]
+    if history["source_support"] != expected_support or actual_exclusions != orphan_exclusions:
+        raise ValueError("independent exact source support/exclusion identity mismatch")
     if file_sha(history_path) != native_proof["history_artifact_sha256"]:
         raise ValueError("history changed during independent audit")
     return {
@@ -178,6 +226,8 @@ def audit_source_history(registry, consumer, *, history_path, input_folder):
         "ranked_rows_checked": total_ranks,
         "per_stock_response_fits_checked": total_models,
         "source_sha256": source_hashes,
+        "source_support_sha256": sha256_json(expected_support),
+        "source_support_counts": counts,
         **native_proof,
         "reference_day_digests_sha256": sha256_json(reference_digests),
         "source_read_batch_rows": 2048,

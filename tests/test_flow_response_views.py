@@ -165,7 +165,7 @@ def test_unused_flow_rows_released_before_risk_panel(tmp_path, monkeypatch):
     observed = weakref.ref(payload["fund_flow"])
     monkeypatch.setattr(module, "_preflight", lambda *a, **kw: "a" * 64)
     monkeypatch.setattr(module, "load_response_sources", lambda *a, **kw: (payload, {}))
-    monkeypatch.setattr(module, "bridge_rows", lambda *a, **kw: ({}, []))
+    monkeypatch.setattr(module, "bridge_source_rows", lambda *a, **kw: ({}, [], {}))
 
     def panel(*args):
         assert observed() is None

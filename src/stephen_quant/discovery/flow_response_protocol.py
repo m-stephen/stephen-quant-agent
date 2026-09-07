@@ -15,12 +15,14 @@ from stephen_quant.mechanism_inventory import freeze_lineage_packet
 
 from .flow_response_history import VERSION as HISTORY_VERSION
 from .flow_response_predictor import INPUTS, POLICIES, RISK, stages
-from .flow_response_series import response_stages, validate_calendar
+from .flow_response_series import DAILY_SUPPORT, response_stages, validate_calendar
 from .pairwise_ranking import screen
 from .search_power_dsl import sha256_json
 
-VERSION = "11.21-response-epoch-1"
-DEBT = 3660
+VERSION = "11.21-response-epoch-2"
+BASE_DEBT = 3660
+FAILED_ATTEMPTS = 23  # Verified consumed epoch-1 evidence; not discarded on failure.
+DEBT = BASE_DEBT + FAILED_ATTEMPTS
 COSTS = (82, 164)
 PRIMARY = ("response", "response_interaction")
 CONTROLS = tuple(p for p in POLICIES if p not in PRIMARY) + (
@@ -113,6 +115,8 @@ def contract():
         "fit_sharing": "one annual model per policy, exact same bytes bound to both cost Trials; not independent fits",
         "fit": "2023 on2022,2024 on2022-23;20session next-open labels,stride5,5session prefix embargo,ridge.01,>=30mature dates",
         "source_scope": "frozen daily/fund_flow,2022-2024 only;no2021 numeric warmup or2025/26",
+        "source_support_policy": DAILY_SUPPORT,
+        "source_support_exclusions": "same-date key-only exclusions with exact identity hashes;no numeric imputation,calendar compression or future-presence filtering",
         "features": INPUTS,
         "risk": "21consecutive global closes;20sample log-return volatility;20return;up-to60mean CNY ADV>=10m;nonempty non-ST name",
         "capacity": "5% immediately preceding global-session visible ADV;missing adjacent ADV=>0",
@@ -124,7 +128,7 @@ def contract():
         "account": "CNY3m,82/164bps,20session stale writeoff,source-adjusted fractional shares;not broker-certified",
         "coverage_min": 0.95,
         "screen": "bothyearspositive,SR>=.7,MDD>=-.25,totalincrement>=.03 and eachannual>=-.05 vsEVERY9control atbothcosts,coverage>=.95,completeaudit",
-        "multiplicity": "all23 reservations before values;failed attempts retained;canonical family keys never reset3660debt",
+        "multiplicity": "3660 verified parent +23 consumed failed epoch =3683 prior;new23 reservations=>3706;no debt reset",
         "gross_diagnostics": "no zero-cost account or new calibration in this budget",
         "shuffle": "fixed training date/cell label rotation;control only,not placebo p-value",
         "statistics": {
@@ -152,6 +156,9 @@ def reserve_trials(output, spec):
         or len(packet["accepted"]) != 2
         or packet["rejected"]
         or {d[:4] for d in calendar} != {"2022", "2023", "2024"}
+        or not isinstance(spec.get("failed_epoch_evidence_sha256"), str)
+        or len(spec["failed_epoch_evidence_sha256"]) != 64
+        or any(c not in "0123456789abcdef" for c in spec["failed_epoch_evidence_sha256"])
     ):
         raise ValueError("exact finite response protocol and all3calendar years required")
     db_path = output / "registry.sqlite3"
@@ -163,6 +170,7 @@ def reserve_trials(output, spec):
             {
                 "inputs": spec["manifest_sha256"],
                 "anchor_card": spec["anchor_card_sha256"],
+                "failed_epoch_evidence": spec["failed_epoch_evidence_sha256"],
             }
         )
     )
@@ -180,6 +188,8 @@ def reserve_trials(output, spec):
         "response_history_version": HISTORY_VERSION,
         "response_manifest_sha256": spec["manifest_sha256"],
         "response_calendar_sha256": sha256_json(calendar),
+        "response_support_policy": DAILY_SUPPORT,
+        "failed_epoch_evidence_sha256": spec["failed_epoch_evidence_sha256"],
     }
     tids = {}
     for p in plans():

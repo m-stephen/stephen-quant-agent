@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import math
 import sqlite3
@@ -8,8 +9,10 @@ from datetime import date, timedelta
 import pytest
 
 from stephen_quant.discovery.flow_response_series import (
+    DAILY_SUPPORT,
     bind_response_bundle,
     bridge_rows,
+    bridge_source_rows,
     clock,
     fit_response_bundle,
     guarded_response_values,
@@ -95,6 +98,76 @@ def test_bridge_source_contract_rejection(kind):
         daily[5] = daily[5] | {"available_at": "2022-01-02T17:00:00"}
     with pytest.raises(ValueError):
         bridge_rows(daily, flow, calendar)
+    if kind != "orphan":
+        with pytest.raises(ValueError):
+            bridge_source_rows(daily, flow, calendar, support_policy=DAILY_SUPPORT)
+
+
+def test_explicit_support_records_exact_keys_without_inspecting_orphan_values():
+    daily, flow, days = source(80)
+    baseline, _ = bridge_rows(daily, flow, days)
+    # No available_at or numeric fields: key exclusion must not access them.
+    flow.append({"trade_date": days[20], "instrument": "orphan"})
+    result, exclusions, support = bridge_source_rows(
+        list(reversed(daily)), list(reversed(flow)), days, support_policy=DAILY_SUPPORT
+    )
+    assert result == baseline
+    assert exclusions[0] == {
+        "date": days[20],
+        "asset": "orphan",
+        "reason": "flow_without_same_date_daily",
+    }
+    expected_hash = hashlib.sha256(f'["{days[20]}","orphan"]\n'.encode()).hexdigest()
+    assert support["identity_sha256"]["flow_only"] == expected_hash
+    assert support["counts"] == {
+        "daily": 240,
+        "fund_flow": 241,
+        "common": 240,
+        "daily_only": 0,
+        "flow_only": 1,
+    }
+    assert support["flow_key_coverage"] == 240 / 241
+    assert support["daily_key_coverage"] == 1.0
+    again = bridge_source_rows(daily, flow, days, support_policy=DAILY_SUPPORT)
+    assert again == (result, exclusions, support)
+    with pytest.raises(ValueError, match="without a daily"):
+        bridge_rows(daily, flow, days)
+
+
+def test_support_gaps_reset_global_adjacency_and_do_not_use_future_presence():
+    daily, flow, days = source(80)
+    daily = [
+        r for r in daily if not (r["trade_date"] == days[20] and r["instrument"] == "synthetic-0")
+    ]
+    flow = [
+        r for r in flow if not (r["trade_date"] == days[30] and r["instrument"] == "synthetic-1")
+    ]
+    obs, _, support = bridge_source_rows(daily, flow, days, support_policy=DAILY_SUPPORT)
+    assert list(obs) == days
+    assert "synthetic-0" in obs[days[19]]  # Later absence must not filter past eligibility.
+    assert "synthetic-0" not in obs[days[20]] and "synthetic-0" not in obs[days[21]]
+    assert "synthetic-0" in obs[days[22]]
+    assert "synthetic-1" not in obs[days[30]] and "synthetic-1" in obs[days[31]]
+    model = fit_response_bundle(obs, days, 61, "a" * 64)
+    assert set(model["models"]) == {"synthetic-2"}  # No compressed60-row fit across either gap.
+    assert support["counts"]["flow_only"] == support["counts"]["daily_only"] == 1
+
+
+@pytest.mark.parametrize("kind", ["duplicate", "calendar", "key", "policy"])
+def test_explicit_support_does_not_relax_key_gates(kind):
+    daily, flow, days = source()
+    orphan = {"trade_date": days[3], "instrument": "orphan"}
+    flow.append(orphan)
+    if kind == "duplicate":
+        flow.append(orphan)
+    elif kind == "calendar":
+        orphan["trade_date"] = "2026-01-01"
+    elif kind == "key":
+        orphan["instrument"] = " "
+    with pytest.raises(ValueError):
+        bridge_source_rows(
+            daily, flow, days, support_policy="guess" if kind == "policy" else DAILY_SUPPORT
+        )
 
 
 @pytest.mark.parametrize("kind", ["daily", "flow"])

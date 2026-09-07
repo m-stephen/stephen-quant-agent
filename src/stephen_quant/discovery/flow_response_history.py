@@ -25,8 +25,9 @@ from .flow_response_predictor import (
     ranked_rows,
 )
 from .flow_response_series import (
+    DAILY_SUPPORT,
     bind_response_bundle,
-    bridge_rows,
+    bridge_source_rows,
     clock,
     fit_response_bundle,
     response_stages,
@@ -36,7 +37,7 @@ from .flow_response_storage import freeze, load_json, streaming_sha256_json
 from .flow_response_views import HistoricalBarMapping
 from .search_power_dsl import sha256_json
 
-VERSION = "11.21-response-history-1"
+VERSION = "11.21-response-history-2"
 
 
 def _write(path, value):
@@ -63,6 +64,7 @@ def _preflight(registry, provider, consumers, calendar, manifest_sha256):
             or params.get("response_history_version") != VERSION
             or params.get("response_manifest_sha256") != manifest_sha256
             or params.get("response_calendar_sha256") != sha256_json(list(calendar))
+            or params.get("response_support_policy") != DAILY_SUPPORT
         ):
             raise ValueError("predeclared exact response source/calendar/stages required")
         snapshot_row = conn.execute(
@@ -107,7 +109,9 @@ def build_history_from_frozen(
     rows, source_evidence = load_response_sources(
         source, expected_manifest_sha256=manifest_sha256, calendar=calendar
     )
-    observations, exclusions = bridge_rows(rows["daily"], rows["fund_flow"], calendar)
+    observations, exclusions, support = bridge_source_rows(
+        rows["daily"], rows["fund_flow"], calendar, support_policy=DAILY_SUPPORT
+    )
     del rows["fund_flow"]  # No flow source matrix is needed while building risk/bars.
     risk, bars, quality = build_response_panel(rows["daily"], calendar)
     del rows
@@ -179,6 +183,7 @@ def build_history_from_frozen(
         "bars": bars,
         "days": evidence,
         "bridge_exclusions": exclusions,
+        "source_support": support,
         "panel_quality": quality,
         "validated_alpha": False,
     }
@@ -195,6 +200,7 @@ def build_history_from_frozen(
                 "response_history_version": VERSION,
                 "history_artifact_sha256": file_sha(path),
                 "source_evidence_sha256": sha256_json(source_evidence),
+                "source_support_sha256": sha256_json(support),
             },
             sort_keys=True,
         ),
@@ -226,6 +232,8 @@ def read_verified_history(registry, consumer, path, *, immutable=False):
         or document["provider_id"] != provider
         or document["native_fit_lineage_sha256"] != result["native_fit_lineage_sha256"]
         or sha256_json(document["source_evidence"]) != result["source_evidence_sha256"]
+        or document["source_support"]["policy"] != DAILY_SUPPORT
+        or sha256_json(document["source_support"]) != result["source_support_sha256"]
     ):
         raise ValueError("historical source identity changed")
     # Recheck all persisted model files against their native records once per cache

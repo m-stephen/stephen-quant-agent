@@ -22,7 +22,9 @@ from stephen_quant.integrity.registry import ExperimentRegistry
 from stephen_quant.qmt.data_warehouse import _duckdb
 from stephen_quant.qmt.reliable_panel import file_sha
 
+from .flow_response_failure import FAILED_CLAIM_KEY, FAILED_PLAN_SHA, failed_epoch_evidence
 from .flow_response_protocol import (
+    BASE_DEBT,
     BUDGET,
     DEBT,
     VERSION,
@@ -98,6 +100,10 @@ def layout(worktree):
         "inputs": base / "v11.4-research-reliability/artifacts/reliable-research/epoch-002/inputs",
         "original": base / "v11.11-temporal-increments",
         "claim": common.parent / f"artifacts/flow-response-global-claims/{CLAIM_KEY}.json",
+        "failed_epoch": base
+        / f"v11.21-flow-response/artifacts/flow-response/epochs/{FAILED_PLAN_SHA}",
+        "failed_claim": common.parent
+        / f"artifacts/flow-response-global-claims/{FAILED_CLAIM_KEY}.json",
     }
 
 
@@ -139,7 +145,7 @@ def parent_evidence(root):
     result, audit = read(root / "RESULT.json"), read(root / "INDEPENDENT_AUDIT.json")
     if (
         audit["pass"] is not True
-        or result["raw_global_trial_lower_bound"] != DEBT
+        or result["raw_global_trial_lower_bound"] != BASE_DEBT
         or result["completed_trials"] != 12
         or result["reserved_trials"] != 12
         or result["engineering_pass"] is not True
@@ -257,6 +263,9 @@ def prepare_plan(worktree):
     paths = layout(worktree)
     code = code_evidence(paths["worktree"])
     parent = parent_evidence(paths["parent"])
+    failure = failed_epoch_evidence(paths["failed_epoch"], paths["failed_claim"])
+    if failure["prior_debt"] != BASE_DEBT or failure["inherited_debt"] != DEBT:
+        raise ValueError("verified failed-epoch debt must augment fixed parent debt")
     original = original_evidence(paths["original"])
     sources, calendar = source_evidence(paths["inputs"])
     spec = {
@@ -267,13 +276,20 @@ def prepare_plan(worktree):
         "manifest_sha256": SNAPSHOT_SHA,
         "anchor_card_sha256": CARD_SHA,
         "runtime_code_sha256": code["sha256"],
+        "failed_epoch_evidence_sha256": sha256_json(failure),
     }
     return {
         "version": VERSION,
         "claim_key": CLAIM_KEY,
         "paths": {k: str(p) for k, p in paths.items()},
         "spec": spec,
-        "evidence": {"code": code, "parent": parent, "sources": sources, "original": original},
+        "evidence": {
+            "code": code,
+            "parent": parent,
+            "sources": sources,
+            "original": original,
+            "failed_epoch": failure,
+        },
         "limits": asdict(LIMITS),
         "parent_debt": DEBT,
         "committed_attempt_budget": BUDGET,

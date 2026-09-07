@@ -1,6 +1,14 @@
 # V11.21 continuation / 续接记录
 
-## Latest: CI recovery before any empirical launch
+## Latest B13: source-support correction, not a new market result
+
+Final full regression session1674 DONE exit0:1435passed2skipped566.73s; complete independent synthetic pipeline audit passed. Initial60218 DONE exit1 (1433pass2skip1error512.29s) preserved separately. Ruff src/tests/changed scripts PASS. Do not rerun completed local tests. Next commit/push scoped changes on PR199, verify actual new CI, then exclusive plan003/full Issue184 preregistration/fixed API/newonceclaim. No new numerical market execution or claim yet; actual debt3683.
+
+Plan002 was consumed and FAILED before models on202orphan flow keys. Actual read-only verification confirms23native reservations,0results/0fits; debt3683. Never replay plan002 or delete its shared claim. Earlier paragraphs below are historical and must not override this state.
+
+Same-date daily-supported policy is now implemented, strict default preserved, exact orphan/bidirectional coverage evidence independently reconstructed. History version2/native support binding; epoch version2 inherits actual failed plan/claim/terminal/native proof into spec/snapshot. Parent fixed3660+failed23=3683;next23claim=>3706. See SOURCE_SUPPORT.zh/en. Targeted133pass and104pass; first full regression found stale audit debt literal, corrected to DEBT+BUDGET with omitted-debt regression. Final local regression passed as above; actualnewCI remains required before fresh exclusive plan003 and complete Issue184 preregistration. No market numeric reads or new claimedTrials in B13 yet.
+
+## Historical: CI recovery before the first empirical launch
 
 B8 run34089011614/job101638545074 is CANCELLED, not pending or passing. Actual REST annotation: exceeded maximum execution time40m0s; ubuntu-24.04,06:01:09Z–06:46:10Z including termination. Both connector and CLI lack logs, so the slow-test cause is unknown. Read CI_RECOVERY.zh/en. CI now preserves verbose logs/JUnit/hanging stacks, limits BLAS threads only in CI, and separates45minute test timeout from60minute job. No test or numerical-code changes; no blind repeated time-limit increases if this diagnostic run also fails.
 

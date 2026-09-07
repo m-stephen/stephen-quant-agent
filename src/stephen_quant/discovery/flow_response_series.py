@@ -6,6 +6,8 @@ tested with synthetic records; the complete market preregistration is pending.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import asdict
 from datetime import date, datetime
@@ -24,6 +26,42 @@ from .flow_response import response_features as evaluate_response
 from .search_power_dsl import sha256_json
 
 VERSION = "11.21-response-series-1"
+STRICT_SUPPORT = "strict-flow-foreign-key-v1"
+DAILY_SUPPORT = "same-date-daily-supported-v1"
+
+
+def source_support_evidence(indexed, calendar, policy):
+    """Key-only coverage, not feature eligibility; never inspect orphan values."""
+    totals = {"daily": 0, "fund_flow": 0, "common": 0, "daily_only": 0, "flow_only": 0}
+    hashes = {k: hashlib.sha256() for k in ("daily_only", "flow_only")}
+    days = {}
+    for day in calendar:
+        d, f = set(indexed["daily"][day]), set(indexed["fund_flow"][day])
+        unmatched = {"daily_only": sorted(d - f), "flow_only": sorted(f - d)}
+        counts = {"daily": len(d), "fund_flow": len(f), "common": len(d & f)}
+        for kind, names in unmatched.items():
+            counts[kind] = len(names)
+            for name in names:
+                hashes[kind].update(
+                    (
+                        json.dumps([day, name], ensure_ascii=True, separators=(",", ":")) + "\n"
+                    ).encode()
+                )
+        days[day] = counts
+        for key, value in counts.items():
+            totals[key] += value
+    return {
+        "policy": policy,
+        "counts": totals,
+        "days": days,
+        "identity_sha256": {k: h.hexdigest() for k, h in hashes.items()},
+        "identity_encoding": "sorted-date-instrument compact ASCII JSON pairs, LF",
+        "daily_key_coverage": totals["common"] / totals["daily"] if totals["daily"] else None,
+        "flow_key_coverage": totals["common"] / totals["fund_flow"]
+        if totals["fund_flow"]
+        else None,
+        "feature_coverage_gate": "separate; key coverage is not eight-feature/risk eligibility",
+    }
 
 
 def validate_calendar(calendar):
@@ -49,7 +87,14 @@ def timestamp(value):
     return aware(value.isoformat() if isinstance(value, datetime) else value)
 
 
-def bridge_rows(daily_rows, flow_rows, calendar):
+def bridge_rows(daily_rows, flow_rows, calendar, *, support_policy=STRICT_SUPPORT):
+    observations, exclusions, _ = bridge_source_rows(
+        daily_rows, flow_rows, calendar, support_policy=support_policy
+    )
+    return observations, exclusions
+
+
+def bridge_source_rows(daily_rows, flow_rows, calendar, *, support_policy=STRICT_SUPPORT):
     """Strict key join, daily amount thousands->CNY, adjusted close-to-close return.
 
     Visibility is vendor-recorded historical availability, not a live first-seen
@@ -57,6 +102,8 @@ def bridge_rows(daily_rows, flow_rows, calendar):
     permanently in this bounded protocol; no retrospective backfill into a fit.
     """
     validate_calendar(calendar)
+    if support_policy not in (STRICT_SUPPORT, DAILY_SUPPORT):
+        raise ValueError("unknown source support policy")
     allowed, indexed = set(calendar), {}
     for source, rows in (("daily", daily_rows), ("fund_flow", flow_rows)):
         table = {d: {} for d in calendar}
@@ -74,10 +121,16 @@ def bridge_rows(daily_rows, flow_rows, calendar):
             table[dt][asset] = row
         indexed[source] = table
     # Foreign keys are not silently dropped, including flow-only symbols/dates.
-    if any(indexed["fund_flow"][d].keys() - indexed["daily"][d].keys() for d in calendar):
+    support = source_support_evidence(indexed, calendar, support_policy)
+    if support_policy == STRICT_SUPPORT and support["counts"]["flow_only"]:
         raise ValueError("flow keys without a daily source record")
     by_date = indexed["daily"]
-    observations, exclusions, previous = {d: {} for d in calendar}, [], {}
+    exclusions = [
+        {"date": d, "asset": n, "reason": "flow_without_same_date_daily"}
+        for d in calendar
+        for n in sorted(indexed["fund_flow"][d].keys() - indexed["daily"][d].keys())
+    ]
+    observations, previous = {d: {} for d in calendar}, {}
     for i, dt in enumerate(calendar):
         decision, close_clock = aware(clock(dt, "23:59:59")), aware(clock(dt, "15:00:00"))
         for asset, row in sorted(by_date[dt].items()):
@@ -137,7 +190,7 @@ def bridge_rows(daily_rows, flow_rows, calendar):
             observations[dt][asset] = ResponseObservation(
                 asset, i, close_clock.isoformat(), available.isoformat(), ratio, ret
             )
-    return observations, exclusions
+    return observations, exclusions, support
 
 
 def response_stages(calendar):

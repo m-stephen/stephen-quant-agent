@@ -9,6 +9,7 @@ from pathlib import Path
 
 import duckdb
 import pytest
+from test_flow_response_failure import failed_fixture
 
 from stephen_quant.discovery import flow_response_launch as m
 from stephen_quant.discovery.search_power_dsl import sha256_json
@@ -21,6 +22,7 @@ def fixture(tmp_path, monkeypatch):
     for p in paths.values():
         p.mkdir()
     paths["claim"] = tmp_path / "common/claims/once.json"
+    paths["failed_epoch"], paths["failed_claim"] = failed_fixture(tmp_path, monkeypatch)
     monkeypatch.setattr(m, "layout", lambda _: paths)
     monkeypatch.setattr(m, "code_evidence", lambda _: {"sha256": "c" * 64, "commit": "1" * 40})
     calendar = [str(date(2022, 1, 3) + timedelta(days=i)) for i in range(64)]
@@ -129,7 +131,11 @@ def test_prepare_uses_only_dates_two_files_and_target_hashes_without_claim(fixtu
     assert {d[:4] for d in plan["spec"]["calendar"]} == {"2022", "2023", "2024"}
     assert not paths["claim"].exists()
     assert not (paths["worktree"] / "artifacts/flow-response/epochs").exists()
-    assert plan["committed_attempt_budget"] == 23 and plan["parent_debt"] == 3660
+    assert plan["committed_attempt_budget"] == 23 and plan["parent_debt"] == 3683
+    assert plan["evidence"]["failed_epoch"]["consumed_attempts"] == 23
+    assert plan["spec"]["failed_epoch_evidence_sha256"] == sha256_json(
+        plan["evidence"]["failed_epoch"]
+    )
     assert m.verify_plan(plan, paths["worktree"]) == sha256_json(plan)
 
 
@@ -143,6 +149,8 @@ def test_prepare_uses_only_dates_two_files_and_target_hashes_without_claim(fixtu
         ("inputs", "daily.parquet"),
         ("inputs", "fund_flow.parquet"),
         ("original", "artifacts/temporal-increments/epoch-001/targets/lowvol.json"),
+        ("failed_epoch", "registry.sqlite3"),
+        ("failed_epoch", "RESERVATIONS.json"),
     ],
 )
 def test_changed_frozen_bytes_refuse_before_claim_or_numeric_access(fixture, key, relative):
@@ -215,7 +223,7 @@ def test_failed_backend_keeps_all23_and_prevents_other_operation(fixture, monkey
     assert calls == ["backend"]
     terminal = m.read(paths["claim"].with_name("once.terminal.json"))
     assert terminal["committed_attempt_budget"] == terminal["native_reserved"] == 23
-    assert terminal["raw_global_trial_lower_bound"] == 3683
+    assert terminal["raw_global_trial_lower_bound"] == 3706
     assert terminal["outcome"] == "FAILED" and terminal["exception_type"] == "RuntimeError"
     # A different worktree and therefore different plan/output cannot reset the global parent claim.
     paths["worktree"] = paths["worktree"].parent / "second-worktree"

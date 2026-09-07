@@ -145,13 +145,17 @@ def opening_flags(instrument, display, opening, prior):
     return True, True, "normal"
 
 
-def reference_history(daily_rows, flow_rows, calendar):
+def reference_history(
+    daily_rows, flow_rows, calendar, *, support_policy="strict-flow-foreign-key-v1"
+):
     """Yield each day's models/ranks/bars with at most60 observations per instrument.
 
     Input iterators must have unique sorted keys. No future stock presence chooses
     historical fits. Invalid or unavailable observations reset consecutive windows.
     """
     validate_days(calendar)
+    if support_policy not in ("strict-flow-foreign-key-v1", "same-date-daily-supported-v1"):
+        raise ValueError("reference unknown source support policy")
     daily_stream, flow_stream = iter(date_groups(daily_rows)), iter(date_groups(flow_rows))
     daily, flow = next(daily_stream, None), next(flow_stream, None)
     previous_close, previous_risk, response_windows, price_windows = {}, {}, {}, {}
@@ -159,7 +163,7 @@ def reference_history(daily_rows, flow_rows, calendar):
         if daily is None or daily[0] != day or (flow and flow[0] < day):
             raise ValueError("reference source calendar mismatch")
         d, f = daily[1], flow[1] if flow and flow[0] == day else {}
-        if set(f) - set(d):
+        if support_policy == "strict-flow-foreign-key-v1" and set(f) - set(d):
             raise ValueError("reference orphan flow key")
         # First compute past-only response statistics; current values never select models.
         models = {}
@@ -301,6 +305,7 @@ def reference_history(daily_rows, flow_rows, calendar):
                 "features": features,
                 "ranks": reference_ranks(features),
                 "bars": bars,
+                "source_keys": {"daily": sorted(d), "fund_flow": sorted(f)},
             },
         )
         for n, o in current.items():

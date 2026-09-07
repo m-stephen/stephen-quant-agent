@@ -17,7 +17,7 @@ from stephen_quant.discovery.flow_response_history import (
     verified_history,
 )
 from stephen_quant.discovery.flow_response_predictor import POLICIES, ranked_rows, stages
-from stephen_quant.discovery.flow_response_series import response_stages
+from stephen_quant.discovery.flow_response_series import DAILY_SUPPORT, response_stages
 from stephen_quant.discovery.search_power_dsl import sha256_json
 from stephen_quant.integrity.models import ExperimentSpec, TrialSpec
 from stephen_quant.integrity.registry import ExperimentRegistry
@@ -26,7 +26,7 @@ from stephen_quant.qmt.flow_response_inputs import load_response_sources
 from stephen_quant.qmt.reliable_panel import file_sha
 
 
-def frozen_sources(root, *, span_days=420, stock_count=80):
+def frozen_sources(root, *, span_days=420, stock_count=80, source_support_gaps=False):
     if type(stock_count) is not int or not 1 <= stock_count <= 10000:
         raise ValueError("bounded synthetic stock count required")
     # Explicit SYNTHETIC weekday calendar, not a claim about exchange holidays.
@@ -52,6 +52,10 @@ def frozen_sources(root, *, span_days=420, stock_count=80):
         1000000*sin(i*.37+CAST(instrument AS INTEGER)) AS net_inflow_amount,
         CAST(CAST(d AS VARCHAR)||'T18:00:00+08:00' AS TIMESTAMPTZ) available_at
         FROM daily JOIN days ON trade_date=d""")
+    if source_support_gaps:
+        conn.execute("DELETE FROM fund_flow WHERE trade_date=? AND instrument='600000'", [days[0]])
+        for day in days[20:22]:
+            conn.execute("INSERT INTO fund_flow VALUES (?,?,?,NULL)", [day, "orphan", float("nan")])
     sources = []
     for name in ("daily", "fund_flow"):
         path = root / (name + ".parquet")
@@ -61,7 +65,7 @@ def frozen_sources(root, *, span_days=420, stock_count=80):
                 "source": name,
                 "file": path.name,
                 "sha256": file_sha(path),
-                "rows": len(days) * stock_count,
+                "rows": conn.execute(f"SELECT count(*) FROM {name}").fetchone()[0],
                 "min_date": days[0],
                 "max_date": days[-1],
                 "authorized_start": "2022-01-01",
@@ -85,7 +89,7 @@ def frozen_sources(root, *, span_days=420, stock_count=80):
 @pytest.fixture(scope="module")
 def integrated(tmp_path_factory):
     root = tmp_path_factory.mktemp("response-history")
-    days, manifest = frozen_sources(root / "inputs")
+    days, manifest = frozen_sources(root / "inputs", source_support_gaps=True)
     registry = ExperimentRegistry(root / "registry.sqlite3")
     sid = registry.register_snapshot(
         build_composite_snapshot_manifest({"response_inputs": manifest})
@@ -95,6 +99,7 @@ def integrated(tmp_path_factory):
     )
     params = {
         "response_history_version": VERSION,
+        "response_support_policy": DAILY_SUPPORT,
         "response_manifest_sha256": manifest,
         "response_calendar_sha256": sha256_json(days),
     }
@@ -168,6 +173,8 @@ def test_integrated_source_native_feature_matrix_and_same_training_support(integ
     assert not h["ranks"][days[60]] and len(h["ranks"][days[61]]) == 80
     assert not (root / "inputs" / "auction.parquet").exists()
     assert h["source_evidence"]["parent_snapshot_sha256"] == manifest
+    assert h["source_support"]["counts"]["flow_only"] == 2
+    assert h["source_support"]["counts"]["daily_only"] == 1
 
 
 def test_independent_raw_source_to_historical_response_and_rank_recomputation(integrated):
@@ -466,6 +473,7 @@ def test_all_source_dates_independently_reconstruct_models_risks_ranks_and_bars(
         "stephen_quant.qmt.flow_response_inputs.load_response_sources",
         "stephen_quant.qmt.flow_response_panel.build_response_panel",
         "stephen_quant.discovery.flow_response_series.bridge_rows",
+        "stephen_quant.discovery.flow_response_series.bridge_source_rows",
         "stephen_quant.discovery.flow_response_series.fit_response_bundle",
         "stephen_quant.discovery.flow_response.fit_response_prefix",
         "stephen_quant.discovery.flow_response_predictor.ranked_rows",
@@ -475,6 +483,8 @@ def test_all_source_dates_independently_reconstruct_models_risks_ranks_and_bars(
         reg, consumers["response"], history_path=path, input_folder=root / "inputs"
     )
     assert evidence["source_history_audit_pass"]
+    assert evidence["source_support_counts"]["flow_only"] == 2
+    assert evidence["source_support_counts"]["daily_only"] == 1
     assert evidence["sessions_checked"] == len(days)
     assert evidence["source_bars_checked"] == len(days) * 80
     assert evidence["per_stock_response_fits_checked"] == (len(days) - 62) * 80
@@ -483,7 +493,33 @@ def test_all_source_dates_independently_reconstruct_models_risks_ranks_and_bars(
 
 
 @pytest.mark.parametrize(
-    "kind", ["manifest", "calendar", "snapshot", "consumer", "overlap", "exists"]
+    "kind", ["count", "identity_hash", "omitted_exclusion", "changed_identity"]
+)
+def test_independent_support_auditor_rejects_reissued_producer_claims(
+    integrated, monkeypatch, kind
+):
+    import stephen_quant.discovery.flow_response_source_audit as module
+
+    root, reg, _, consumers, _, _, path, _, _ = integrated
+    h, proof = read_verified_history(reg, consumers["response"], path)
+    if kind == "count":
+        h["source_support"]["counts"]["flow_only"] = 0
+    elif kind == "identity_hash":
+        h["source_support"]["identity_sha256"]["flow_only"] = "0" * 64
+    elif kind == "omitted_exclusion":
+        h["bridge_exclusions"] = h["bridge_exclusions"][1:]
+    else:
+        h["bridge_exclusions"][0]["asset"] = "different-identity"
+    # Isolate the independent audit, even if a producer were to reissue native hashes.
+    monkeypatch.setattr(module, "read_verified_history", lambda *a, **kw: (h, proof))
+    with pytest.raises(ValueError, match="exact source support"):
+        module.audit_source_history(
+            reg, consumers["response"], history_path=path, input_folder=root / "inputs"
+        )
+
+
+@pytest.mark.parametrize(
+    "kind", ["manifest", "calendar", "snapshot", "consumer", "overlap", "exists", "support"]
 )
 def test_source_preflight_rejects_before_reader_or_directory_mutation(tmp_path, monkeypatch, kind):
     days = [str(date(2022, 1, 1) + timedelta(days=i)) for i in range(64)]
@@ -499,6 +535,7 @@ def test_source_preflight_rejects_before_reader_or_directory_mutation(tmp_path, 
     eid = registry.create_experiment(ExperimentSpec("preflight", "synthetic", sid, "test"))
     params = {
         "response_history_version": VERSION,
+        "response_support_policy": "unbound" if kind == "support" else DAILY_SUPPORT,
         "response_manifest_sha256": "b" * 64 if kind == "manifest" else manifest,
         "response_calendar_sha256": "b" * 64 if kind == "calendar" else sha256_json(days),
     }

@@ -95,6 +95,7 @@ def run_case(output, case):
             "manifest_sha256": manifest,
             "anchor_card_sha256": anchor,
             "runtime_code_sha256": saved["runtime_code_sha256"],
+            "failed_epoch_evidence_sha256": sha256_json({"synthetic_fixture": True}),
         }
         operation = root / "operation"
         operation.mkdir()

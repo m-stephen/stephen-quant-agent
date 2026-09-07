@@ -88,7 +88,7 @@ def test_complete_synthetic_epoch_all_accounts_fits_and_exact_original_bytes(
     root, reg, tids, plan, result = epoch
     assert reg.global_trial_count() == result["reserved_trials"] == 23
     assert len(result["records"]) == 22 and len(result["models_sha256"]) == 14
-    assert result["raw_global_trial_lower_bound"] == 3683  # Hypothetical debt in temp fixture.
+    assert result["raw_global_trial_lower_bound"] == 3706  # Hypothetical debt in temp fixture.
     assert not result["validated_alpha"] and not any(result["screen_survived"].values())
     assert result["independent_source_model_target_audit"] == "NOT_RUN"
     assert result["statistics"]["DSR"] is None
@@ -228,7 +228,9 @@ def test_complete_saved_pipeline_audit_is_not_alpha_certification(audited_epoch)
     assert result["statistics"]["DSR"] is None and not result["validated_alpha"]
 
 
-@pytest.mark.parametrize("kind", ["duplicate_trial", "native_account", "spec"])
+@pytest.mark.parametrize(
+    "kind", ["duplicate_trial", "native_account", "spec", "omitted_failed_debt"]
+)
 def test_offline_audit_rejects_changed_operation_before_source_read(epoch, monkeypatch, kind):
     from stephen_quant.discovery.flow_response_epoch_audit import audit_complete_epoch
 
@@ -240,6 +242,8 @@ def test_offline_audit_rejects_changed_operation_before_source_read(epoch, monke
         changed["trial_ids"]["response-164"] = changed["trial_ids"]["response-82"]
     elif kind == "native_account":
         changed["records"]["response-82"]["profit_cny"] += 100
+    elif kind == "omitted_failed_debt":
+        changed["raw_global_trial_lower_bound"] = 3683
     else:
         changed["spec_sha256"] = "a" * 64
 
@@ -317,7 +321,7 @@ def test_partial_failure_retains_all_reservations_and_refuses_retry(tmp_path, mo
         execute_reserved_epoch(reg, tids, plan, **kwargs)
     abort = json.loads((output / "ABORTED.json").read_bytes())
     assert abort["reserved_trials"] == reg.global_trial_count() == 23
-    assert abort["raw_global_trial_lower_bound"] == 3683
+    assert abort["raw_global_trial_lower_bound"] == 3706
     assert abort["completed_account_keys"] == [] and not (output / "RESULT.json").exists()
     abort_sha = file_sha(output / "ABORTED.json")
     with pytest.raises(FileExistsError):

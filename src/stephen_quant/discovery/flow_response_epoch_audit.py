@@ -22,7 +22,7 @@ from stephen_quant.qmt.reliable_panel import file_sha
 
 from .flow_response_history import read_verified_history
 from .flow_response_model_audit import audit_models_targets
-from .flow_response_protocol import contract, plans
+from .flow_response_protocol import BUDGET, DEBT, contract, plans
 from .flow_response_replay import audit_response_account
 from .flow_response_source_audit import audit_source_history, compare
 from .flow_response_views import HistoricalSessions
@@ -71,7 +71,7 @@ def audit_complete_epoch(registry, *, operation, input_folder, original_tree):
         or len(set(tids.values())) != 23
         or registry.global_trial_count() != 23
         or result["reserved_trials"] != 23
-        or result["raw_global_trial_lower_bound"] != 3683
+        or result["raw_global_trial_lower_bound"] != DEBT + BUDGET
         or set(result["records"]) != set(tids) - {"response-provider"}
     ):
         raise ValueError("offline audit complete frozen protocol mismatch")

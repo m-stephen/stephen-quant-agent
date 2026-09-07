@@ -118,6 +118,20 @@ def test_reference_rejects_source_integrity_failures(kind):
         list(reference_history(daily, flow, days))
 
 
+def test_reference_support_ignores_orphan_values_and_preserves_past_features():
+    daily, flow, days = sources()
+    before = dict(reference_history(daily, flow, days))
+    flow.append({"trade_date": days[40], "instrument": "orphan"})
+    flow.sort(key=lambda r: (r["trade_date"], r["instrument"]))
+    after = dict(
+        reference_history(daily, flow, days, support_policy="same-date-daily-supported-v1")
+    )
+    assert "orphan" in after[days[40]]["source_keys"]["fund_flow"]
+    for day in days:
+        for k in ("models", "ranks", "features", "bars"):
+            assert after[day][k] == before[day][k]
+
+
 def test_future_append_cannot_change_past_reference_features_or_model():
     daily, flow, days = sources()
     before = dict(reference_history(daily, flow, days))
