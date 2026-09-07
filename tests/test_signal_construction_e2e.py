@@ -172,3 +172,169 @@ def test_full_native_result_binding_rejects_forgery(complete_bridge, fault):
         bad["calendar"]["sha256"] = "b" * 64
     with pytest.raises(ValueError):
         runtime.check_native(reg, root / "bridge", spec, tids, bad)
+
+
+@pytest.fixture(scope="module")
+def completed_audit_envelope(complete_bridge):
+    from stephen_quant.discovery import signal_construction_launch as launch
+
+    source, _, _, spec, _, audit = complete_bridge
+    root = source / "bridge"
+    plan = {
+        "spec": spec,
+        "evidence": {
+            "sources": {
+                n + ".parquet": file_sha(source / "inputs" / (n + ".parquet"))
+                for n in ("daily", "fund_flow")
+            }
+        },
+    }
+    digest = sha256_json(plan)
+    # Unit-test OS envelope only; numerical RESULT and AUDIT are actual fixture outputs.
+    launch.write(root / "LAUNCH.json", {"plan": plan})
+    launch.write(root / "AUDIT.json", audit)
+    launch.write(
+        root / "supervisor-backend/SUPERVISOR.json",
+        {"outcome": "COMPLETED", "exit_code": 0, "samples": 1, "synthetic_os_envelope": True},
+    )
+    launch.write(
+        root / "BACKEND_COMPLETED.json",
+        {
+            "result_sha256": file_sha(root / "RESULT.json"),
+            "registry_sha256": file_sha(root / "registry.sqlite3"),
+            "supervisor_sha256": file_sha(root / "supervisor-backend/SUPERVISOR.json"),
+        },
+    )
+    launch.write(
+        root / "ASSESSMENT.json",
+        {
+            "status": "COMPLETE_DIAGNOSTIC_AUDITED",
+            "validated_alpha": False,
+            "plan_sha256": digest,
+            "result_sha256": file_sha(root / "RESULT.json"),
+            "audit_sha256": file_sha(root / "AUDIT.json"),
+            "statistics": launch.contract()["statistics"],
+        },
+    )
+    launch.verify_audit(root, digest, spec)
+    return root, digest, spec
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing_source",
+        "failed_source",
+        "coverage",
+        "years",
+        "history",
+        "source_hash",
+        "full_report_hash",
+        "compact_bytes",
+        "report_bytes",
+        "target_bytes",
+    ],
+)
+def test_final_audit_rejects_rehashed_incomplete_or_changed_evidence(
+    completed_audit_envelope, fault
+):
+    import json
+
+    from stephen_quant.discovery import signal_construction_launch as launch
+
+    root, digest, spec = completed_audit_envelope
+    audit_file, assessment_file = root / "AUDIT.json", root / "ASSESSMENT.json"
+    originals = {p: p.read_bytes() for p in (audit_file, assessment_file)}
+    try:
+        audit = launch.read(audit_file)
+        if fault == "missing_source":
+            del audit["source_audit"]
+        elif fault == "full_report_hash":
+            audit["full_account_report_sha256"]["global_response-82"] = "a" * 64
+        elif fault.endswith("_bytes"):
+            relative = {
+                "compact_bytes": "accounts/global_response-82.jsonl",
+                "report_bytes": "account_reports/global_risk-164.json",
+                "target_bytes": "targets/global_response.json",
+            }[fault]
+            path = root / relative
+            originals[path] = path.read_bytes()
+            path.write_bytes(originals[path] + b"\n")
+        else:
+            key, value = {
+                "failed_source": ("source_history_audit_pass", False),
+                "coverage": ("sessions_checked", 725),
+                "years": ("source_numeric_years", [2023, 2024]),
+                "history": ("history_artifact_sha256", "a" * 64),
+                "source_hash": ("source_sha256", {"daily": "b" * 64, "fund_flow": "c" * 64}),
+            }[fault]
+            audit["source_audit"][key] = value
+        audit_file.write_text(json.dumps(audit))
+        assessment = launch.read(assessment_file)
+        assessment["audit_sha256"] = file_sha(audit_file)
+        assessment_file.write_text(json.dumps(assessment))
+        with pytest.raises((ValueError, KeyError)):
+            launch.verify_audit(root, digest, spec)
+    finally:
+        for path, raw in originals.items():
+            path.write_bytes(raw)
+    launch.verify_audit(root, digest, spec)
+
+
+def test_once_only_launcher_complete_synthetic_chain(complete_bridge, tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from stephen_quant.discovery import signal_construction_launch as launch
+
+    source, _, _, spec, _, _ = complete_bridge
+    plan = {
+        "version": launch.VERSION,
+        "claim_key": launch.CLAIM_KEY,
+        "evidence": {
+            "sources": {
+                name + ".parquet": file_sha(source / "inputs" / (name + ".parquet"))
+                for name in ("daily", "fund_flow")
+            }
+        },
+        "paths": {
+            "worktree": str(tmp_path),
+            "claim": str(tmp_path / "common/once.json"),
+            "inputs": str(source / "inputs"),
+        },
+        "spec": spec,
+        "prior_debt": 3733,
+        "budget": 4,
+        "validated_alpha": False,
+    }
+    monkeypatch.setattr(launch, "prepare_plan", lambda _: copy.deepcopy(plan))
+    monkeypatch.setattr(
+        launch, "fetch_preregistration", lambda i, d, _: {"id": i, "plan_sha256": d}
+    )
+    monkeypatch.setattr(launch, "_resource_preflight", lambda: {"synthetic": True})
+    stages = []
+
+    def child(command, **kw):
+        # Only OS monitoring is stubbed here. Both full native numerical stages run.
+        stage = command[2]
+        stages.append(stage)
+        launch.run_stage(stage, operation=command[-1], worktree=tmp_path)
+        receipt = {"outcome": "COMPLETED", "exit_code": 0, "samples": 1}
+        launch.write(Path(kw["output"]) / "SUPERVISOR.json", receipt)
+        return receipt
+
+    monkeypatch.setattr(launch, "supervise", child)
+    path = tmp_path / "plan.json"
+    launch.write(path, plan)
+    terminal = launch.launch(path, comment_id=204, worktree=tmp_path)
+    assert terminal["outcome"] == "COMPLETE_DIAGNOSTIC_AUDITED"
+    assert terminal["native_reserved"] == 4 and terminal["raw_global_trial_lower_bound"] == 3737
+    assert stages == ["backend", "audit"] and not terminal["validated_alpha"]
+    output = launch.operation_path(plan, sha256_json(plan))
+    before = {n: file_sha(output / n) for n in ("RESULT.json", "registry.sqlite3", "AUDIT.json")}
+    assert launch.read(output / "AUDIT.json")["pipeline_audit_pass"]
+    with pytest.raises(FileExistsError):
+        launch.launch(path, comment_id=204, worktree=tmp_path)
+    for stage in ("backend", "audit"):
+        with pytest.raises(ValueError, match="active shared"):
+            launch.run_stage(stage, operation=output, worktree=tmp_path)
+    assert before == {n: file_sha(output / n) for n in before}

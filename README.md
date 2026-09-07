@@ -1,6 +1,22 @@
 # Stephen Quant Agent
 
-## Current checkpoint: V12.1 bounded power design / 当前：有界检出能力验证
+## Current checkpoint: V12.2 frozen-signal bridge / 当前：冻结信号组合诊断
+
+Issue #204 / Draft PR #205. Package version12.2.0. A finite four-account diagnostic
+reuses frozen annual response/risk models with global40/top60 retention, unchanged
+82/164bps costs and a continuous CNY3m account. No new fit, formula or provider.
+The native backend, independent source/score/target/account audit and once-only
+launcher are implemented. **Engineering tests are not a market Alpha result.**
+Real launch still requires final regression/CI and an independently approved,
+preregistered exact plan. No2025/2026 tuning or automatic main merge.
+
+本版只检验冻结信号与持仓构造之间的衔接；四账户预算、原生预留先于数值读取、
+共享一次性占用和完整独立审计均保留。真实尝试下界仍3733，获批启动后才增至3737。
+尚未获得真实启动批准，不能把工程/合成测试通过解释为可用Alpha。
+
+[V12.2 specification / 双语规格及验收进度](docs/V12_2_SPEC.md)
+
+## Historical checkpoint: V12.1 bounded power design / 历史：有界检出能力验证
 
 Issue #202 / PR #203. Package version12.1.0. Independent reviewer agreement
 preceded development and the once-only reserved audit.144 synthetic development

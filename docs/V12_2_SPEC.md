@@ -13,15 +13,34 @@ The subsequent complete synthetic backend-to-audit suite passed5 tests in140.23s
 files,28 cost bindings,and4 new accounts. No numerical guard was replaced by a
 mock PASS. The first run's test-only uppercase DSR key failure is preserved;
 the corrected test uses the existing lowercase statistical keys,not new thresholds.
-The once-only launcher,final integrated regression/CI,frozen launch plan and
-reviewer launch approval remain required. This is not an empirical Alpha result.
+The subsequent launcher/evidence/final-acceptance suite passed41 tests in188.86s,
+including actual synthetic native backend-to-audit orchestration and10 rehashed
+tampering cases. Final integrated regression/CI,frozen launch plan and reviewer
+launch approval remain required. This is not an empirical Alpha result.
 
 已完成纯分配、四账户原生预留/后端及独立来源/评分/目标/已存账户审计构件，
 构件提交423edce完整回归1,765通过、2跳过，CI34162422776通过。新增完整四账户
 端到端合成测试5项通过（140.23秒），实际经过726个虚构工作日、23个继承原生身份、
 14份模型、28个成本绑定及独立来源/评分/目标/完整账户审计。首轮测试字段名大小写
-错误已保留记录并修正，未改生产统计或门槛。一次性启动器、最终集成回归/CI、
+错误已保留记录并修正，未改生产统计或门槛。新增启动器/证据/最终验收测试41项
+通过（188.86秒），包括完整合成启动链路及10个重新计算哈希后的篡改反例。
+最终集成回归/CI、
 冻结计划和审查Agent启动批准仍待完成。未运行市场账户，真实尝试下界仍3733。
+
+## Operator entrypoint / 操作入口
+
+`python scripts/run_signal_construction.py prepare --output artifacts/signal-construction/plan-001.json`
+creates metadata/hash-only evidence on a clean committed worktree. It does not
+consume an empirical attempt. Preserve that exact plan and preregister its SHA256
+on Issue204 only after regression/CI and independent launch review. The `run`
+subcommand requires the actual preregistration comment ID; it has no policy,
+cost,year,parameter,source or retry overrides. Backend and auditor run in separate
+owned resource-supervised children. A failure retains the shared claim and debt.
+
+prepare仅生成元数据/哈希计划，不启动市场账户；只有完整测试/CI及独立启动审查后，
+才能将精确计划在Issue204预登记并运行。run不提供改公式、成本、年份、来源或重试旋钮。
+独立审计最终验收同时核对来源覆盖/哈希，以及账户、完整报告、目标文件的实际字节；
+不能只凭顶层PASS字段通过。真实操作开始后，禁止修改代码或冻结计划。
 
 ## 中文
 
