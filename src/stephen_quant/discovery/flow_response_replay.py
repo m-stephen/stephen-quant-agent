@@ -159,7 +159,10 @@ def audit_response_account(report, sessions, targets, *, roundtrip_bps, mode="ta
             )
             if abs(amount) > order.capacity_notional + 1e-6:
                 raise ValueError("fill exceeds reported capacity")
-            if abs(amount) > 1e-12:
+            # Notional and share thresholds have different units. Even a tiny
+            # nonzero fill can create/remove a >1e-12-share position; replay it
+            # exactly instead of silently dropping it from the holdings ledger.
+            if amount != 0.0:
                 bar = by_name.get(n)
                 if bar is None or abs(amount) > bar.capacity_cny + 1e-6:
                     raise ValueError("fill lacks source opening price/capacity")

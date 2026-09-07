@@ -242,9 +242,30 @@ def execute_reserved_epoch(registry, tids, spec, *, output, input_folder, origin
 
 
 def _finish_account(registry, tid, output, key, report, sessions, targets, cost, target_hash):
-    evidence = audit_response_account(
-        report, sessions, targets, roundtrip_bps=cost, mode=report.config.rebalance_mode
-    )
+    try:
+        evidence = audit_response_account(
+            report, sessions, targets, roundtrip_bps=cost, mode=report.config.rebalance_mode
+        )
+    except Exception as exc:
+        # Preserve the first failing account for a read-only diagnostic. Do not
+        # register it as a completed result or require another empirical replay
+        # merely to recover a traceback's discarded account state.
+        failed_path = output / "unverified_account_reports" / f"{key}.json"
+        write_json(failed_path, asdict(report))
+        write_json(
+            output / "ACCOUNT_AUDIT_FAILURE.json",
+            {
+                "status": "FAILED_ACCOUNT_AUDIT",
+                "key": key,
+                "trial_id": tid,
+                "exception_type": type(exc).__name__,
+                "account_sha256": file_sha(failed_path),
+                "target_sha256": target_hash,
+                "completed_result": False,
+                "validated_alpha": False,
+            },
+        )
+        raise
     summary = account_summary(report)
     if (
         not evidence["pass"]

@@ -1,5 +1,11 @@
 # V11.21 continuation / 续接记录
 
+## Latest B16: consumed plan003 failed in account audit
+
+Plan003 is terminal FAILED; session39273 DONE exit1, no empirical process remains. Debt3706 is preserved;14 models/28 supervised bindings/664 provider bindings/4 completed accounts, no complete RESULT or independent audit. Do not replay plan003 or run the old prepare path. See V11_21_ACCOUNT_AUDIT_FIX.zh.md/.en.md for the precise corrective plan and uncertainty.
+
+Synthetic notional/share threshold defect fixed; targeted38pass and Ruff PASS. Full regression session59960 DONE exit0:1448passed2skipped542.25s, JUnit artifacts/flow-response/checkpoints/b16-full-suite.xml. Do not rerun this completed suite. Next commit/push scoped changes, verify actual new CI and implement a separately preregistered one-account frozen diagnostic (proposed budget1, not consumed), not a blind full-epoch retry. All earlier status paragraphs below are historical.
+
 ## Latest B13: source-support correction, not a new market result
 
 Final full regression session1674 DONE exit0:1435passed2skipped566.73s; complete independent synthetic pipeline audit passed. Initial60218 DONE exit1 (1433pass2skip1error512.29s) preserved separately. Ruff src/tests/changed scripts PASS. Do not rerun completed local tests. Next commit/push scoped changes on PR199, verify actual new CI, then exclusive plan003/full Issue184 preregistration/fixed API/newonceclaim. No new numerical market execution or claim yet; actual debt3683.

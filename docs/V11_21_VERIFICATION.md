@@ -1,5 +1,11 @@
 # V11.21 engineering verification / 工程验证
 
+## Latest B16: tiny nonzero fills and failed-account evidence
+
+New synthetic cases before fix:9failed3passed. After fix with existing replay cases:38passed3.93s; Ruff src/tests PASS. Full regression session59960 DONE exit0:1448passed2skipped542.25s (b16-full-suite.xml); new-commit CI not run yet. Do not repeat the completed suite or treat the previous3e9fd CI as this patch's verification. Exact holding-set, source and cost checks were not relaxed.
+
+Actual plan003 terminal is FAILED;23 attempts retained/debt3706. Four completed account reports are partial evidence only. Failure inferred at risk-82 from fixed order; actual first divergence was not persisted. The proven synthetic cause is not yet the confirmed unique actual cause. Details and finite diagnostic plan: V11_21_ACCOUNT_AUDIT_FIX.zh.md/.en.md.
+
 ## Latest B13: source-support and failed-debt correction
 
 Final full regression: **1435 passed, 2 skipped, 0 failures/errors, 566.73s**; session1674 DONE exit0. Complete synthetic source→history→models→targets→accounts→independent audit passed. JUnit `artifacts/flow-response/checkpoints/b13-full-suite-final.xml`. Initial full session60218 DONE exit1,1433passed/2skipped/1error/512.29s remains preserved; its only error was the subsequently corrected auditor debt literal. New final suite adds one omitted-debt regression. Do not repeat either completed suite on wake.
