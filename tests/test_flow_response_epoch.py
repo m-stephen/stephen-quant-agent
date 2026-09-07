@@ -209,6 +209,79 @@ def continued_epoch(epoch):
     return root, reg, tids, spec, result, original_result
 
 
+def test_continuation_launch_complete_numerical_chain_stays_exploratory(
+    continued_epoch, tmp_path, monkeypatch
+):
+    from pathlib import Path
+
+    from stephen_quant.discovery import flow_response_continuation_launch as launch
+
+    source, _, _, spec, reference, _ = continued_epoch
+    root = tmp_path / "synthetic-tree"
+    root.mkdir()
+    plan = {
+        "version": launch.VERSION,
+        "claim_key": launch.CLAIM_KEY,
+        "paths": {
+            "worktree": str(root),
+            "claim": str(tmp_path / "common/once.json"),
+            "original": str(source / "original"),
+            "inputs": str(source / "inputs"),
+        },
+        "spec": copy.deepcopy(spec),
+        "prior_debt": 3707,
+        "budget": 22,
+        "validated_alpha": False,
+    }
+    frozen = copy.deepcopy(plan)
+    monkeypatch.setattr(launch, "prepare_plan", lambda _: copy.deepcopy(frozen))
+    monkeypatch.setattr(
+        launch, "fetch_preregistration", lambda i, d, _: {"id": i, "plan_sha256": d}
+    )
+    monkeypatch.setattr(launch, "_resource_preflight", lambda: {"synthetic": True})
+    calls = []
+
+    def synthetic_supervisor(command, **kwargs):
+        # The Windows supervisor/resource lifecycle is tested independently.
+        # Here both actual numerical stages run, with only host orchestration stubbed.
+        stage, output = command[2], Path(command[-1])
+        calls.append(stage)
+        assert launch.ReadOnlyRegistry(output / "registry.sqlite3").global_trial_count() == 22
+        launch.run_stage(stage, operation=output, worktree=root)
+        receipt = {"outcome": "COMPLETED", "exit_code": 0, "samples": 1}
+        launch.write(kwargs["output"] / "SUPERVISOR.json", receipt)
+        return receipt
+
+    monkeypatch.setattr(launch, "supervise", synthetic_supervisor)
+    path = root / "plan.json"
+    launch.write(path, plan)
+    terminal = launch.launch(path, comment_id=184, worktree=root)
+    output = launch.operation_path(plan, sha256_json(plan))
+    assert calls == ["backend", "audit"]
+    assert terminal["outcome"] == "COMPLETE_EXPLORATORY_AUDITED"
+    assert terminal["native_reserved"] == terminal["committed_attempt_budget"] == 22
+    assert terminal["raw_global_trial_lower_bound"] == 3729
+    assert not terminal["validated_alpha"]
+    assessment = launch.read(output / "ASSESSMENT.json")
+    assert not assessment["validated_alpha"]
+    assert assessment["statistics"] == launch.contract()["statistics"]
+    assert launch.read(output / "AUDIT.json")["pipeline_audit_pass"]
+    result = launch.read(output / "RESULT.json")
+    for key in reference["records"]:
+        assert (
+            result["records"][key]["account_sha256"] == reference["records"][key]["account_sha256"]
+        )
+    before = {
+        name: file_sha(output / name) for name in ("RESULT.json", "registry.sqlite3", "AUDIT.json")
+    }
+    with pytest.raises(FileExistsError):
+        launch.launch(path, comment_id=184, worktree=root)
+    for stage in ("backend", "audit"):
+        with pytest.raises(ValueError, match="active shared claim"):
+            launch.run_stage(stage, operation=output, worktree=root)
+    assert before == {name: file_sha(output / name) for name in before}
+
+
 def test_complete_frozen_continuation_all22_no_new_fits(continued_epoch):
     from stephen_quant.discovery import flow_response_continuation as continuation
 
@@ -421,7 +494,7 @@ def test_continuation_audit_native_gate_before_inherited_reads(
         "UPDATE experiments SET code_version='changed'",
         "UPDATE data_snapshots SET snapshot_sha256='changed'",
         "UPDATE trials SET result_json=NULL WHERE rowid=(SELECT min(rowid) FROM trials)",
-        "UPDATE trial_fit_contracts SET stages_json='[{\"stage_id\":\"unapproved\"}]'",
+        'UPDATE trial_fit_contracts SET stages_json=\'[{"stage_id":"unapproved"}]\'',
     ],
 )
 def test_continuation_audit_rejects_mutated_native_metadata(
