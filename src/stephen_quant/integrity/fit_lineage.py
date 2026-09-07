@@ -159,6 +159,7 @@ class FitLineageRegistry:
             raise ValueError("actual training session count mismatch")
         model_sha = artifact_digest(artifact_path, model)
         with self.connect() as conn:
+            self._complete_feature_sources(conn, trial_id)
             row = conn.execute(
                 "SELECT c.stages_json,t.result_json,e.code_version,s.snapshot_sha256 "
                 "FROM trial_fit_contracts c JOIN trials t USING(trial_id) "
@@ -218,6 +219,7 @@ class FitLineageRegistry:
             ).fetchone()
             if row is None:
                 raise ValueError("native fit contract required")
+            self._complete_feature_sources(conn, trial_id)
             self._complete_fits(conn, trial_id)
             fits = [
                 json.loads(r[0])

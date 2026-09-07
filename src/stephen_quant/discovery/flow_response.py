@@ -129,25 +129,13 @@ def fit_response_prefix(observations, *, cutoff, prediction_session, snapshot_sh
     )
 
 
-def response_features(model, current, *, decision_at, expected_model_sha256):
-    if model.sha256 != expected_model_sha256 or model.version != VERSION or model.ridge != RIDGE:
+def validate_response_fit(model):
+    if model.version != VERSION or model.ridge != RIDGE:
         raise ValueError("response model identity changed")
-    if current.asset != model.asset:
-        raise ValueError("response model belongs to a different asset")
-    decision, at, visible = (
-        aware(decision_at),
-        aware(current.observed_at),
-        aware(current.available_at),
-    )
-    if not (aware(model.last_observed_at) < aware(model.fit_cutoff) <= at <= visible <= decision):
-        raise ValueError("response fit/observation/availability chronology failed")
-    if (
-        aware(model.last_available_at) >= aware(model.fit_cutoff)
-        or type(current.session) is not int
-        or current.session != model.prediction_session
-        or current.session != model.last_session + 1
+    if not (
+        aware(model.last_observed_at) <= aware(model.last_available_at) < aware(model.fit_cutoff)
     ):
-        raise ValueError("fit unavailable or nonadjacent prediction session")
+        raise ValueError("response model fit chronology failed")
     if (
         model.observations != LOOKBACK
         or model.last_session - model.first_session != LOOKBACK - 1
@@ -165,6 +153,27 @@ def response_features(model, current, *, decision_at, expected_model_sha256):
         or abs(model.slope) > 1 / (1 + RIDGE) + 1e-12
     ):
         raise ValueError("invalid response fit statistics")
+    return model.sha256
+
+
+def response_features(model, current, *, decision_at, expected_model_sha256):
+    if validate_response_fit(model) != expected_model_sha256:
+        raise ValueError("response model identity changed")
+    if current.asset != model.asset:
+        raise ValueError("response model belongs to a different asset")
+    decision, at, visible = (
+        aware(decision_at),
+        aware(current.observed_at),
+        aware(current.available_at),
+    )
+    if not (aware(model.fit_cutoff) <= at <= visible <= decision):
+        raise ValueError("response fit/observation/availability chronology failed")
+    if (
+        type(current.session) is not int
+        or current.session != model.prediction_session
+        or current.session != model.last_session + 1
+    ):
+        raise ValueError("fit unavailable or nonadjacent prediction session")
     if (
         not all(math.isfinite(v) for v in (current.flow_ratio, current.close_return))
         or current.close_return <= -1

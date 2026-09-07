@@ -14,6 +14,7 @@ from stephen_quant.discovery.search_power_dsl import sha256_json
 from stephen_quant.mechanism_inventory import (
     REPO_SOURCES,
     canonical_expression,
+    freeze_lineage_packet,
     lineage_keys,
     source_inventory,
 )
@@ -211,3 +212,56 @@ def test_inventory_cli_does_not_import_discovery_or_overwrite(tmp_path):
     )
     assert retry.returncode != 0 and "FileExistsError" in retry.stderr
     assert original == output.read_bytes()
+
+
+def recipe(name="candidate", expression="rank(flow) * (1-rank(ret))", **changes):
+    return {
+        "name": name,
+        "lineage": {
+            "family": "flow_price_absorption",
+            "expression": expression,
+            "required_fields": ("flow", "ret"),
+            "sources": ("qd_daily", "qd_fund_flow"),
+            "lookback": 60,
+            "forecast_sessions": 20,
+            "direction": -1,
+            "execution_timing": "T+1_OPEN",
+            **changes,
+        },
+    }
+
+
+def test_new_packet_canonicalizes_renamed_recipes_without_losing_old_ids():
+    a = recipe("A", legacy_ids=("a" * 64,), narrative="first")
+    b = recipe("B", "(1-rank(ret))*rank(flow)", legacy_ids=("b" * 64,), narrative="new title")
+    packet = freeze_lineage_packet([a, b], budget=1)
+    assert packet == freeze_lineage_packet([b, a], budget=1)
+    b_same_name = b | {"name": "A"}
+    assert freeze_lineage_packet([a, b_same_name], budget=1) == freeze_lineage_packet(
+        [b_same_name, a], budget=1
+    )
+    assert len(packet["accepted"]) == 1 and packet["proposed"] == 2
+    assert packet["accepted"][0]["keys"]["legacy_ids"] == ["a" * 64, "b" * 64]
+    assert packet["rejected"][0]["reason"] == "canonical_duplicate"
+    assert not packet["historical_debt_reset_allowed"] and packet["empirical_trials_added"] == 0
+
+
+@pytest.mark.parametrize("kind", ["policy", "family", "legacy_alias"])
+def test_packet_tombstones_cannot_be_evaded_by_new_names(kind):
+    original = recipe()
+    identity = lineage_keys(**original["lineage"])
+    kwargs = {
+        "policy": {"policy_tombstones": [identity["policy_id"]]},
+        "family": {"family_tombstones": [identity["family_id"]]},
+        "legacy_alias": {"legacy_tombstone_aliases": {"a" * 64: identity["policy_id"]}},
+    }[kind]
+    changed = recipe("New title", "(1-rank(ret))*rank(flow)", narrative="new hypothesis")
+    packet = freeze_lineage_packet([changed], budget=1, **kwargs)
+    assert not packet["accepted"] and packet["rejected"][0]["reason"] == "tombstone"
+
+
+def test_packet_rejects_over_budget_instead_of_silently_selecting():
+    with pytest.raises(ValueError, match="exceeds budget"):
+        freeze_lineage_packet([recipe(), recipe("other", "rank(flow)")], budget=1)
+    with pytest.raises(ValueError, match="tombstone hashes"):
+        freeze_lineage_packet([recipe()], budget=1, policy_tombstones=("not-hash",))

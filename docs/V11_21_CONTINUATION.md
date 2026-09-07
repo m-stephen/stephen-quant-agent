@@ -1,6 +1,18 @@
 # V11.21 continuation / 续接记录
 
-## Phase A checkpoint; NOT a completed market epoch
+## Current checkpoint: phase B1, still no market epoch
+
+Phase-A head8e8dc1bcf7416ba63337573903b6de522cc25ae1/CI34069051824 was verified SUCCESS. Same codex/v11.21-flow-response branch and Draft PR199 now contain phase-B1 additions; verify the new exact head/CI before continuing. See V11_21_PHASE_B1.zh.md/.en.md. Do not mistake the historical phase-A pending list below for the current code state.
+
+Implemented: `integrity/feature_sources.py` native provider/consumer declarations and immutable evidence; registry guards; `discovery/flow_response_series.py` strict in-memory daily/flow row bridge, 60-session model bundles, native unsupervised provider binding and guarded feature application; `mechanism_inventory.freeze_lineage_packet` finite canonical duplicate/tombstone rejection. No TrialSpec or old deterministic IDs were modified. Consumers must be declared before their provider fits, then bound after a provider ready result containing its actual native fit lineage digest. Provider fits are shared once, not duplicated per cost.
+
+Final tests105targeted5.52s/full1146passed1skipped190.93s/RuffPASS. Session72632 ended with exit0; saved JUnit evidence and SHA are in VERIFICATION. Do not infer1147passed from the total1147including1skip. Six new/dedicated files pass format; no whole-legacy-file formatting claim. Test/market processes are not left running. New market reads0/empiricalTrial0/debt3660; no new preregistration yet.
+
+Resume phase B2: frozen-file reader and source verification, as-of training feature series, independent mature-label supervised predictor, explicit same-support controls and account integration, independent audit, exact finite empirical budget/preregistration. Current bridge accepts rows only; do NOT call legacy load_frozen_days as a shortcut because it reads all five sources. Use only daily/flow under the current scope; any broader read needs explicit scope/preregistration first. Strict unavailable-at-own-EOD exclusion and calendar gaps are part of the current bridge, not a live first-seen certificate. Zero identifiable prefix models fail rather than create fake native evidence; empty current support returns empty features and still needs explicit cash behavior in the runner.
+
+Avoid repeated registry/provider verification for every cost when implementing the runner: guarded features can be verified and cached once with complete immutable source bindings, then shared. Annual training must use each historical date's own past-fit model, never an annual model applied retroactively. Native fit registration is not a substitute for a runtime guard BEFORE supervised numeric fitting. Keep risk/raw-flow-plus-own-return/standardized-flow-plus-own-return/old-absorption/fixed-shuffle controls, unchanged original stable/lowvol targets and all prior economic/Court gates. Exact plan/budget remains to be frozen, not guessed from this checkpoint. No new market read until runtime, synthetic tests and full Issue184 preregistration are complete.
+
+## Historical phase A checkpoint; NOT a completed market epoch
 
 Branch codex/v11.21-flow-response is based on final V11.20 commit339014a7a1ed2a79ab99d9c615fbc2cd71f14ef3. PR198 finalCI34067387982 was checked SUCCESS and PR198 marked Ready; no merge. PR196/197 already Ready. Do not rerun any V11.20/V11.19 operation, audit or report.
 

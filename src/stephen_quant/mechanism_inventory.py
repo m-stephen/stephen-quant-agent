@@ -166,6 +166,76 @@ def lineage_keys(
     }
 
 
+def freeze_lineage_packet(
+    entries, *, budget, policy_tombstones=(), family_tombstones=(), legacy_tombstone_aliases=None
+):
+    """Finite new-workflow packet gate; old packets/IDs are never mutated.
+
+    Failed-family evidence is not automatically a ban on all future estimators.
+    Explicit tombstones are bans; any new within-family research must inherit its
+    statistical debt and be separately preregistered, not use a wording escape.
+    """
+    if type(budget) is not int or budget < 1:
+        raise ValueError("positive explicit proposal budget required")
+    aliases = {} if legacy_tombstone_aliases is None else dict(legacy_tombstone_aliases)
+    hashes = [*policy_tombstones, *family_tombstones, *aliases, *aliases.values()]
+    if any(
+        not isinstance(h, str) or len(h) != 64 or any(c not in "0123456789abcdef" for c in h)
+        for h in hashes
+    ):
+        raise ValueError("explicit canonical or legacy tombstone hashes required")
+    blocked = set(policy_tombstones) | set(aliases.values())
+    candidates = []
+    for entry in entries:
+        if (
+            set(entry) != {"name", "lineage"}
+            or not isinstance(entry["name"], str)
+            or not entry["name"].strip()
+        ):
+            raise ValueError("named recipe with explicit lineage required")
+        keys = lineage_keys(**entry["lineage"])
+        candidates.append({"name": entry["name"], "keys": keys, "recipe": entry["lineage"]})
+    selected, rejected = {}, []
+    for item in sorted(
+        candidates, key=lambda e: (e["keys"]["policy_id"], e["name"], sha256_json(e["recipe"]))
+    ):
+        key = item["keys"]
+        if (
+            key["policy_id"] in blocked
+            or key["family_id"] in family_tombstones
+            or set(key["legacy_ids"]) & aliases.keys()
+        ):
+            reason = "tombstone"
+        elif key["policy_id"] in selected:
+            reason = "canonical_duplicate"
+            # Preserve all legacy identities even when the description was duplicated.
+            selected[key["policy_id"]]["keys"]["legacy_ids"] = sorted(
+                set(selected[key["policy_id"]]["keys"]["legacy_ids"]) | set(key["legacy_ids"])
+            )
+        else:
+            selected[key["policy_id"]] = item
+            continue
+        rejected.append({"name": item["name"], "policy_id": key["policy_id"], "reason": reason})
+    if len(selected) > budget:
+        raise ValueError("finite packet exceeds budget; no implicit winner selection")
+    payload = {
+        "version": VERSION,
+        "budget": budget,
+        "proposed": len(candidates),
+        "accepted": [selected[k] for k in sorted(selected)],
+        "rejected": rejected,
+        "tombstones": {
+            "policies": sorted(blocked),
+            "families": sorted(family_tombstones),
+            "legacy_aliases": aliases,
+        },
+        "historical_debt_reset_allowed": False,
+        "empirical_trials_added": 0,
+        "requires_empirical_preregistration": True,
+    }
+    return payload | {"packet_sha256": sha256_json(payload)}
+
+
 def source_inventory(root: Path, paths=REPO_SOURCES):
     """Parse an explicit list of source files only; dynamic expansion remains unresolved."""
     root = root.resolve()

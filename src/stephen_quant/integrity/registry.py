@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from .feature_sources import FEATURE_SOURCE_SCHEMA, FeatureSourceRegistry
 from .fit_lineage import FIT_SCHEMA, FitLineageRegistry
 from .models import ExperimentSpec, TrialSpec, utc_now_iso
 from .snapshot import SnapshotManifest
@@ -151,7 +152,7 @@ END;
 """
 
 
-class ExperimentRegistry(FitLineageRegistry):
+class ExperimentRegistry(FeatureSourceRegistry, FitLineageRegistry):
     def __init__(self, db_path: str | Path = "artifacts/registry.sqlite3") -> None:
         self.db_path = Path(db_path)
 
@@ -169,7 +170,7 @@ class ExperimentRegistry(FitLineageRegistry):
 
     def initialize(self) -> None:
         with self.connect() as conn:
-            conn.executescript(SCHEMA + FIT_SCHEMA)
+            conn.executescript(SCHEMA + FIT_SCHEMA + FEATURE_SOURCE_SCHEMA)
 
     def register_snapshot(
         self,
@@ -532,6 +533,7 @@ class ExperimentRegistry(FitLineageRegistry):
         self.initialize()
         with self.connect() as conn:
             self._complete_fits(conn, trial_id)
+            self._complete_feature_sources(conn, trial_id)
             updated = conn.execute(
                 "UPDATE trials SET result_json = ? WHERE trial_id = ? AND result_json IS NULL",
                 (result_json, trial_id),

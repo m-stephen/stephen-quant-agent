@@ -1,5 +1,17 @@
 # V11.21 phase A verification / 阶段 A 工程验证
 
+## Latest checkpoint: phase B1 / 最新检查点
+
+Phase A below is retained as historical evidence, not the current implementation boundary. See `V11_21_PHASE_B1.zh.md` and `.en.md` for the implemented shared native fit/source bridge/packet primitives and limitations.
+
+Final phase B1:105 targeted passed in5.52s; full1146passed/1skipped in190.93s. JUnit tests1147/failures0/errors0/skipped1. Persisted ignored full result `artifacts/flow-response/phase-b1-regression-20260907.xml`, SHA256 `27a190e4a94e3c87926bf8d8a7b36a8ca4981c96ee5e8dffee8d60fd302b83c0`; targeted result `phase-b1-targeted-20260907.xml`. Test session72632 completed, exit0; no active market run. One earlier full-run output was lost in context truncation; only after confirming its process ended was this verified rerun started. Do not rerun it merely because the earlier terminal output is unavailable.
+
+Ruff check of src/tests/scripts and git diff --check passed. Format passed for6new/dedicatedfiles; inherited registry/fit_lineage whole-file formatting is not claimed. These are synthetic/regression results, not evidence of Alpha. Actual empirical reads0/newTrials0/debt3660; supervised fitting/backtest/Court NOT_RUN. Phase-A CI34069051824 succeeded; phase-B1 head CI requires separate verification.
+
+Reproduce targeted phase B1 with `python -m pytest -q tests/test_flow_response.py tests/test_flow_response_series.py tests/test_mechanism_inventory.py tests/test_fit_lineage.py`. Full suite and Ruff commands below are unchanged. Do not overwrite existing JUnit artifacts when intentionally rerunning.
+
+## Historical phase A / 阶段 A 历史记录
+
 Scope: source-only inventory and an in-memory response prototype. 本记录不是市场实验或 Alpha 测试报告。
 
 | Check / 检查 | Actual result / 实际结果 |
