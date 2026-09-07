@@ -1,6 +1,18 @@
 # V11.21 engineering verification / 工程验证
 
-## Latest checkpoint: B5b paired source-level recoverability
+## Latest checkpoint: B6 lower-copy storage
+
+Full regression **1337 passed, 2 skipped in478.79s**; JUnit1339total/0failures/0errors/2skips,time478.688s. Session77668 completed exit0. Ruff src/tests/scripts and10changed Python file format checks PASS. FullJUnit `artifacts/flow-response/phase-b6-regression-20260907.xml`, SHA-256 `2e776827468adad9f94609da21182ffa4f10c5c6ba1166d639485f7cf48d8b9f`.
+
+Final targeted41passed1skipped57.45s/session68578exit0; JUnit `phase-b6-final-targeted-20260907.xml`, SHA-256 `551033ea6bf63ea8afe1012669b623c8cf6adceb9e822ef8b8001cdb30919046`. Earlier initial43pass/54.51s and probe18pass1skip/.86s are subsets, not additive. Newtests cover12storage,2prefix-cache and5supervision/fixture guards plus platform-owned-process measurement. Fullsuite's two platform-related skips are not passing tests.
+
+Owned storage benchmark session85966 completed exit0. All4fixed cases finished or were deliberately stopped; nothing remains running. Plan1x/32x andlegacy/lower-copy was bound beforeexecution. Large legacy was stopped by the10GiBguard at peakprivate10782793728bytes/26.081035s;large lower-copy completed at9298939904bytes/204.270306s with exact canonicalhash. Small cases519811072/321011712bytes private and3.441546/6.869375s. Single-shot timing, no fullpipelinecertificate. The lower-copy implementation is a memory/CPU tradeoff, not an across-the-board speedup.
+
+PlanSHA `6419a5b42dd158a00b22635bc57c52a1e9e9b72a18c637247eee8c561c7a5b68`; RESULTSHA `2676b939000f515b2a57cadb1b6f69f2822e81945dbaa80660dabe9e3eb49b8f`. Detailed counts,limits,fixturehashes,limitations and bilingualresults are inPHASE_B6.zh/en. All benchmark code hashes were rechecked unchanged after finaltests; no old model/account replay. Source batching, bottom-up immutable decoding,chunked canonical hashing,early panel release and once-per-yearprefixhashes preserve contracts. Actualnative/source/bundle guards still precede eachfit.
+
+B5bhead e6a0fcb2d23b440e3596126b3ae7758a67583aed / CI34082559337 nowverifiedSUCCESS. Empiricaldelta0/debt3660. PR199 remainsDraft, no mainmerge. Next: fullpipeline memorylifetimes and globallyexclusive actualparent/source/code/auditor/preregistration-bound once-only launch; no realnumericread or23empiricalreservations until ready. Do not rerun completed B5b/B6 operations or finishedtests on a wakeup.
+
+## Historical checkpoint: B5b paired source-level recoverability
 
 Full regression **1317 passed, 1 skipped in483.04s**; JUnit1318total/0failures/0errors/1skip,time483.003s. Session75063 completed exit0. Ruff src/tests/scripts and format of4new Python files PASS. FullJUnit `artifacts/flow-response/phase-b5b-regression-20260907.xml`, SHA256 `9fd33df91e50c04d1a45d14c1912734b07dd0e582e3a880e1237f6da410bf8d2`.
 

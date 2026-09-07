@@ -105,15 +105,18 @@ def load_response_sources(folder, *, expected_manifest_sha256, calendar):
             )
             # The inherited file may contain 2021 warmup: do not project those
             # numeric values under this bounded 2022-2024 response protocol.
-            values = conn.execute(
+            cursor = conn.execute(
                 f"SELECT {projection} FROM read_parquet(?) "
                 "WHERE trade_date BETWEEN DATE '2022-01-01' AND DATE '2024-12-31' "
                 "ORDER BY trade_date,instrument",
                 [str(path)],
-            ).fetchall()
-            rows = [dict(zip(columns, row, strict=True)) for row in values]
-            for row in rows:
-                row["trade_date"] = str(row["trade_date"])
+            )
+            rows = []
+            while values := cursor.fetchmany(2048):
+                for value in values:
+                    row = dict(zip(columns, value, strict=True))
+                    row["trade_date"] = str(row["trade_date"])
+                    rows.append(row)
             selected[source] = rows
     finally:
         conn.close()

@@ -1,6 +1,18 @@
 # V11.21 continuation / 续接记录
 
-## Current checkpoint: B5b paired source-level recovery complete
+## Current checkpoint: B6 storage complete; next fullpipeline lifetimes and launch
+
+B5bhead e6a0fcb2d23b440e3596126b3ae7758a67583aed / CI34082559337verifiedSUCCESS. ReadPHASE_B6.zh/en and latestVERIFICATION. Newlower-copy source batching/JSONfreeze/chunkedhash/earlyrelease/year-prefixmemoization passes full1337tests,2skips,478.79s;targeted41pass1skip57.45s. Ruffall/10fileformat/whitespacePASS. Sessions77668(full),68578(targeted),85966(storage),33037(initial)are complete; do not restart them. NoempiricalTrials/debt3660.
+
+Storageplan6419a5b42dd158a00b22635bc57c52a1e9e9b72a18c637247eee8c561c7a5b68/RESULT2676b939000f515b2a57cadb1b6f69f2822e81945dbaa80660dabe9e3eb49b8f lives inartifacts/flow-response/resources/b6-storage-001. Fourfixedcases1x/32x×legacy/lower-copy completedorwereguard-stopped. Largefixture2,534,755,919bytes/4,003,840bars/3,686,400ranks,newprivate8.660313GiB/204.270306s,oldstoppedat10.042259GiB/26.081035s. No fullpipelineorstatisticalpower claim. Do not rerun B6 or source-levelB5b calibration. Keep failedlegacyreceipt and generatedsyntheticfiles; no rawdatadeletion.
+
+Next concrete work: reduce overlapping liveobjects through the fullsource→history→fit→targets/account→independentaudit lifecycle; bind and supervise one globallyexclusive empirical launcher with actualparentRESULT/AUDIT/registry,source/anchor/code/auditorhashes,full23Trialreservation andIssue184publishedpreregistration. Existingexecute_reserved_epoch is only a backend,notglobalauthorization. Eachverification mustfailclosedbefore unapprovednumericreads. Maintain0marketTrialsuntilthegateisready,thenoneboundedrun with everycontrol and bothcosts; no source/seed/threshold tuning to bypassfailure.
+
+Static remaining memory findings: history_targets currently materializes all2023/24StatefulBars separately for eachcost/policy,temporarilycoexistingwithprevioussessions; fit_history_predictor materializes a wholetrainingbarprefix; source/historybuild still retains fullrow/observation/riskmatrices at an earlierstage. Independent audits run sequentially but must not be launched whiletheproductioncache is still live. B6reducedcopies but didnot certifythesepeaks. TheWindowsstorageguard pollsitsownPopen; exceptionsfromOSmeasurement currentlyterminateinthefinallybranchbutcanleaveplan/logwithoutafinalSUPERVISORreceipt—address terminalfailureevidenceinthenewproductionguard withoutrewritingcompletedB6measurementcode/evidence. Do notincreasea resourceclaim basedonone160stockpipelineor4mrowstorage-onlyfixture.
+
+No2021numericwarmup,2025/26,newwarehousesources,originalanchorchanges,mainmerge,purchases,trades,rootdirtyedits,subagents,newtasksornewautomation. Preserveallfrozenstatistical/economicgates. Existing30minheartbeatcontinuesquietly;notifyusableAlphaorseriousactionableblockage,notroutinenegativeprogress. StripAlphaPai credentialsfromchildenv.
+
+## Historical checkpoint: B5b paired source-level recovery complete
 
 B5 head f8d58f1cb814ddddac0646317694c6d8a798afbe / CI34080278086 was verified SUCCESS. Read PHASE_B5b.zh.md/.en.md and latest VERIFICATION first. Same branch/PR199Draft; no empirical market numerical reads, new empirical Trials0, debt3660. Do not restart completed source calibration.
 

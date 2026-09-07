@@ -19,6 +19,7 @@ from stephen_quant.qmt.reliable_panel import file_sha
 from .flow_response_history import read_verified_history
 from .flow_response_reference import FIELDS, validate_days
 from .flow_response_source_audit import compare
+from .flow_response_storage import streaming_sha256_json
 from .search_power_dsl import sha256_json
 
 POLICIES = (
@@ -255,7 +256,7 @@ def audit_models_targets(registry, tids, *, history_path, operation):
         raise ValueError("audit registry must belong to the operation")
     epoch_result = json.loads((root / "RESULT.json").read_bytes())
     history, proof = read_verified_history(registry, tids["response-82"], history_path)
-    models, fingerprints = {}, {}
+    models, fingerprints, prefix_digests = {}, {}, {}
     for policy in POLICIES:
         models[policy] = {}
         for year in (2023, 2024):
@@ -278,9 +279,14 @@ def audit_models_targets(registry, tids, *, history_path, operation):
             ):
                 raise ValueError("model belongs to different history")
             expected = reference_fit(history, year, policy)
-            prefix_days, _ = reference_pairs(history, year)
-            expected_provenance = proof | {
-                "training_prefix_sha256": sha256_json(
+            # reference_fit already rebuilt every mature pair independently.
+            # Only calendar membership is needed to hash this exact prefix; do
+            # not allocate and discard a second full set of pair dictionaries.
+            prefix_days = [d for d in history["calendar"] if d < f"{year}-01-01"][:-5]
+            # This independently loaded document is fixed within the audit;
+            # hash each year's identical prefix once, not once per policy.
+            if year not in prefix_digests:
+                prefix_digests[year] = streaming_sha256_json(
                     {
                         "calendar": prefix_days,
                         "ranks": {d: history["ranks"][d] for d in prefix_days},
@@ -290,7 +296,7 @@ def audit_models_targets(registry, tids, *, history_path, operation):
                         },
                     }
                 )
-            }
+            expected_provenance = proof | {"training_prefix_sha256": prefix_digests[year]}
             compare(
                 model["training_provenance"],
                 expected_provenance,

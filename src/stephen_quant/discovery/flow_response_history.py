@@ -33,6 +33,7 @@ from .flow_response_series import (
     response_stages,
     validate_calendar,
 )
+from .flow_response_storage import freeze, load_json, streaming_sha256_json
 from .search_power_dsl import sha256_json
 
 VERSION = "11.21-response-history-1"
@@ -160,6 +161,12 @@ def build_history_from_frozen(
             ),
             "risk_rows_sha256": sha256_json(risk[dt]),
         }
+    # Each observation/risk value is now represented in the immutable history.
+    # Release the old panel before creating the serialized bar dictionaries, and
+    # replace one day at a time rather than retaining two complete bar matrices.
+    del observations, risk
+    for dt, items in bars.items():
+        bars[dt] = {n: asdict(b) for n, b in items.items()}
     document = {
         "version": VERSION,
         "provider_id": provider,
@@ -168,7 +175,7 @@ def build_history_from_frozen(
         "calendar": list(calendar),
         "native_fit_lineage_sha256": lineage["sha256"],
         "ranks": cache,
-        "bars": {d: {n: asdict(b) for n, b in items.items()} for d, items in bars.items()},
+        "bars": bars,
         "days": evidence,
         "bridge_exclusions": exclusions,
         "panel_quality": quality,
@@ -196,7 +203,7 @@ def build_history_from_frozen(
     return path
 
 
-def read_verified_history(registry, consumer, path):
+def read_verified_history(registry, consumer, path, *, immutable=False):
     sources = registry.feature_sources(consumer)  # Must precede all cached numeric values.
     if len(sources["providers"]) != 1:
         raise ValueError("one completed historical response provider required")
@@ -211,7 +218,7 @@ def read_verified_history(registry, consumer, path):
         "history_artifact_sha256"
     ):
         raise ValueError("historical matrix bytes differ from native provider result")
-    document = json.loads(Path(path).read_bytes())
+    document = load_json(path, immutable=immutable)
     validate_calendar(document["calendar"])
     if (
         document["version"] != VERSION
@@ -241,21 +248,6 @@ def read_verified_history(registry, consumer, path):
     }
 
 
-class _FrozenDict(dict):
-    def _reject(self, *args, **kwargs):
-        raise TypeError("verified historical cache is immutable")
-
-    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = __ior__ = _reject
-
-
-def _freeze(value):
-    if isinstance(value, dict):
-        return _FrozenDict({k: _freeze(v) for k, v in value.items()})
-    if isinstance(value, list):
-        return tuple(_freeze(v) for v in value)
-    return value
-
-
 class VerifiedHistoryCache:
     """One-process immutable decode; preserve native/actual-file checks on each use.
 
@@ -264,10 +256,11 @@ class VerifiedHistoryCache:
     """
 
     def __init__(self, registry, consumer, path):
-        document, proof = read_verified_history(registry, consumer, path)
+        document, proof = read_verified_history(registry, consumer, path, immutable=True)
         self._path = Path(path).resolve()
-        self._document, self._proof = _freeze(document), _freeze(proof)
-        self._sources = _freeze(registry.feature_sources(consumer))
+        self._document, self._proof = document, freeze(proof)
+        self._sources = freeze(registry.feature_sources(consumer))
+        self._prefix_digests = {}
 
     def get(self, registry, consumer, path):
         if (
@@ -280,6 +273,25 @@ class VerifiedHistoryCache:
             if file_sha(self._path.parent / proof["bundle_file"]) != proof["bundle_sha256"]:
                 raise ValueError("verified cache bundle bytes changed")
         return self._document, dict(self._proof)
+
+    def _training_prefix_digest(self, year):
+        # Internal memoization of immutable values, not cached authorization.
+        # The fit entrypoint must call get() for the current consumer first.
+        days = prefix(self._document["calendar"], year)
+        if year not in self._prefix_digests:
+            self._prefix_digests[year] = _hash_training_prefix(self._document, days)
+        return self._prefix_digests[year]
+
+
+def _hash_training_prefix(history, days):
+    return streaming_sha256_json(
+        {
+            "calendar": days,
+            "ranks": {d: history["ranks"][d] for d in days},
+            "bars": {d: history["bars"][d] for d in days},
+            "days": {d: history["days"][d] for d in days if d in history["days"]},
+        }
+    )
 
 
 def verified_history(registry, consumer, path, *, cache=None):
@@ -299,13 +311,11 @@ def fit_history_predictor(
     # Materialize training bars only inside the already-purged mature prefix.
     bars = {d: {n: StatefulBar(**b) for n, b in history["bars"][d].items()} for d in days}
     pairs = pairs_for_year(history["calendar"], history["ranks"], bars, year)
-    provenance["training_prefix_sha256"] = sha256_json(
-        {
-            "calendar": days,
-            "ranks": {d: history["ranks"][d] for d in days},
-            "bars": {d: history["bars"][d] for d in days},
-            "days": {d: history["days"][d] for d in days if d in history["days"]},
-        }
+    del bars
+    provenance["training_prefix_sha256"] = (
+        _hash_training_prefix(history, days)
+        if cache is None
+        else cache._training_prefix_digest(year)
     )
     return fit_and_bind_predictor(
         registry,

@@ -24,7 +24,15 @@ def process_memory():
     return {"measured_at": datetime.now(timezone.utc).isoformat(), "pid": os.getpid(), **values}
 
 
-def _windows_memory():
+def child_process_memory(process):
+    """Inspect an owned Popen child without opening arbitrary process handles."""
+    if os.name != "nt":
+        raise OSError("owned-child measurement currently requires Windows")
+    values = _windows_memory(int(process._handle))
+    return {"measured_at": datetime.now(timezone.utc).isoformat(), "pid": process.pid, **values}
+
+
+def _windows_memory(process_handle=None):
     import ctypes
     from ctypes import wintypes
 
@@ -69,7 +77,9 @@ def _windows_memory():
     counters = Counters()
     counters.cb = ctypes.sizeof(counters)
     if not psapi.GetProcessMemoryInfo(
-        kernel.GetCurrentProcess(), ctypes.byref(counters), counters.cb
+        kernel.GetCurrentProcess() if process_handle is None else process_handle,
+        ctypes.byref(counters),
+        counters.cb,
     ):
         raise OSError(ctypes.get_last_error(), "process memory measurement unavailable")
     status = MemoryStatus()

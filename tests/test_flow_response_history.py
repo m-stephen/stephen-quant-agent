@@ -394,6 +394,64 @@ def test_caller_supplied_cache_rejected_before_get(integrated):
         history_targets(reg, consumers["hash"], history_path=path, policy="hash", cache=Fake())
 
 
+def test_cached_prefix_digest_matches_legacy_and_is_reused(integrated, monkeypatch):
+    import stephen_quant.discovery.flow_response_history as module
+
+    _, reg, _, consumers, _, _, path, _, _ = integrated
+    cache = VerifiedHistoryCache(reg, consumers["response"], path)
+    value, _ = cache.get(reg, consumers["response"], path)
+    calls = []
+
+    def tracked(document):
+        calls.append(1)
+        return sha256_json(document)
+
+    monkeypatch.setattr(module, "streaming_sha256_json", tracked)
+    for year in (2023, 2024):
+        days = module.prefix(value["calendar"], year)
+        expected = sha256_json(
+            {
+                "calendar": days,
+                "ranks": {d: value["ranks"][d] for d in days},
+                "bars": {d: value["bars"][d] for d in days},
+                "days": {d: value["days"][d] for d in days if d in value["days"]},
+            }
+        )
+        assert cache._training_prefix_digest(year) == expected
+        assert cache._training_prefix_digest(year) == expected
+    assert len(calls) == 2
+
+
+def test_cached_prefix_cannot_skip_current_source_verification(integrated, monkeypatch):
+    import stephen_quant.discovery.flow_response_history as module
+
+    _, reg, provider, consumers, _, _, path, _, paths = integrated
+    cache = VerifiedHistoryCache(reg, consumers["response"], path)
+    cache._training_prefix_digest(2023)
+    raw = path.read_bytes()
+    monkeypatch.setattr(module, "assert_predictor_contract", lambda *a, **kw: None)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("changed source must be rejected before training numeric use")
+
+    monkeypatch.setattr(module, "pairs_for_year", forbidden)
+    try:
+        path.write_bytes(raw + b" ")
+        with pytest.raises(ValueError, match="source/path/bytes"):
+            fit_history_predictor(
+                reg,
+                consumers["response"],
+                provider,
+                history_path=path,
+                year=2023,
+                policy="response",
+                model_path=paths["response"].parent / "unused.json",
+                cache=cache,
+            )
+    finally:
+        path.write_bytes(raw)
+
+
 def test_all_source_dates_independently_reconstruct_models_risks_ranks_and_bars(
     integrated, monkeypatch
 ):
