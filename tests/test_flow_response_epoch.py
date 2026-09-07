@@ -163,6 +163,71 @@ def test_completed_backend_cannot_replay_or_overwrite(epoch, monkeypatch):
     assert before == file_sha(root / "operation/RESULT.json")
 
 
+def test_complete_frozen_continuation_all22_no_new_fits(epoch, monkeypatch):
+    from stephen_quant.discovery import flow_response_continuation as continuation
+
+    root, inherited, old_tids, plan, original_result = epoch
+    old = root / "operation"
+    # Small synthetic artifacts only. Real launch uses an explicit frozen inventory.
+    files = {
+        p.relative_to(old).as_posix(): file_sha(p)
+        for folder in (old / "models", old / "targets", old / "history")
+        for p in folder.glob("*.json")
+    }
+    files["registry.sqlite3"] = file_sha(inherited.db_path)
+    spec = {
+        "version": continuation.VERSION,
+        "prior_debt": 3707,
+        "budget": 22,
+        "new_fits": 0,
+        "validated_alpha": False,
+        "accounts": continuation.account_plans(),
+        "research_contract": plan["contract"],
+        "runtime_code_sha256": "1" * 64,
+        "anchor_card_sha256": plan["anchor_card_sha256"],
+        "consumed_evidence_sha256": "2" * 64,
+        "inherited": {"root": str(old), "files": files, "trial_ids": old_tids},
+    }
+    output = root / "continuation"
+    reg, tids = continuation.reserve_continuation(output, spec)
+
+    def forbidden(*a, **kw):
+        raise AssertionError("continuation must not refit production predictors/history")
+
+    for target in (
+        "stephen_quant.discovery.flow_response_history.fit_history_predictor",
+        "stephen_quant.discovery.flow_response_history.build_history_from_frozen",
+        "stephen_quant.discovery.flow_response_history.bind_shared_history_predictor",
+        "stephen_quant.discovery.flow_response_predictor.fit_predictor",
+    ):
+        monkeypatch.setattr(target, forbidden)
+    result = continuation.execute_continuation(
+        reg, tids, spec, output=output, original_tree=root / "original"
+    )
+    assert result["reserved_trials"] == len(result["records"]) == 22
+    assert result["new_fits"] == 0 and result["raw_global_trial_lower_bound"] == 3729
+    assert result["inherited_supervised_models"] == 14
+    assert result["inherited_native_bindings"] == 28
+    assert not result["validated_alpha"]
+    assert result["models_sha256"] == original_result["models_sha256"]
+    for key, record in result["records"].items():
+        original = original_result["records"][key]
+        assert record["metrics"] == original["metrics"]
+        assert record["audit"] == original["audit"]
+        assert record["account_sha256"] == original["account_sha256"]
+    for policy in result["targets_sha256"]:
+        assert json.loads((output / f"targets/{policy}.json").read_bytes()) == json.loads(
+            (old / f"targets/{policy}.json").read_bytes()
+        )
+    assert file_sha(inherited.db_path) == files["registry.sqlite3"]
+    for tid in tids.values():
+        assert not reg.fit_lineage(tid)["fits"] and not reg.feature_sources(tid)["providers"]
+    with pytest.raises(ValueError):
+        continuation.execute_continuation(
+            reg, tids, spec, output=output, original_tree=root / "original"
+        )
+
+
 def test_independent_mature_models_and_targets_from_both_years(epoch, monkeypatch):
     from stephen_quant.discovery.flow_response_model_audit import audit_models_targets
 
