@@ -1,13 +1,30 @@
 # Stephen Quant Agent
 
-## Current checkpoint: V11.22 complete; search paused / 当前：诊断完成，搜索暂停
+## Current checkpoint: V12.0 bounded research reset / 当前：有界研究重构
+
+V12.0 implements the M0–M2 contract agreed in Issue #200: paired incremental
+account evidence, a small typed adaptive search, and an independent-source,
+finite-look synthetic calibration. Package version is 12.0.0. Engineering tests,
+synthetic capability and real-market Alpha evidence are different conclusions.
+
+The reserved600-path audit finished: economic-detection power FAIL (40%/54%),
+both null-FWER gates PASS. No market Alpha is certified. Full local regression:
+1,674passed,2platform skips; frozen implementation CI passed all three groups.
+See [中文测试报告](docs/V12_0_RESULT.zh.md) / [English results](docs/V12_0_RESULT.en.md),
+[machine-readable evidence](docs/V12_0_RESULT.summary.json),
+[V12.0 中文规格](docs/V12_0_SPEC.zh.md) / [English specification](docs/V12_0_SPEC.md). Entry point:
+`stephen-quant research-reset status`. The CLI has no real-data path argument.
+This version does **not** resume empirical search, change the old forward clock,
+or authorize trading. Missing new data domains are optional, not a global blocker.
+
+## Prior checkpoint: V11.22 complete; search paused / 历史诊断
 
 V11.7–V11.22 code and evidence form one cumulative development chain. V11.22
 completed all four diagnostic accounts and the independent audit; no validated
 Alpha was produced. The user paused automated search on 8 September 2026.
 Do not execute historical continuation instructions or replay consumed epochs.
-The research checkpoint is V11.22; package metadata remains 11.20.0 and no new
-release tag is implied. Earlier sections below are historical evidence, not current
+At that checkpoint package metadata was 11.20.0; no release tag was implied.
+Earlier sections below are historical evidence, not current
 launch authority or current Trial totals.
 
 See [中文完成报告](docs/V11_22_RESULT.zh.md),

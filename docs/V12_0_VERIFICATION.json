@@ -1,0 +1,63 @@
+{
+  "version": "12.0.0",
+  "implementation_commit": "deee7ae6825f169ab02a77980abaa448850f6ce8",
+  "engineering": "PASS",
+  "calibration": "FAIL",
+  "new_empirical_trials": 0,
+  "tests": [
+    {
+      "File": "artifacts/v12-tests/final-targeted.xml",
+      "Tests": "47",
+      "Failures": "0",
+      "Errors": "0",
+      "Skipped": "0",
+      "Seconds": "6.185",
+      "SHA256": "acf5e156e6642dcdf652d716ddb5d6cb4f96b0b4d6b9c3d127cd9a44ec1d8253"
+    },
+    {
+      "File": "artifacts/v12-tests/full.xml",
+      "Tests": "1676",
+      "Failures": "2",
+      "Errors": "0",
+      "Skipped": "2",
+      "Seconds": "868.577",
+      "SHA256": "c2378674cc54d386d72b093f9ee7291aed1875d3aa1c7682a1320103384c09d6"
+    },
+    {
+      "File": "artifacts/v12-tests/legacy-cli-clean.xml",
+      "Tests": "10",
+      "Failures": "0",
+      "Errors": "0",
+      "Skipped": "0",
+      "Seconds": "0.995",
+      "SHA256": "a3162758bbe36c4f8eae69d4f74d760da49b21ea41583865c6199db063e1a3fc"
+    },
+    {
+      "File": "artifacts/v12-tests/full-clean.xml",
+      "Tests": "1676",
+      "Failures": "0",
+      "Errors": "0",
+      "Skipped": "2",
+      "Seconds": "816.184",
+      "SHA256": "109ae2412dac5aad82f57550aaf2481aed29f40a2ef296383a26b768879d6dfc",
+      "SkipNames": [
+        "tests.test_response_owned_resources.test_other_platforms_do_not_fabricate_child_peak_measurements",
+        "tests.test_single_user_data.test_inventory_rejects_symlink_escape_when_supported"
+      ]
+    }
+  ],
+  "ci": {
+    "commit": "deee7ae6825f169ab02a77980abaa448850f6ce8",
+    "run_id": 34154910807,
+    "conclusion": "success",
+    "groups": 3,
+    "url": "https://github.com/m-stephen/stephen-quant-agent/actions/runs/34154910807"
+  },
+  "caveats": [
+    "Initial full regression inherited host maintenance configuration; two guards rejected it. Persistent environment and production guards unchanged.",
+    "Raw failure logs remain local and uncommitted because pytest expanded sensitive environment values. Only safe metadata is included here.",
+    "Full clean result: 1674 passed, 2 platform skips; targeted 47 are included, not additional independent tests.",
+    "Independent SQL aggregates agree with Python summary: linear 100 semantic /40 promoted /41 known-expression; interaction100/54/54.",
+    "This receipt is not market Alpha certification or authorization for a new epoch."
+  ]
+}

@@ -234,6 +234,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--db", default="artifacts/registry.sqlite3")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    reset = sub.add_parser("research-reset", help="V12 synthetic-only research calibration")
+    reset.add_argument("reset_args", nargs=argparse.REMAINDER)
+
     sub.add_parser("init-db")
 
     asset_inventory = sub.add_parser("data-asset-inventory")
@@ -989,6 +992,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "research-reset":
+        from .discovery.research_reset.cli import run_cli
+
+        run_cli(args.reset_args)
+        return
     registry = ExperimentRegistry(args.db)
 
     if args.command in {
