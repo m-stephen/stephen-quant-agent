@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from test_flow_response_tiny_fills import tiny_account
 
+from stephen_quant.baseline.stateful import StatefulBar, TargetAllocation
 from stephen_quant.discovery import flow_response_diagnostic as m
 from stephen_quant.discovery.search_power_dsl import sha256_json
 
@@ -45,6 +46,23 @@ def test_new_audit_failure_keeps_diagnosis_unresolved():
     )
     assert result["original_audit"]["reproduced"]
     assert not result["corrected_audit"]["pass"] and not result["engineering_pass"]
+
+
+def test_prior_day_tiny_sale_changes_later_liquidation_without_same_day_tiny_fill():
+    sessions, targets = [], []
+    for i, (price, capacity) in enumerate(((1.0, 1e6), (0.01, 9e-13), (0.01, 1e6))):
+        day = f"2023-01-0{i + 3}"
+        clock = day + "T08:00:00+08:00"
+        sessions.append((StatefulBar(day, "SYNTHETIC", price, price, capacity, clock),))
+        targets.append(TargetAllocation(day, clock, {"SYNTHETIC": 0.025} if i == 0 else {}, True))
+    report = m.execute_response_account(sessions, targets, roundtrip_bps=82)
+    result = m.compare_auditors(report, sessions, targets, old_source())
+    assert result["original_audit"]["reproduced"] and result["corrected_audit"]["pass"]
+    first = result["original_audit"]["first_divergence"]
+    assert first["date"] == "2023-01-05" and first["names"][0]["tiny_notionals"] == []
+    assert not result["engineering_pass"]  # Keep original same-day criterion, not a new PASS.
+    assert result["tiny_fills"][0]["date"] == "2023-01-04"
+    assert report.periods[-1].marks == ()
 
 
 def test_exact_auditor_change_rejects_any_threshold_or_other_logic_change():
