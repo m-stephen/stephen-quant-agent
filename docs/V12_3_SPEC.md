@@ -93,8 +93,10 @@ window drawdown including opening NAV, and explicitly named one-way turnover
 response minus risk, with yearly CNY differences based on their separate carried
 capital. DSR/PBO/placebo remain null; these summaries are not certification.
 
-Complete runtime orchestration, resource supervision, integrated bilingual report
-and final validation are pending. Components have only run on synthetic inputs.
+Fixed saved-report orchestration now runs the independent components directly,
+with one decoded history and complete compact-ledger checks. The external final
+acceptance, production once-only supervisor and bilingual renderer are pending.
+All new numerical integration evidence is synthetic, not a market-data run.
 No real forensic operation has been launched by these components. Exact internal
 trading-date alignment still requires the frozen calendar, beyond helper shape
 and endpoint checks.
@@ -111,20 +113,46 @@ missing volume/name may affect tradability without removing that bar.
 
 A streaming canonical fingerprint component can detect accidental in-memory
 changes to shared decoded original evidence without a second serialized history.
-The fixed integrated runtime must still call these reference paths itself, bind
-all original input/output/code bytes, preserve partial failures and complete all
+The fixed integrated runtime calls these reference paths itself, binds
+all original input/output/code bytes, preserves partial failures and completes all
 12 account receipts. These components alone cannot accept caller-made reference
-objects as proof, and have not yet been integrated into final runtime acceptance.
+objects as proof, and cannot substitute for external final runtime acceptance.
 
 独立参考路径已补齐事件、成员、股票池及来源解释组件；同人数股票池的身份变化也会核验。
 来源查询必须覆盖独立重建的全部事件和尾链，不得由生产端遗漏事件后同步缩小查询。
 成交量或名称类型异常保留unknown；零成交或缺名称不等于缺少执行bar。
 原始内存对象流式指纹组件用于发现意外原地修改，不新增多用户权限体系。
-完整入口、监督运行、全部回执和最终报告仍待集成；合成通过不等于真实Alpha通过。
+固定核验入口已完成集成；生产环境一次性监督、外部最终验收和双语报告仍待补齐。
+合成通过不等于真实Alpha通过。
 
 已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
 没有重算预测；未保存的分数与top60排名明确不可用。恢复估值不重复加入现金；核账通过
 不等于来源真值或Alpha通过。真实数据的完整法证运行与最终双语报告尚未完成。
+
+## Independent integration checkpoint / 独立集成检查点
+
+The new bounded synthetic suite completed17 tests successfully. Its unchanged
+726-session/200-name source fixture contains145176 nine-field rows, with the
+same standard/double-cost native saved accounts. The previously placeholder
+compact bindings were replaced by real484-period JSONL ledgers. All12 accounts,
+two membership policies, two primary cost comparisons and all51 output hashes
+were verified. Omitted events/queries, altered member output, in-place history or
+report changes and a mid-verifier exception all fail without a success summary.
+
+Ordinary JSON fingerprints remain strict for decoded JSON history/reports.
+Actual Parquet lookup scalars use separate typed, row-streamed fingerprints so
+timezone-aware datetime and diagnostic NaN/inf are not silently converted to
+strings or repaired; source-type/availability judgments remain independent.
+
+The component outcome is
+`SAVED_REPORT_INDEPENDENTLY_VERIFIED_NOT_LAUNCH_ACCEPTED`.
+This does not resolve the prior intermittent native CI crashes, approve a real
+forensic launch, certify Alpha, or authorize a merge to main.
+
+新增17项有界合成集成测试全部通过。原726日、200只合成股票、145176行九字段来源、
+标准及双倍成本保持不变；12个账户的484日完整账本、成员/来源/指标与51份输出哈希
+均纳入核验。事件或查询漏项、成员篡改、原始内存改写及中途核验失败不会生成成功摘要。
+这不是市场回测，也不表示此前CI原生崩溃根因已修复；真实运行和main合并未获批准。
 
 ## Bounded native diagnostic / 有限运行时排查
 

@@ -31,6 +31,18 @@ def save(root, name, value):
     return file_sha(path)
 
 
+def save_compact(root, name, report):
+    fields = {"date": "trade_date", "nav": "end_nav", "return": "net_return",
+              "cash": "cash", "cost": "total_cost", "stale_positions": "stale_position_days",
+              "writeoff_loss": "writeoff_loss", "positions": "marks", "orders": "orders"}
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x", encoding="utf-8", newline="\n") as stream:
+        for row in report["periods"]:
+            stream.write(json.dumps({k: row[v] for k, v in fields.items()}, allow_nan=False) + "\n")
+    return file_sha(path)
+
+
 @pytest.fixture(scope="module")
 def artifacts(tmp_path_factory):
     started = time.perf_counter()
@@ -85,7 +97,7 @@ def artifacts(tmp_path_factory):
                 key = f"{p}-{c}"
                 report, ledger = f"account_reports/{key}.json", f"accounts/{key}.jsonl"
                 files[report] = save(folder, report, reports[c])
-                files[ledger] = save(folder, ledger, {"synthetic_binding_only": True})
+                files[ledger] = save_compact(folder, ledger, reports[c])
                 accounts[f"{group}/{key}"] = {"key": key, "report": report,
                                               "ledger": ledger, "target": target}
         bindings[group] = {"root": str(folder), "files": files, "accounts": accounts}
@@ -180,10 +192,20 @@ def test_all12_native_saved_accounts_and_actual_parquet_sources(artifacts, tmp_p
     assert result["source_query"]["matched_rows"] == 2
     assert set(result["source_status"].values()) == {"EXPLAINED_BY_FROZEN_SOURCE"}
     assert all(v["maintenance_count"] == 97 for v in result["membership"].values())
-    assert len(result["output_files"]) == 38
+    assert len(result["output_files"]) == 51
     assert result["primary"]["82"]["windows"]["continuous"]["profit_difference_cny"] == 0
     assert not result["validated_alpha"]
-    assert result["component_status"] == "SAVED_REPORT_BUILT_NOT_INDEPENDENTLY_VERIFIED"
+    assert result["component_status"] == "SAVED_REPORT_INDEPENDENTLY_VERIFIED_NOT_LAUNCH_ACCEPTED"
+    verify = json.loads((out / "VERIFICATION.json").read_text())
+    assert len(verify["account_keys"]) == 12
+    assert len(verify["membership"]) == len(verify["primary"]) == 2
+    assert verify["source_query"]["independent_lookup_coverage_verified"]
+    for name in verify["account_keys"]:
+        receipt = json.loads((out / "verification" / (name.replace("/", "--") + ".json")).read_text())
+        assert receipt["checks"]["compact_sessions"] == 484
+        assert receipt["checks"]["source"]["independent_source_explanations_verified"]
+        assert receipt["checks"]["events"]["saved_event_identities_verified"]
+        assert receipt["code_sha256"] == sha256_json(verify["code"])
     for name, digest in result["output_files"].items():
         assert file_sha(out / name) == digest
     with pytest.raises(FileExistsError):
@@ -252,5 +274,88 @@ def test_intermediate_failure_keeps_partial_without_summary(artifacts, tmp_path,
     assert terminal["automatic_retry"] is False
     assert len(list((out / "chains").glob("*.json"))) == 1
     assert not (out / "SUMMARY.json").exists()
+    with pytest.raises(FileExistsError):
+        build_saved_report(evidence, calendar_binding=binding, output=out)
+
+
+@pytest.mark.parametrize("bad", ["omitted_event", "omitted_key", "member", "memory_ranks",
+                                  "memory_report", "mid_verifier"])
+def test_independent_runtime_refuses_producer_tampering(artifacts, tmp_path, monkeypatch, bad):
+    from stephen_quant.discovery import account_forensics_runtime as runtime
+
+    evidence, binding = artifacts
+    if bad == "omitted_event":
+        original = runtime.reconcile_chain
+
+        def changed(*args, **kwargs):
+            value = original(*args, **kwargs)
+            value["events"].pop()
+            return value
+
+        monkeypatch.setattr(runtime, "reconcile_chain", changed)
+    elif bad == "omitted_key":
+        original = runtime.event_source_keys
+        monkeypatch.setattr(runtime, "event_source_keys", lambda reports: original(reports)[:-1])
+    elif bad == "member":
+        original = runtime.write
+
+        def changed(path, value):
+            if path.parent.name == "membership":
+                value = copy.deepcopy(value)
+                value["membership"]["maintenance_events"][0]["selected_names"][0] = "S150"
+            return original(path, value)
+
+        monkeypatch.setattr(runtime, "write", changed)
+    elif bad == "memory_ranks":
+        original = runtime.prior_day_exposures
+
+        def changed(*args, **kwargs):
+            # Mutate a 2022 map not otherwise used by account outputs: only the
+            # memory fingerprint, not output disagreement, detects this change.
+            kwargs["ranks"][kwargs["source_calendar"][0]]["S000"]["cell"] = 1
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(runtime, "prior_day_exposures", changed)
+    elif bad == "memory_report":
+        original = runtime.account_summary
+
+        def changed(report, **kwargs):
+            value = original(report, **kwargs)
+            report["unexpected_mutation"] = True
+            return value
+
+        monkeypatch.setattr(runtime, "account_summary", changed)
+    else:
+        original = runtime.verify_exposures
+        calls = 0
+
+        def changed(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise ValueError("synthetic independent verifier failure")
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(runtime, "verify_exposures", changed)
+    out = tmp_path / bad
+    with pytest.raises(ValueError):
+        runtime.build_saved_report(evidence, calendar_binding=binding, output=out)
+    terminal = json.loads((out / "TERMINAL.json").read_text())
+    assert terminal["outcome"] == "FAILED"
+    assert not (out / "SUMMARY.json").exists()
+    assert not (out / "VERIFICATION.json").exists()
+    names = sorted(name for group in GROUPS for name in evidence["bindings"][group]["accounts"])
+    expected = {
+        "omitted_event": ("independent_saved_account:" + names[0], 0, 1),
+        "memory_report": ("independent_saved_account:" + names[0], 0, 1),
+        "omitted_key": ("explicit_frozen_source_keys", 12, 12),
+        "member": ("maintenance_support", 12, 12),
+        "memory_ranks": ("original_history_after_fingerprint", 12, 12),
+        "mid_verifier": ("independent_saved_account:" + names[1], 1, 2),
+    }[bad]
+    assert terminal["stage"] == expected[0]
+    assert len(terminal["completed_account_keys"]) == expected[1]
+    assert len(list((out / "chains").glob("*.json"))) == expected[2]
+    assert terminal["automatic_retry"] is False
     with pytest.raises(FileExistsError):
         build_saved_report(evidence, calendar_binding=binding, output=out)
