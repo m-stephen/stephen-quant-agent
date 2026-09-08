@@ -28,6 +28,13 @@ GROUPS = {
     "grouped": ("response", "risk"),
     "global_baselines": ("global_lowvol", "global_hash"),
 }
+# The old continuation RESULT is a22-account archive. Its approved comparator
+# binding deliberately exposes just response/risk at both costs, not all22 reports.
+GROUPED_ARCHIVE_POLICIES = (
+    "hash", "lowvol", "old_absorption", "original_lowvol", "original_stable",
+    "raw_flow_return", "response", "response_interaction", "risk", "shuffle",
+    "standardized_flow_return",
+)
 
 
 def bind_files(root, expected):
@@ -59,8 +66,10 @@ def fixed_accounts(group, root, expected):
     bind_files(root, {"RESULT.json": expected["RESULT.json"]})
     result = read(root / "RESULT.json")
     keys = {f"{policy}-{cost}" for policy in GROUPS[group] for cost in (82, 164)}
-    if set(result["records"]) != keys:
-        raise ValueError("all four fixed accounts required; no comparator selection")
+    archive_keys = ({f"{p}-{c}" for p in GROUPED_ARCHIVE_POLICIES for c in (82, 164)}
+                    if group == "grouped" else keys)
+    if set(result["records"]) != archive_keys:
+        raise ValueError("exact frozen archive identities required; no comparator selection")
     files, accounts = {"RESULT.json": expected["RESULT.json"]}, {}
     for key in sorted(keys):
         row, policy = result["records"][key], key.rsplit("-", 1)[0]
@@ -81,7 +90,9 @@ def fixed_accounts(group, root, expected):
             "ledger": f"accounts/{key}.jsonl",
             "target": f"targets/{policy}.json",
         }
-    return {**bind_files(root, files), "accounts": accounts}
+    return {**bind_files(root, files), "accounts": accounts,
+            "archive_account_keys": sorted(archive_keys),
+            "comparison_selection": "fixed_before_forensics_not_by_performance"}
 
 
 def completed_inputs(worktree):

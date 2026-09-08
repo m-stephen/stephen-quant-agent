@@ -18,7 +18,9 @@ def put(root, name, value):
 
 def group(root, name):
     records, files = {}, {}
-    for policy in evidence.GROUPS[name]:
+    policies = (evidence.GROUPED_ARCHIVE_POLICIES if name == "grouped"
+                else evidence.GROUPS[name])
+    for policy in policies:
         for cost in (82, 164):
             key = f"{policy}-{cost}"
             row = {}
@@ -40,6 +42,8 @@ def test_fixed_complete_group(tmp_path, name):
     assert len(result["accounts"]) == 4
     assert len(result["files"]) == 11
     assert all(key.startswith(name + "/") for key in result["accounts"])
+    assert len(result["archive_account_keys"]) == (22 if name == "grouped" else 4)
+    assert "account_reports/shuffle-82.json" not in result["files"]
 
 
 @pytest.mark.parametrize("change", ["omit", "extra", "contradiction", "changed_bytes"])
@@ -193,3 +197,14 @@ def test_two_costs_cannot_disagree_on_shared_target(tmp_path):
     digest = put(tmp_path, "RESULT.json", result)
     with pytest.raises(ValueError, match="inconsistent targets"):
         evidence.fixed_accounts("construction", tmp_path, {"RESULT.json": digest})
+
+
+def test_nonselected_archive_files_need_not_exist(tmp_path):
+    bound = group(tmp_path, "grouped")
+    selected = evidence.fixed_accounts("grouped", tmp_path, bound["files"])
+    for name in set(bound["files"]) - set(selected["files"]):
+        (tmp_path / name).unlink()  # Synthetic fixture files, never research artifacts.
+    result = evidence.fixed_accounts("grouped", tmp_path, selected["files"])
+    assert len(result["archive_account_keys"]) == 22
+    assert len(result["accounts"]) == 4
+    assert len(result["files"]) == 11

@@ -11,7 +11,8 @@ from stephen_quant.discovery.account_forensics_evidence import (
     completed_inputs,
     verify_unchanged,
 )
-from stephen_quant.discovery.flow_response_launch import now, write
+from stephen_quant.discovery.flow_response_launch import _git, now, write
+from stephen_quant.qmt.reliable_panel import file_sha
 
 
 def main():
@@ -21,8 +22,14 @@ def main():
     allowed = (ROOT / "artifacts/account-forensics").resolve()
     if output == allowed or not output.is_relative_to(allowed):
         raise ValueError("exclusive child of this worktree's forensic artifact folder required")
+    if _git(ROOT, "status", "--porcelain"):
+        raise ValueError("commit the reviewed metadata checker before verification")
     output.mkdir(parents=True, exist_ok=False)
-    write(output / "START.json", {"started_at": now(), "scope": "metadata_hash_only"})
+    write(output / "START.json", {
+        "started_at": now(), "scope": "metadata_hash_only",
+        "code_commit": _git(ROOT, "rev-parse", "HEAD"),
+        "driver_sha256": file_sha(Path(__file__)),
+    })
     try:
         evidence = completed_inputs(ROOT)
         write(output / "INPUTS.json", evidence)
