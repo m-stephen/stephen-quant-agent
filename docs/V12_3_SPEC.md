@@ -102,3 +102,28 @@ and endpoint checks.
 已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
 没有重算预测；未保存的分数与top60排名明确不可用。恢复估值不重复加入现金；核账通过
 不等于来源真值或Alpha通过。真实数据的完整法证运行与最终双语报告尚未完成。
+
+## Bounded native diagnostic / 有限运行时排查
+
+CI34176935282 crashed in both Python3.10.21/3.12.14 trace120 groups; the
+trace0 control completed1904 tests. The causal defect is NOT established.
+New slot `v123-native-runtime-001` is separate from the consumed V12.2 probe.
+Exactly four cells: those two patch versions x trace0/120, all PYTHONMALLOC=debug,
+one unchanged `test_construction_complete_four_accounts_source_target_account_audit`
+node per cell, observed dependency versions pinned. No market files or accounts.
+Freeze tracked fixture/source bytes, installed dependency bytes, interpreter and
+libpython; retain debugger output, elapsed time, maximum RSS, child exit status,
+exact single-node JUnit and actual timeout-dump count. External process-group
+deadline900s plus bounded termination grace. No autoretries or fixture reduction.
+
+All four outcomes are retained independently. No actual dump in the120 arm means
+NO_TIMER_EXPOSURE, not successful reproduction coverage. SIGKILL does not prove
+OOM without separate evidence. Passing means NOT_REPRODUCED, never root-cause
+fixed. The debug allocator changes runtime behavior and is investigation only.
+Keep all three standard CI groups unchanged. Real numerical forensics remains
+paused until independent review adjudicates runtime risk after this finite batch.
+Implementation review and exact dispatch approval are required before launch.
+
+四格合成诊断仅定位原生崩溃，不能充当Alpha研究。完整单项JUnit、真实转储次数、
+退出码和超时分别记录；不通过反复重跑碰运气。调试分配器不是修复，旧失败保留。
+此排查结束后必须复审处置，不自动开启更多排查或真实市场实验。
