@@ -215,6 +215,33 @@ is approved separately; no real prepare/run or main merge is authorized here.
 
 ## Bounded native diagnostic / 有限运行时排查
 
+### Reviewed launch control / 已审查启动控制
+
+The plan binds the unchanged completed parent, saved inputs, full frozen calendar,
+clean code snapshot, launcher script and actual Python/native dependency bytes.
+A fixed issue comment must explicitly acknowledge the unresolved native-runtime
+risk and the exact plan. A shared, code-independent scope claim is consumed by
+exclusive creation before any numerical child starts; failures cannot replay it.
+
+One Windows Python3.10.9 child performs saved-account forensics, external artifact
+acceptance and bilingual rendering. The parent checks the actual supervisor
+receipt, child identity, source/code/runtime bindings, all57 accepted files and
+three report files before issuing final success. The four-hour limit combines
+checkpoints and child supervision, not an OS-hard deadline over blocking parent
+reads; expiry cannot produce final success. Per-process private-memory and free
+physical-memory limits remain explicit, not an aggregate machine memory cap.
+
+Developer and independent reviewer each passed51 isolated control tests. These
+tests mock process/network boundaries: they are not the new complete synthetic
+orchestration, real prepare, real data run or permission to merge main. Those
+stages require separate review, persistent evidence and exact launch approval.
+
+计划绑定既有冻结证据、完整日历、干净代码、启动脚本及实际运行库字节；审批必须
+明确对应计划并承认尚未根治的原生运行时风险。共享一次性标记先于数值子进程创建，
+失败同样不能重放。单个受监督子进程完成核验和双语报告，父进程核对实际回执与文件。
+双方各51项控制测试通过，但边界采用模拟；尚不代表完整合成集成或真实运行通过。
+四小时是检查点与子进程监督期限，不冒充覆盖父进程阻塞读取的操作系统硬期限。
+
 CI34176935282 crashed in both Python3.10.21/3.12.14 trace120 groups; the
 trace0 control completed1904 tests. The causal defect is NOT established.
 New slot `v123-native-runtime-001` is separate from the consumed V12.2 probe.
