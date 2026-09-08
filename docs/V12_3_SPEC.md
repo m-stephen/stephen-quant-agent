@@ -94,8 +94,9 @@ response minus risk, with yearly CNY differences based on their separate carried
 capital. DSR/PBO/placebo remain null; these summaries are not certification.
 
 Fixed saved-report orchestration now runs the independent components directly,
-with one decoded history and complete compact-ledger checks. The external final
-acceptance, production once-only supervisor and bilingual renderer are pending.
+with one decoded history and complete compact-ledger checks. External artifact
+acceptance is implemented; the complete launch acceptance, production once-only
+supervisor and bilingual renderer are pending.
 All new numerical integration evidence is synthetic, not a market-data run.
 No real forensic operation has been launched by these components. Exact internal
 trading-date alignment still requires the frozen calendar, beyond helper shape
@@ -122,7 +123,7 @@ objects as proof, and cannot substitute for external final runtime acceptance.
 来源查询必须覆盖独立重建的全部事件和尾链，不得由生产端遗漏事件后同步缩小查询。
 成交量或名称类型异常保留unknown；零成交或缺名称不等于缺少执行bar。
 原始内存对象流式指纹组件用于发现意外原地修改，不新增多用户权限体系。
-固定核验入口已完成集成；生产环境一次性监督、外部最终验收和双语报告仍待补齐。
+固定核验入口及外部文件验收已完成；生产环境一次性监督、完整运行验收和双语报告仍待补齐。
 合成通过不等于真实Alpha通过。
 
 已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
@@ -153,6 +154,37 @@ forensic launch, certify Alpha, or authorize a merge to main.
 标准及双倍成本保持不变；12个账户的484日完整账本、成员/来源/指标与51份输出哈希
 均纳入核验。事件或查询漏项、成员篡改、原始内存改写及中途核验失败不会生成成功摘要。
 这不是市场回测，也不表示此前CI原生崩溃根因已修复；真实运行和main合并未获批准。
+
+## External artifact acceptance / 外部文件验收
+
+The external acceptance component binds the caller's frozen input, calendar and
+producer/reference code roots to all51 expected outputs and six control files.
+It checks12 complete account receipts, both costs, both97-decision schedules,
+event/tail identities across chain and detail files, actual exposure dates, and
+source-status aggregation. UNKNOWN and IMPLEMENTATION_MISMATCH remain explicit;
+they never become source truth or Alpha certification. Duplicate JSON fields,
+nonfinite numbers and bool/float substitutions for integer counts are refused.
+
+Forty lightweight metadata-contract and tampering tests passed in both developer
+and independent-review runs. These fixtures test artifact integrity, not account
+arithmetic or new market performance. No history decode or account execution is
+part of this external layer. Its outcome remains NOT_LAUNCH_ACCEPTED.
+
+The earlier17-test synthetic integration completed, and its durable JUnit,
+supervisor and runtime bindings remain available. However, its detailed report
+and synthetic source files were in pytest temporary storage and were subsequently
+removed by default retention. Those missing files cannot now receive external
+acceptance; they must not be recreated and presented as original evidence. A
+substantively new renderer/launcher integration requires separate review and a
+unique persistent test directory retaining actual inputs and outputs.
+
+外部验收层已完成双人审查及40项轻量测试，核对51份输出、6份控制文件、12份账户
+凭证和两套97次维护日程。日期、相位、事件/尾链身份及来源状态必须一致；unknown
+不会提升为来源真实或Alpha通过。本层只检查冻结产物的完整性，不重新解码历史或运行账户。
+
+之前17项合成集成的运行回执仍保留，但详细文件被pytest默认临时保留策略清理，
+因此当前不能完成该旧产物的外部验收，也不会重跑补造旧证据。后续包含报告和启动器的
+实质新集成必须单独审查，使用唯一持久化目录。真实法证运行及最终报告仍未完成。
 
 ## Bounded native diagnostic / 有限运行时排查
 
