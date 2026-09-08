@@ -77,11 +77,28 @@ scores or top60 ranks. Support identities still require frozen-history evidence.
 The pure source/bar comparison helper distinguishes verified source absence,
 format/time refusal, saved adjusted-price mismatch and incomplete evidence. It
 does not interpret no-volume/no-name rows as absent execution bars: those affect
-tradability, not bar inclusion in the frozen producer. Runtime source extraction,
-full stale/recovery chains, complete report and final validation are pending.
+tradability, not bar inclusion in the frozen producer.
+
+Saved-account chain reconciliation now follows every explicit session from empty
+initial positions, checking stale counters, zero-mark retained shares, recovery
+open valuation, executed share deltas, fees, cash and NAV identities. It never
+regenerates expected orders or rechecks a modified capacity policy. Source event
+explanations and still-open stale tails remain separate from ledger correctness.
+The bounded Parquet reader projects only requested daily keys after byte checks;
+logical row exclusion does not claim physical Parquet row-group isolation.
+
+Descriptive metrics use actual carried NAV for each year, sample-SD Sharpe252,
+window drawdown including opening NAV, and explicitly named one-way turnover
+`0.5 * abs(executed notional) / previous close NAV`. Primary comparisons remain
+response minus risk, with yearly CNY differences based on their separate carried
+capital. DSR/PBO/placebo remain null; these summaries are not certification.
+
+Complete runtime orchestration, resource supervision, integrated bilingual report
+and final validation are pending. Components have only run on synthetic inputs.
 No real forensic operation has been launched by these components. Exact internal
 trading-date alignment still requires the frozen calendar, beyond helper shape
 and endpoint checks.
 
-已实现证据封装和按保存权重反推的同相位成员保留分析，并由保存的成员哈希交叉校验。
-没有重算预测；未保存的分数与top60排名明确不可用。完整来源追溯与最终报告尚未完成。
+已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
+没有重算预测；未保存的分数与top60排名明确不可用。恢复估值不重复加入现金；核账通过
+不等于来源真值或Alpha通过。真实数据的完整法证运行与最终双语报告尚未完成。

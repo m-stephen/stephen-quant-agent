@@ -100,3 +100,69 @@ def source_bar_evidence(dt, name, *, source_row, saved_bar):
     result.update(classification="source_and_saved_bar_match",
                   reason="visible_source_adjusted_open_close_reconciled")
     return result
+
+
+def explain_event_sources(chain_report, *, source_lookups, saved_bars):
+    """Attach explicit source lookups to every event's full saved missing-bar chain.
+
+    `source_lookups[(date,instrument)] = None` means a completed query found no row.
+    An unqueried key is an error, never evidence of source absence. Source lookup
+    and byte verification belong to the read-only runtime, not this pure helper.
+    """
+    events = []
+    for event in chain_report["events"]:
+        name, chain = event["instrument"], event["stale_chain"]
+        dates = [chain["last_marked_date"]] + [r["date"] for r in chain["missing_sessions"]]
+        if event["event_type"] == "recovery":
+            dates.append(event["date"])
+        rows = []
+        for dt in dates:
+            if (dt, name) not in source_lookups or dt not in saved_bars:
+                raise ValueError("explicit completed source and history lookup required")
+            rows.append(source_bar_evidence(
+                dt, name, source_row=source_lookups[(dt, name)], saved_bar=saved_bars[dt].get(name)))
+        categories = {r["classification"] for r in rows}
+        status = ("IMPLEMENTATION_MISMATCH" if "implementation_mismatch" in categories else
+                  "UNKNOWN" if "unknown" in categories else "EXPLAINED_BY_FROZEN_SOURCE")
+        out = {**event, "source_rows": rows, "source_explanation_status": status,
+               "actual_suspension_or_delisting_verified": False,
+               "cash_receipt_inferred_from_recovery": False}
+        if event["event_type"] == "recovery":
+            out["source_recovery_cny"] = None
+            out["source_recovery_status"] = rows[-1]["classification"]
+            if rows[-1]["classification"] == "source_and_saved_bar_match":
+                value = event["prior_shares"] * rows[-1]["adjusted_open"]
+                close(value, event["saved_bar_recovery_cny"])
+                out["source_recovery_cny"] = value
+                out["source_recovery_status"] = "SOURCE_OPEN_TIMES_PRIOR_SHARES_RECONCILED"
+        elif event["event_type"] == "writeoff":
+            out["source_last_mark_writeoff_cny"] = None
+            if rows[0]["classification"] == "source_and_saved_bar_match":
+                value = event["prior_shares"] * rows[0]["adjusted_close"]
+                close(value, event["amount_cny"])
+                out["source_last_mark_writeoff_cny"] = value
+        else:
+            raise ValueError("unknown saved event type")
+        events.append(out)
+    tails = []
+    for tail in chain_report.get("open_stale_chains", []):
+        name, chain = tail["instrument"], tail["stale_chain"]
+        dates = [chain["last_marked_date"]] + [r["date"] for r in chain["missing_sessions"]]
+        rows = []
+        for dt in dates:
+            if (dt, name) not in source_lookups or dt not in saved_bars:
+                raise ValueError("explicit completed tail source and history lookup required")
+            rows.append(source_bar_evidence(
+                dt, name, source_row=source_lookups[(dt, name)], saved_bar=saved_bars[dt].get(name)))
+        categories = {r["classification"] for r in rows}
+        status = ("IMPLEMENTATION_MISMATCH" if "implementation_mismatch" in categories else
+                  "UNKNOWN" if "unknown" in categories else "EXPLAINED_BY_FROZEN_SOURCE")
+        tails.append({**tail, "source_rows": rows, "source_explanation_status": status,
+                      "actual_suspension_or_delisting_verified": False})
+    statuses = {e["source_explanation_status"] for e in events + tails}
+    return {**chain_report, "events": events, "open_stale_chains": tails,
+            "source_explanation_status": (
+                "IMPLEMENTATION_MISMATCH" if "IMPLEMENTATION_MISMATCH" in statuses else
+                "UNKNOWN" if "UNKNOWN" in statuses else "EXPLAINED_BY_FROZEN_SOURCE"
+                if events or tails else "NO_WRITEOFF_RECOVERY_EVENTS_OR_OPEN_STALE_CHAINS"),
+            "source_truth_verified": False}
