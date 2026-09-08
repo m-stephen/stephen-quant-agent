@@ -99,6 +99,29 @@ No real forensic operation has been launched by these components. Exact internal
 trading-date alignment still requires the frozen calendar, beyond helper shape
 and endpoint checks.
 
+Independent reference components now derive event/tail identities from original
+account marks and saved bars, invert aggregate membership by subtracting the
+other three sleeves, and attribute support changes using raw prior-session rank
+identities. The independently derived event/tail set determines the required
+source query keys; actual returned rows must carry all nine projected fields.
+Source value/time/recovery explanations are checked without calling the producer
+source helper. Unexpected volume/display-name types remain unknown, not proof
+that the original panel could construct a matching execution bar. Legal zero or
+missing volume/name may affect tradability without removing that bar.
+
+A streaming canonical fingerprint component can detect accidental in-memory
+changes to shared decoded original evidence without a second serialized history.
+The fixed integrated runtime must still call these reference paths itself, bind
+all original input/output/code bytes, preserve partial failures and complete all
+12 account receipts. These components alone cannot accept caller-made reference
+objects as proof, and have not yet been integrated into final runtime acceptance.
+
+独立参考路径已补齐事件、成员、股票池及来源解释组件；同人数股票池的身份变化也会核验。
+来源查询必须覆盖独立重建的全部事件和尾链，不得由生产端遗漏事件后同步缩小查询。
+成交量或名称类型异常保留unknown；零成交或缺名称不等于缺少执行bar。
+原始内存对象流式指纹组件用于发现意外原地修改，不新增多用户权限体系。
+完整入口、监督运行、全部回执和最终报告仍待集成；合成通过不等于真实Alpha通过。
+
 已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
 没有重算预测；未保存的分数与top60排名明确不可用。恢复估值不重复加入现金；核账通过
 不等于来源真值或Alpha通过。真实数据的完整法证运行与最终双语报告尚未完成。

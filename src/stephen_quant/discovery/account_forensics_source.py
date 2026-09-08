@@ -80,6 +80,12 @@ def source_bar_evidence(dt, name, *, source_row, saved_bar):
         if not _valid(source_row["open"], True) or not math.isfinite(source_row["open"] * factor):
             refusal = "invalid_bar_accounted_as_missing"
         else:
+            if ((source_row.get("volume") is not None
+                 and type(source_row["volume"]) not in (int, float))
+                    or (source_row.get("name") is not None
+                        and not isinstance(source_row["name"], str))):
+                result["reason"] = "nonstandard_tradability_metadata_requires_pipeline_investigation"
+                return result
             result["adjusted_open"] = source_row["open"] * factor
             result["adjusted_close"] = adjusted
     if refusal:
