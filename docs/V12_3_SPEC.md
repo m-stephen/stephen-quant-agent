@@ -63,6 +63,25 @@ target/mechanism. No automatic market rerun, statistical relaxation or main merg
 
 ## Current engineering stage / 当前工程阶段
 
-Pure saved-ledger event extraction and unknown-preserving exposure helpers only.
-Source tracing, frozen evidence wrapper, complete report and final validation are
-not implemented yet. No real forensic operation has been launched by these helpers.
+Implemented pure saved-ledger event extraction, unknown-preserving exposure,
+completed-input byte bindings and saved sleeve membership reconstruction. The
+wrapper verifies the untouched original V12.2 producer rather than rebinding its
+consumed plan to this new code. It retains all12 prespecified accounts and exposes
+an after-report input hash check; it never launches an account, fits or predicts.
+
+Membership is recovered from successive saved aggregate desired-weight seat
+counts and the prior same-phase membership, then checked against the stored
+selected-name hash and entered-name count. This recovers names, not missing raw
+scores or top60 ranks. Support identities still require frozen-history evidence.
+
+The pure source/bar comparison helper distinguishes verified source absence,
+format/time refusal, saved adjusted-price mismatch and incomplete evidence. It
+does not interpret no-volume/no-name rows as absent execution bars: those affect
+tradability, not bar inclusion in the frozen producer. Runtime source extraction,
+full stale/recovery chains, complete report and final validation are pending.
+No real forensic operation has been launched by these components. Exact internal
+trading-date alignment still requires the frozen calendar, beyond helper shape
+and endpoint checks.
+
+已实现证据封装和按保存权重反推的同相位成员保留分析，并由保存的成员哈希交叉校验。
+没有重算预测；未保存的分数与top60排名明确不可用。完整来源追溯与最终报告尚未完成。
