@@ -213,6 +213,37 @@ is approved separately; no real prepare/run or main merge is authorized here.
 渲染前后核验57份文件，必须同时具备机器JSON、中英文Markdown和一致的渲染回执。
 双方各18项轻量测试通过，测试文件持久保存；这不是新的市场回测或真实法证最终报告。
 
+## Persistent synthetic orchestration / 持久化合成全链集成
+
+The first complete launcher integration is independently accepted. A single
+owned child ran actual saved-account forensics, independent reference checks,
+external acceptance and bilingual rendering; the parent verified the exited
+child and actual files before completing. All12 account identities,36 windows,
+57 accepted artifacts and three reader reports remain in persistent storage.
+Replay of the consumed claim was refused without changing operation evidence.
+
+The test-only helper adapts synthetic parent identity, isolated paths, frozen
+test-code metadata and offline preregistration. Production prepare/verify equality,
+supervision, numerical checks and rendering are not mocked. Nine lightweight
+adapter tests passed independently. A separate read-only review recomputed
+saved-window metrics and checked both language tables against the machine report.
+
+This is new integration evidence, not reconstruction of the old deleted test
+artifacts. It is not a market experiment, Alpha certification or proof that the
+unresolved native CI crash is fixed. The helper is manual, outside production CLI
+and ordinary test collection; it cannot activate a production bypass via an
+environment flag. Production chain limits stay unchanged. Outer fixture setup
+uses checkpoints, not a continuously supervised whole-script hard deadline.
+
+首次启动器完整合成集成已独立验收：实际子进程完成12账户核验、独立参考校验、外部
+验收及双语报告，父进程再核对退出状态与实际文件。36个窗口、57份验收产物和三份
+阅读报告完整持久保存；同一标记重启被拒绝且未改变证据。审查方独立复算保存指标，
+核对中英文表格与机器结果一致。9项适配边界测试也通过双方独立执行。
+
+合成入口只模拟元数据来源、路径和预登记，不替换数值算法或生产计划比较。该测试
+不恢复旧临时产物，不新增市场试验，不证明Alpha成立或原生崩溃已根治。真实计划
+仅可在干净冻结代码及完整CI通过后准备，真正运行仍需单独审查批准。
+
 ## Bounded native diagnostic / 有限运行时排查
 
 ### Reviewed launch control / 已审查启动控制
