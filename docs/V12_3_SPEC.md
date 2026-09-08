@@ -95,8 +95,8 @@ capital. DSR/PBO/placebo remain null; these summaries are not certification.
 
 Fixed saved-report orchestration now runs the independent components directly,
 with one decoded history and complete compact-ledger checks. External artifact
-acceptance is implemented; the complete launch acceptance, production once-only
-supervisor and bilingual renderer are pending.
+acceptance and the deterministic bilingual renderer are implemented; complete
+launch acceptance and the production once-only supervisor are pending.
 All new numerical integration evidence is synthetic, not a market-data run.
 No real forensic operation has been launched by these components. Exact internal
 trading-date alignment still requires the frozen calendar, beyond helper shape
@@ -123,7 +123,7 @@ objects as proof, and cannot substitute for external final runtime acceptance.
 来源查询必须覆盖独立重建的全部事件和尾链，不得由生产端遗漏事件后同步缩小查询。
 成交量或名称类型异常保留unknown；零成交或缺名称不等于缺少执行bar。
 原始内存对象流式指纹组件用于发现意外原地修改，不新增多用户权限体系。
-固定核验入口及外部文件验收已完成；生产环境一次性监督、完整运行验收和双语报告仍待补齐。
+固定核验入口、外部文件验收及双语生成器已完成；生产环境一次性监督和完整运行验收仍待补齐。
 合成通过不等于真实Alpha通过。
 
 已实现证据封装、成员反演、逐日账本链、来源按键查询及解释、期末未恢复尾段和指标组件。
@@ -185,6 +185,33 @@ unique persistent test directory retaining actual inputs and outputs.
 之前17项合成集成的运行回执仍保留，但详细文件被pytest默认临时保留策略清理，
 因此当前不能完成该旧产物的外部验收，也不会重跑补造旧证据。后续包含报告和启动器的
 实质新集成必须单独审查，使用唯一持久化目录。真实法证运行及最终报告仍未完成。
+
+## Deterministic report projection / 确定性报告投影
+
+The report component projects all36 saved account windows and six primary
+comparisons into machine JSON and separate Chinese/English Markdown. It preserves
+the full saved daily20-cell/unknown exposure rows and both97-event membership and
+support histories. It does not calculate new metrics or reconstruct missing scores.
+Annual opening capital is actual carried NAV. Costs are the frozen round-trip
+contract and actual saved fees; writeoffs/recovery are valuations, not addbacks
+or assumed cash receipts. Missing statistical evidence, unsaved scores, initial
+membership and undefined Sharpe are labeled separately rather than replaced by zero.
+
+Rendering verifies all57 accepted source/control artifacts before and after,
+creates its reader-report directory exclusively, and verifies exact JSON projection
+and deterministic text against actual files. Both languages, the machine report
+and a matching rendered receipt are required. Changed text or values cannot be
+accepted by only recomputing a local output hash.
+
+Eighteen lightweight renderer tests passed in developer and independent review
+runs, with persistent fixtures. These are formatting/integrity tests, not market
+results or the completed real forensic report. Production launcher engineering
+is approved separately; no real prepare/run or main merge is authorized here.
+
+双语生成器直接展示36个账户窗口及6个主比较，保留完整逐日暴露和成员维护证据，
+不新增统计量。年度承接本金、往返成本、估值与现金、不同缺失原因均明确区分。
+渲染前后核验57份文件，必须同时具备机器JSON、中英文Markdown和一致的渲染回执。
+双方各18项轻量测试通过，测试文件持久保存；这不是新的市场回测或真实法证最终报告。
 
 ## Bounded native diagnostic / 有限运行时排查
 
